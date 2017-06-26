@@ -8,6 +8,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
 import bdv.BigDataViewer;
+import bdv.tools.transformation.TransformedSource;
 import bdv.util.BdvFunctions;
 import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
@@ -18,8 +19,10 @@ import bdv.util.volatiles.VolatileTypeMatcher;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.plugin.PlugIn;
+import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
@@ -85,7 +88,15 @@ public class N5Viewer implements PlugIn
 					metadata.getName() );
 
 			final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), sharedQueue );
-			final BdvStackSource< V > stackSource = BdvFunctions.show( volatileSource, bdvOptions );
+
+			final TransformedSource< V > transformedVolatileSource = new TransformedSource<>( volatileSource );
+			final AffineTransform3D voxelSizeTransform = new AffineTransform3D();
+			final double[] normalizedVoxelSize = getNormalizedVoxelSize( source.getVoxelDimensions() );
+			for ( int d = 0; d < voxelSizeTransform.numDimensions(); ++d )
+				voxelSizeTransform.set( normalizedVoxelSize[ d ], d, d );
+			transformedVolatileSource.setFixedTransform( voxelSizeTransform );
+
+			final BdvStackSource< V > stackSource = BdvFunctions.show( transformedVolatileSource, bdvOptions );
 			stackSource.setColor( colors[ c ] );
 			stackSource.setDisplayRange( 0, c == 0 ? 3000 : 1000 );
 			bdvOptions.addTo( stackSource.getBdvHandle() );
@@ -128,5 +139,16 @@ public class N5Viewer implements PlugIn
 		}
 
 		return colors;
+	}
+
+	private static double[] getNormalizedVoxelSize( final VoxelDimensions voxelDimensions )
+	{
+		double minVoxelDim = Double.POSITIVE_INFINITY;
+		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
+			minVoxelDim = Math.min( minVoxelDim, voxelDimensions.dimension( d ) );
+		final double[] normalizedVoxelSize = new double[ voxelDimensions.numDimensions() ];
+		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
+			normalizedVoxelSize[ d ] = voxelDimensions.dimension( d ) / minVoxelDim;
+		return normalizedVoxelSize;
 	}
 }
