@@ -85,7 +85,8 @@ public class N5Viewer implements PlugIn
 					metadata.getName() );
 
 			final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), sharedQueue );
-			final BdvStackSource< V > stackSource = BdvFunctions.show( volatileSource, bdvOptions, colors[ c ] );
+			final BdvStackSource< V > stackSource = BdvFunctions.show( volatileSource, bdvOptions );
+			stackSource.setColor( colors[ c ] );
 			stackSource.setDisplayRange( 0, c == 0 ? 3000 : 1000 );
 			bdvOptions.addTo( stackSource.getBdvHandle() );
 		}
