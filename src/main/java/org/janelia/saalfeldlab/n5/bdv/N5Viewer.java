@@ -1,24 +1,35 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata.ChannelMetadata;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.io.InputTriggerDescription;
+import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.BigDataViewer;
 import bdv.tools.transformation.TransformedSource;
 import bdv.util.BdvFunctions;
+import bdv.util.BdvHandle;
 import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
 import bdv.util.RandomAccessibleIntervalMipmapSource;
 import bdv.util.VolatileRandomAccessibleIntervalMipmapSource;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
+import bdv.viewer.Source;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
+import ij.ImageJ;
 import ij.plugin.PlugIn;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
@@ -42,6 +53,7 @@ public class N5Viewer implements PlugIn
 
 	final public static void main( final String... args ) throws IOException
 	{
+		new ImageJ();
 		exec( args[ 0 ] );
 	}
 
@@ -75,6 +87,7 @@ public class N5Viewer implements PlugIn
 		final N5Reader n5 = N5.openFSReader( n5Path );
 		final N5ExportMetadata metadata = N5ExportMetadata.read( n5Path );
 		final ARGBType[] colors = getColors( metadata.getNumChannels() );
+		final List< Source< V > > channelSources = new ArrayList<>();
 		for ( int c = 0; c < metadata.getNumChannels(); ++c )
 		{
 			final RandomAccessibleInterval< T >[] scaleLevelImgs = new RandomAccessibleInterval[ metadata.getScales().length ];
@@ -100,6 +113,8 @@ public class N5Viewer implements PlugIn
 				transformedVolatileSource.setFixedTransform( voxelSizeTransform );
 			}
 
+			channelSources.add( transformedVolatileSource );
+
 			final BdvStackSource< V > stackSource = BdvFunctions.show( transformedVolatileSource, bdvOptions );
 			stackSource.setColor( colors[ c ] );
 
@@ -109,6 +124,20 @@ public class N5Viewer implements PlugIn
 
 			bdvOptions.addTo( stackSource.getBdvHandle() );
 		}
+
+		final BdvHandle bdvHandle = bdvOptions.values.addTo().getBdvHandle();
+		final TriggerBehaviourBindings bindings = bdvHandle.getTriggerbindings();
+		final InputTriggerConfig config = getInputTriggerConfig();
+
+		final CropController< V > cropController = new CropController<>(
+					bdvHandle.getViewerPanel(),
+					channelSources,
+					config,
+					bdvHandle.getKeybindings(),
+					config );
+
+		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
 	}
 
 	private static ARGBType[] getColors( final int numChannels )
@@ -158,5 +187,37 @@ public class N5Viewer implements PlugIn
 		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
 			normalizedVoxelSize[ d ] = voxelDimensions.dimension( d ) / minVoxelDim;
 		return normalizedVoxelSize;
+	}
+
+	private static InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException
+	{
+		final String[] filenames = { "bigcatkeyconfig.yaml", System.getProperty( "user.home" ) + "/.bdv/bigcatkeyconfig.yaml" };
+
+		for ( final String filename : filenames )
+		{
+			try
+			{
+				if ( new File( filename ).isFile() )
+				{
+					System.out.println( "reading key config from file " + filename );
+					return new InputTriggerConfig( YamlConfigIO.read( filename ) );
+				}
+			}
+			catch ( final IOException e )
+			{
+				System.err.println( "Error reading " + filename );
+			}
+		}
+
+		System.out.println( "creating default input trigger config" );
+
+		// default input trigger config, disables "control button1" drag in bdv
+		// (collides with default of "move annotation")
+		final InputTriggerConfig config =
+				new InputTriggerConfig(
+						Arrays.asList(
+								new InputTriggerDescription[] { new InputTriggerDescription( new String[] { "not mapped" }, "drag rotate slow", "bdv" ) } ) );
+
+		return config;
 	}
 }
