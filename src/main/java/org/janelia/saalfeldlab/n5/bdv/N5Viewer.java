@@ -104,7 +104,8 @@ public class N5Viewer implements PlugIn
 			stackSource.setColor( colors[ c ] );
 
 			final ChannelMetadata channelMetadata = metadata.getChannelMetadata( c );
-			stackSource.setDisplayRange( channelMetadata.getDisplayRangeMin(), channelMetadata.getDisplayRangeMax() );
+			if ( channelMetadata != null && channelMetadata.getDisplayRangeMin() != null && channelMetadata.getDisplayRangeMax() != null )
+				stackSource.setDisplayRange( channelMetadata.getDisplayRangeMin(), channelMetadata.getDisplayRangeMax() );
 
 			bdvOptions.addTo( stackSource.getBdvHandle() );
 		}

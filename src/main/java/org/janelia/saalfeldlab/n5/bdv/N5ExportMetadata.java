@@ -34,37 +34,50 @@ public class N5ExportMetadata
 	private static final String scalesKey = "scales";
 	private static final String pixelResolutionKey = "pixelResolution";
 
-	private final int numChannels;
-	private ChannelMetadata[] channelsMetadata;
+	private final ChannelMetadata[] channelsMetadata;
 	private final String name;
 	private final double[][] scales;
 	private final VoxelDimensions pixelResolution;
 
 	public N5ExportMetadata(
 			final int numChannels,
-			final ChannelMetadata[] channelsMetadata,
 			final String name,
 			final double[][] scales )
 	{
-		this( numChannels, channelsMetadata, name, scales, null );
+		this( numChannels, name, scales, null );
 	}
 
 	public N5ExportMetadata(
 			final int numChannels,
+			final String name,
+			final double[][] scales,
+			final VoxelDimensions pixelResolution )
+	{
+		this( new ChannelMetadata[ numChannels ], name, scales, null );
+	}
+
+	public N5ExportMetadata(
+			final ChannelMetadata[] channelsMetadata,
+			final String name,
+			final double[][] scales )
+	{
+		this( channelsMetadata, name, scales, null );
+	}
+
+	public N5ExportMetadata(
 			final ChannelMetadata[] channelsMetadata,
 			final String name,
 			final double[][] scales,
 			final VoxelDimensions pixelResolution )
 	{
-		this.name = name;
-		this.numChannels = numChannels;
 		this.channelsMetadata = channelsMetadata;
+		this.name = name;
 		this.scales = scales;
 		this.pixelResolution = pixelResolution;
 	}
 
 	public String getName() { return name; }
-	public int getNumChannels() { return numChannels; }
+	public int getNumChannels() { return channelsMetadata.length; }
 	public ChannelMetadata getChannelMetadata( final int channel ) { return channelsMetadata[ channel ]; }
 	public double[][] getScales() { return scales; }
 	public VoxelDimensions getPixelResolution() { return pixelResolution; }
@@ -97,7 +110,6 @@ public class N5ExportMetadata
 			channelsMetadata[ channel ] = ChannelMetadata.read( basePath, channel );
 
 		return new N5ExportMetadata(
-				numChannels,
 				channelsMetadata,
 				Paths.get( basePath ).getFileName().toString(),
 				n5.getAttribute( "", scalesKey, double[][].class ),
@@ -112,9 +124,12 @@ public class N5ExportMetadata
 		private final Double displayRangeMin;
 		private final Double displayRangeMax;
 
-		public ChannelMetadata(
-				final Double displayRangeMin,
-				final Double displayRangeMax )
+		public ChannelMetadata()
+		{
+			this( null, null );
+		}
+
+		private ChannelMetadata( final Double displayRangeMin, final Double displayRangeMax )
 		{
 			this.displayRangeMin = displayRangeMin;
 			this.displayRangeMax = displayRangeMax;
