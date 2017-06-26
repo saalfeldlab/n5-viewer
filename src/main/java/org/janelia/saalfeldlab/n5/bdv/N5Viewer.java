@@ -5,6 +5,7 @@ import java.util.Random;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata.ChannelMetadata;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
 import bdv.BigDataViewer;
@@ -98,7 +99,10 @@ public class N5Viewer implements PlugIn
 
 			final BdvStackSource< V > stackSource = BdvFunctions.show( transformedVolatileSource, bdvOptions );
 			stackSource.setColor( colors[ c ] );
-			stackSource.setDisplayRange( 0, c == 0 ? 3000 : 1000 );
+
+			final ChannelMetadata channelMetadata = metadata.getChannelMetadata( c );
+			stackSource.setDisplayRange( channelMetadata.getDisplayRangeMin(), channelMetadata.getDisplayRangeMax() );
+
 			bdvOptions.addTo( stackSource.getBdvHandle() );
 		}
 	}

@@ -34,51 +34,109 @@ public class N5ExportMetadata
 	private static final String scalesKey = "scales";
 	private static final String pixelResolutionKey = "pixelResolution";
 
-	private final String name;
 	private final int numChannels;
+	private ChannelMetadata[] channelsMetadata;
+	private final String name;
 	private final double[][] scales;
 	private final VoxelDimensions pixelResolution;
 
-	public N5ExportMetadata( final String name, final int numChannels, final double[][] scales, final VoxelDimensions pixelResolution )
+	public N5ExportMetadata(
+			final int numChannels,
+			final ChannelMetadata[] channelsMetadata,
+			final String name,
+			final double[][] scales,
+			final VoxelDimensions pixelResolution )
 	{
 		this.name = name;
 		this.numChannels = numChannels;
+		this.channelsMetadata = channelsMetadata;
 		this.scales = scales;
 		this.pixelResolution = pixelResolution;
 	}
 
 	public String getName() { return name; }
 	public int getNumChannels() { return numChannels; }
+	public ChannelMetadata getChannelMetadata( final int channel ) { return channelsMetadata[ channel ]; }
 	public double[][] getScales() { return scales; }
 	public VoxelDimensions getPixelResolution() { return pixelResolution; }
 
-	public static String getChannelGroupPath( final int channel )
-	{
-		return "c" + channel;
-	}
-
 	public static String getScaleLevelDatasetPath( final int channel, final int scale )
 	{
-		return getChannelGroupPath( channel ) + "/s" + scale;
+		return String.format( "%s/s%d", ChannelMetadata.getChannelGroupPath( channel ), scale );
 	}
 
-	public static void write( final String basePath, final int numChannels, final double[][] scales, final FinalVoxelDimensions pixelResolution ) throws IOException
+	public static void write( final String basePath, final N5ExportMetadata metadata ) throws IOException
 	{
 		final Map< String, Object > attributes = new HashMap<>();
-		attributes.put( numChannelsKey, numChannels );
-		attributes.put( scalesKey, scales );
-		attributes.put( pixelResolutionKey, pixelResolution );
+		attributes.put( numChannelsKey, metadata.getNumChannels() );
+		attributes.put( scalesKey, metadata.getScales() );
+		attributes.put( pixelResolutionKey, metadata.getPixelResolution() );
 		final N5Writer n5 = N5.openFSWriter( basePath );
 		n5.setAttributes( "", attributes );
+
+		for ( int channel = 0; channel < metadata.getNumChannels(); ++channel )
+			ChannelMetadata.write( basePath, channel, metadata.getChannelMetadata( channel ) );
 	}
 
 	public static N5ExportMetadata read( final String basePath ) throws IOException
 	{
 		final N5Reader n5 = N5.openFSReader( basePath );
+
+		final int numChannels = n5.getAttribute( "", numChannelsKey, Integer.class );
+		final ChannelMetadata[] channelsMetadata = new ChannelMetadata[ numChannels ];
+		for ( int channel = 0; channel < numChannels; ++channel )
+			channelsMetadata[ channel ] = ChannelMetadata.read( basePath, channel );
+
 		return new N5ExportMetadata(
+				numChannels,
+				channelsMetadata,
 				Paths.get( basePath ).getFileName().toString(),
-				n5.getAttribute( "", numChannelsKey, Integer.class ),
 				n5.getAttribute( "", scalesKey, double[][].class ),
 				n5.getAttribute( "", pixelResolutionKey, FinalVoxelDimensions.class ) );
+	}
+
+
+	public static class ChannelMetadata
+	{
+		private static final String displayRangeMinKey = "displayRangeMin";
+		private static final String displayRangeMaxKey = "displayRangeMax";
+
+		private final Double displayRangeMin;
+		private final Double displayRangeMax;
+
+		public ChannelMetadata(
+				final Double displayRangeMin,
+				final Double displayRangeMax )
+		{
+			this.displayRangeMin = displayRangeMin;
+			this.displayRangeMax = displayRangeMax;
+		}
+
+		public Double getDisplayRangeMin() { return displayRangeMin; }
+		public Double getDisplayRangeMax() { return displayRangeMax; }
+
+		public static String getChannelGroupPath( final int channel )
+		{
+			return String.format( "c%d", channel );
+		}
+
+		public static void write( final String basePath, final int channel, final ChannelMetadata metadata ) throws IOException
+		{
+			final Map< String, Object > attributes = new HashMap<>();
+			attributes.put( displayRangeMinKey, metadata.getDisplayRangeMin() );
+			attributes.put( displayRangeMaxKey, metadata.getDisplayRangeMax() );
+			final N5Writer n5 = N5.openFSWriter( basePath );
+			final String channelGroupPath = getChannelGroupPath( channel );
+			n5.setAttributes( channelGroupPath, attributes );
+		}
+
+		public static ChannelMetadata read( final String basePath, final int channel ) throws IOException
+		{
+			final N5Reader n5 = N5.openFSReader( basePath );
+			final String channelGroupPath = getChannelGroupPath( channel );
+			return new ChannelMetadata(
+					n5.getAttribute( channelGroupPath, displayRangeMinKey, Double.class ),
+					n5.getAttribute( channelGroupPath, displayRangeMaxKey, Double.class ) );
+		}
 	}
 }
