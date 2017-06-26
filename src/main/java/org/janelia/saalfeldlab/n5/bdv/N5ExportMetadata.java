@@ -44,6 +44,15 @@ public class N5ExportMetadata
 			final int numChannels,
 			final ChannelMetadata[] channelsMetadata,
 			final String name,
+			final double[][] scales )
+	{
+		this( numChannels, channelsMetadata, name, scales, null );
+	}
+
+	public N5ExportMetadata(
+			final int numChannels,
+			final ChannelMetadata[] channelsMetadata,
+			final String name,
 			final double[][] scales,
 			final VoxelDimensions pixelResolution )
 	{
@@ -94,7 +103,6 @@ public class N5ExportMetadata
 				n5.getAttribute( "", scalesKey, double[][].class ),
 				n5.getAttribute( "", pixelResolutionKey, FinalVoxelDimensions.class ) );
 	}
-
 
 	public static class ChannelMetadata
 	{

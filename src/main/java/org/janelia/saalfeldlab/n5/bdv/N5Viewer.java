@@ -91,11 +91,14 @@ public class N5Viewer implements PlugIn
 			final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), sharedQueue );
 
 			final TransformedSource< V > transformedVolatileSource = new TransformedSource<>( volatileSource );
-			final AffineTransform3D voxelSizeTransform = new AffineTransform3D();
-			final double[] normalizedVoxelSize = getNormalizedVoxelSize( source.getVoxelDimensions() );
-			for ( int d = 0; d < voxelSizeTransform.numDimensions(); ++d )
-				voxelSizeTransform.set( normalizedVoxelSize[ d ], d, d );
-			transformedVolatileSource.setFixedTransform( voxelSizeTransform );
+			if ( source.getVoxelDimensions() != null )
+			{
+				final AffineTransform3D voxelSizeTransform = new AffineTransform3D();
+				final double[] normalizedVoxelSize = getNormalizedVoxelSize( source.getVoxelDimensions() );
+				for ( int d = 0; d < voxelSizeTransform.numDimensions(); ++d )
+					voxelSizeTransform.set( normalizedVoxelSize[ d ], d, d );
+				transformedVolatileSource.setFixedTransform( voxelSizeTransform );
+			}
 
 			final BdvStackSource< V > stackSource = BdvFunctions.show( transformedVolatileSource, bdvOptions );
 			stackSource.setColor( colors[ c ] );
