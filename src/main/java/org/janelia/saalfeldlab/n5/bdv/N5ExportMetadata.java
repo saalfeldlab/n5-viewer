@@ -129,6 +129,11 @@ public class N5ExportMetadata
 			this( null, null );
 		}
 
+		public ChannelMetadata( final double displayRangeMin, final double displayRangeMax )
+		{
+			this( new Double( displayRangeMin ), new Double( displayRangeMax ) );
+		}
+
 		private ChannelMetadata( final Double displayRangeMin, final Double displayRangeMax )
 		{
 			this.displayRangeMin = displayRangeMin;
