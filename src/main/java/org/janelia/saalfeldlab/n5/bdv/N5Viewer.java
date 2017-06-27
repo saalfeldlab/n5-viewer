@@ -41,8 +41,35 @@ import net.imglib2.type.numeric.NumericType;
 import net.imglib2.util.Util;
 
 /**
- * {@link BigDataViewer}-based application for exploring N5 datasets that conform to the {@link N5ExportMetadata} format (multichannel, multiscale).
- * Takes a base path to an N5 dataset as a command line argument or via Fiji's Plugins &gt; BigDataViewer &gt; N5 Viewer.
+ * <p>
+ * {@link BigDataViewer}-based application for exploring {@link N5} datasets that conform to the {@link N5ExportMetadata} format (multichannel, multiscale).
+ * Takes a root path to an N5 container as a command line argument or via Fiji's Plugins &gt; BigDataViewer &gt; N5 Viewer.
+ * </p><p>
+ * Expects that a given N5 container conforms to a special format:
+ * </p><p>
+ * /attributes.json<br>
+ * <br>
+ * /c0/attributes.json (optional)<br>
+ * /c0/s0/<br>
+ * /c0/s1/<br>
+ * /c0/s2/<br>
+ * /c0/...<br>
+ * <br>
+ * /c1/attributes.json (optional)<br>
+ * /c1/s0/<br>
+ * /c1/s1/<br>
+ * /c1/s2/<br>
+ * /c1/...<br>
+ * <br>
+ * ...<br>
+ * </p><p>
+ * You can use {@link N5ExportMetadata} to simplify exporting the datasets to the specified format.<br>
+ * <br>
+ * Example of the main attributes.json file:<br>
+ * <pre>{"numChannels":2,"pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]},"scales":[[1,1,1],[2,2,1],[4,4,2],[8,8,4],[16,16,9],[32,32,17]]}</pre>
+ * <br>
+ * Example of the channel-specific attributes.json file (optional):<br>
+ * <pre>{"displayRangeMin":500,"displayRangeMax":3000}</pre>
  *
  * @author Igor Pisarev
  */
