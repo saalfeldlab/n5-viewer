@@ -41,30 +41,35 @@ public class N5ExportMetadata
 
 	public N5ExportMetadata(
 			final int numChannels,
-			final String name,
 			final double[][] scales )
 	{
-		this( numChannels, name, scales, null );
+		this( numChannels, scales, null );
 	}
 
 	public N5ExportMetadata(
 			final int numChannels,
-			final String name,
 			final double[][] scales,
 			final VoxelDimensions pixelResolution )
 	{
-		this( new ChannelMetadata[ numChannels ], name, scales, null );
+		this( new ChannelMetadata[ numChannels ], scales, null );
 	}
 
 	public N5ExportMetadata(
 			final ChannelMetadata[] channelsMetadata,
-			final String name,
 			final double[][] scales )
 	{
-		this( channelsMetadata, name, scales, null );
+		this( channelsMetadata, scales, null );
 	}
 
 	public N5ExportMetadata(
+			final ChannelMetadata[] channelsMetadata,
+			final double[][] scales,
+			final VoxelDimensions pixelResolution )
+	{
+		this( channelsMetadata, "", scales, pixelResolution );
+	}
+
+	private N5ExportMetadata(
 			final ChannelMetadata[] channelsMetadata,
 			final String name,
 			final double[][] scales,
