@@ -30,7 +30,6 @@ import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.util.AbstractNamedAction;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 
 import bdv.viewer.Source;
@@ -43,6 +42,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
@@ -50,12 +50,12 @@ import net.imglib2.view.Views;
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class CropController< T extends NumericType< T > >
+public class CropController< T extends NumericType< T > & NativeType< T > >
 {
 	final protected ViewerPanel viewer;
 
 	private RealPoint lastClick = new RealPoint( 3 );
-	private List< Source< T > > channelSources;
+	private List< Source< T > > sources;
 
 	static private int width = 1024;
 	static private int height = 1024;
@@ -71,20 +71,18 @@ public class CropController< T extends NumericType< T > >
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
 	private final InputMap ksInputMap = new InputMap();
-	private final KeyStrokeAdder ksKeyStrokeAdder;
 
 	public CropController(
 			final ViewerPanel viewer,
-			final List< Source< T > > channelSources,
+			final List< Source< T > > sources,
 			final InputTriggerConfig config,
 			final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties )
 	{
 		this.viewer = viewer;
-		this.channelSources = channelSources;
+		this.sources = sources;
 
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "crop" );
-		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "crop" );
 
 		new Crop( "crop", "SPACE" ).register();
 
@@ -121,23 +119,6 @@ public class CropController< T extends NumericType< T > >
 		{
 			behaviourMap.put( name, this );
 			inputAdder.put( name, defaultTriggers );
-		}
-	}
-
-	private abstract class SelfRegisteringAction extends AbstractNamedAction
-	{
-		private final String[] defaultTriggers;
-
-		public SelfRegisteringAction( final String name, final String ... defaultTriggers )
-		{
-			super( name );
-			this.defaultTriggers = defaultTriggers;
-		}
-
-		public void register()
-		{
-			put( ksActionMap );
-			ksKeyStrokeAdder.put( name(), defaultTriggers );
 		}
 	}
 
@@ -179,9 +160,9 @@ public class CropController< T extends NumericType< T > >
 			long[] min = null;
 
 			final int timepoint = 1;
-			for ( int channel = 0; channel < channelSources.size(); ++channel )
+			for ( int channel = 0; channel < sources.size(); ++channel )
 			{
-				final Source< T > source = channelSources.get( channel );
+				final Source< T > source = sources.get( channel );
 
 				if ( s < 0 || s >= source.getNumMipmapLevels() )
 				{

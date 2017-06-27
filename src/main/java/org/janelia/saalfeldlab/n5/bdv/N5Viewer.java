@@ -87,7 +87,9 @@ public class N5Viewer implements PlugIn
 		final N5Reader n5 = N5.openFSReader( n5Path );
 		final N5ExportMetadata metadata = N5ExportMetadata.read( n5Path );
 		final ARGBType[] colors = getColors( metadata.getNumChannels() );
-		final List< Source< V > > channelSources = new ArrayList<>();
+
+		final List< Source< T > > sources = new ArrayList<>();
+
 		for ( int c = 0; c < metadata.getNumChannels(); ++c )
 		{
 			final RandomAccessibleInterval< T >[] scaleLevelImgs = new RandomAccessibleInterval[ metadata.getScales().length ];
@@ -103,6 +105,8 @@ public class N5Viewer implements PlugIn
 
 			final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), sharedQueue );
 
+			// account for the voxel size
+			final TransformedSource< T > transformedSource = new TransformedSource<>( source );
 			final TransformedSource< V > transformedVolatileSource = new TransformedSource<>( volatileSource );
 			if ( source.getVoxelDimensions() != null )
 			{
@@ -110,18 +114,23 @@ public class N5Viewer implements PlugIn
 				final double[] normalizedVoxelSize = getNormalizedVoxelSize( source.getVoxelDimensions() );
 				for ( int d = 0; d < voxelSizeTransform.numDimensions(); ++d )
 					voxelSizeTransform.set( normalizedVoxelSize[ d ], d, d );
+
+				transformedSource.setFixedTransform( voxelSizeTransform );
 				transformedVolatileSource.setFixedTransform( voxelSizeTransform );
 			}
 
-			channelSources.add( transformedVolatileSource );
-
+			// display in BDV
 			final BdvStackSource< V > stackSource = BdvFunctions.show( transformedVolatileSource, bdvOptions );
-			stackSource.setColor( colors[ c ] );
 
+			// set metadata
+			stackSource.setColor( colors[ c ] );
 			final ChannelMetadata channelMetadata = metadata.getChannelMetadata( c );
 			if ( channelMetadata != null && channelMetadata.getDisplayRangeMin() != null && channelMetadata.getDisplayRangeMax() != null )
 				stackSource.setDisplayRange( channelMetadata.getDisplayRangeMin(), channelMetadata.getDisplayRangeMax() );
 
+			sources.add( transformedSource );
+
+			// reuse BDV handle
 			bdvOptions.addTo( stackSource.getBdvHandle() );
 		}
 
@@ -129,9 +138,9 @@ public class N5Viewer implements PlugIn
 		final TriggerBehaviourBindings bindings = bdvHandle.getTriggerbindings();
 		final InputTriggerConfig config = getInputTriggerConfig();
 
-		final CropController< V > cropController = new CropController<>(
+		final CropController< T > cropController = new CropController<>(
 					bdvHandle.getViewerPanel(),
-					channelSources,
+					sources,
 					config,
 					bdvHandle.getKeybindings(),
 					config );
