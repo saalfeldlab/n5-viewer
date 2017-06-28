@@ -1,10 +1,8 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -13,8 +11,6 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata.ChannelMetadata;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.io.InputTriggerDescription;
-import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.BigDataViewer;
@@ -177,7 +173,7 @@ public class N5Viewer implements PlugIn
 
 		final BdvHandle bdvHandle = bdvOptions.values.addTo().getBdvHandle();
 		final TriggerBehaviourBindings bindings = bdvHandle.getTriggerbindings();
-		final InputTriggerConfig config = getInputTriggerConfig();
+		final InputTriggerConfig config = new InputTriggerConfig();
 
 		final CropController< T > cropController = new CropController<>(
 					bdvHandle.getViewerPanel(),
@@ -237,37 +233,5 @@ public class N5Viewer implements PlugIn
 		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
 			normalizedVoxelSize[ d ] = voxelDimensions.dimension( d ) / minVoxelDim;
 		return normalizedVoxelSize;
-	}
-
-	private static InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException
-	{
-		final String[] filenames = { "bigcatkeyconfig.yaml", System.getProperty( "user.home" ) + "/.bdv/bigcatkeyconfig.yaml" };
-
-		for ( final String filename : filenames )
-		{
-			try
-			{
-				if ( new File( filename ).isFile() )
-				{
-					System.out.println( "reading key config from file " + filename );
-					return new InputTriggerConfig( YamlConfigIO.read( filename ) );
-				}
-			}
-			catch ( final IOException e )
-			{
-				System.err.println( "Error reading " + filename );
-			}
-		}
-
-		System.out.println( "creating default input trigger config" );
-
-		// default input trigger config, disables "control button1" drag in bdv
-		// (collides with default of "move annotation")
-		final InputTriggerConfig config =
-				new InputTriggerConfig(
-						Arrays.asList(
-								new InputTriggerDescription[] { new InputTriggerDescription( new String[] { "not mapped" }, "drag rotate slow", "bdv" ) } ) );
-
-		return config;
 	}
 }
