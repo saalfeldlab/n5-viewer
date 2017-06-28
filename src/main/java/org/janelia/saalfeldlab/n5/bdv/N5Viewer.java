@@ -66,8 +66,12 @@ import net.imglib2.util.Util;
  * You can use {@link N5ExportMetadata} to simplify exporting the datasets to the specified format.<br>
  * <br>
  * Example of the main attributes.json file:<br>
- * <pre>{"numChannels":2,"pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]},"scales":[[1,1,1],[2,2,1],[4,4,2],[8,8,4],[16,16,9],[32,32,17]]}</pre>
- * <br>
+ * <pre>{
+ *   "numChannels":2,
+ *   "scales":[[1,1,1],[2,2,1],[4,4,2],[8,8,4],[16,16,9],[32,32,17]],
+ *   "pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]},
+ *   "affineTransform":[[1,0,0,0],[0,1,0,0],[0,0,1,0]]
+ *}</pre>
  * Example of the channel-specific attributes.json file (optional):<br>
  * <pre>{"displayRangeMin":500,"displayRangeMax":3000}</pre>
  *
@@ -144,6 +148,12 @@ public class N5Viewer implements PlugIn
 
 				transformedSource.setFixedTransform( voxelSizeTransform );
 				transformedVolatileSource.setFixedTransform( voxelSizeTransform );
+
+				if ( metadata.getAffineTransform() != null )
+				{
+					transformedSource.setIncrementalTransform( metadata.getAffineTransform() );
+					transformedVolatileSource.setIncrementalTransform( metadata.getAffineTransform() );
+				}
 			}
 
 			// display in BDV
