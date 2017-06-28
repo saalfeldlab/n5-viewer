@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -67,10 +68,11 @@ import net.imglib2.util.Util;
  * <br>
  * Example of the main attributes.json file:<br>
  * <pre>{
+ *   "name":"some data",
  *   "numChannels":2,
  *   "scales":[[1,1,1],[2,2,1],[4,4,2],[8,8,4],[16,16,9],[32,32,17]],
  *   "pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]},
- *   "affineTransform":[[1,0,0,0],[0,1,0,0],[0,0,1,0]]
+ *   "affineTransform":[[1,-0.30,-0.25,0],[0,1.25,0,0],[0,0,0.85,0]]
  *}</pre>
  * Example of the channel-specific attributes.json file (optional):<br>
  * <pre>{"displayRangeMin":500,"displayRangeMax":3000}</pre>
@@ -117,7 +119,9 @@ public class N5Viewer implements PlugIn
 
 		final N5Reader n5 = N5.openFSReader( n5Path );
 		final N5ExportMetadata metadata = N5ExportMetadata.read( n5Path );
+
 		final ARGBType[] colors = getColors( metadata.getNumChannels() );
+		final String displayName = metadata.getName() != null ? metadata.getName() : Paths.get( n5Path ).getFileName().toString();
 
 		final List< Source< T > > sources = new ArrayList<>();
 
@@ -132,7 +136,7 @@ public class N5Viewer implements PlugIn
 					Util.getTypeFromInterval( scaleLevelImgs[ 0 ] ),
 					metadata.getScales(),
 					metadata.getPixelResolution(),
-					metadata.getName() );
+					displayName );
 
 			final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), sharedQueue );
 

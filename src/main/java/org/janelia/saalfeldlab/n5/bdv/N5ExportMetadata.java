@@ -18,7 +18,6 @@ package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,6 +40,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 
 public class N5ExportMetadata
 {
+	private static final String nameKey = "name";
 	private static final String numChannelsKey = "numChannels";
 	private static final String scalesKey = "scales";
 	private static final String pixelResolutionKey = "pixelResolution";
@@ -53,78 +53,76 @@ public class N5ExportMetadata
 	private final AffineTransform3D affineTransform;
 
 	public N5ExportMetadata(
-			final int numChannels,
-			final double[][] scales )
-	{
-		this( numChannels, scales, null, null );
-	}
-
-	public N5ExportMetadata(
-			final int numChannels,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution )
-	{
-		this( new ChannelMetadata[ numChannels ], scales, pixelResolution, null );
-	}
-
-	public N5ExportMetadata(
-			final int numChannels,
-			final double[][] scales,
-			final AffineTransform3D affineTransform )
-	{
-		this( new ChannelMetadata[ numChannels ], scales, null, affineTransform );
-	}
-
-	public N5ExportMetadata(
-			final int numChannels,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution,
-			final AffineTransform3D affineTransform )
-	{
-		this( new ChannelMetadata[ numChannels ], scales, pixelResolution, affineTransform );
-	}
-
-	public N5ExportMetadata(
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales )
-	{
-		this( channelsMetadata, scales, null, null );
-	}
-
-	public N5ExportMetadata(
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution )
-	{
-		this( channelsMetadata, scales, pixelResolution, null );
-	}
-
-	public N5ExportMetadata(
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales,
-			final AffineTransform3D affineTransform )
-	{
-		this( channelsMetadata, scales, null, affineTransform );
-	}
-
-	public N5ExportMetadata(
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution,
-			final AffineTransform3D affineTransform )
-	{
-		this( channelsMetadata, "", scales, pixelResolution, affineTransform );
-	}
-
-	private N5ExportMetadata(
-			final ChannelMetadata[] channelsMetadata,
 			final String name,
+			final int numChannels,
+			final double[][] scales )
+	{
+		this( name, numChannels, scales, null, null );
+	}
+
+	public N5ExportMetadata(
+			final String name,
+			final int numChannels,
+			final double[][] scales,
+			final VoxelDimensions pixelResolution )
+	{
+		this( name, new ChannelMetadata[ numChannels ], scales, pixelResolution, null );
+	}
+
+	public N5ExportMetadata(
+			final String name,
+			final int numChannels,
+			final double[][] scales,
+			final AffineTransform3D affineTransform )
+	{
+		this( name, new ChannelMetadata[ numChannels ], scales, null, affineTransform );
+	}
+
+	public N5ExportMetadata(
+			final String name,
+			final int numChannels,
 			final double[][] scales,
 			final VoxelDimensions pixelResolution,
 			final AffineTransform3D affineTransform )
 	{
-		this.channelsMetadata = channelsMetadata;
+		this( name, new ChannelMetadata[ numChannels ], scales, pixelResolution, affineTransform );
+	}
+
+	public N5ExportMetadata(
+			final String name,
+			final ChannelMetadata[] channelsMetadata,
+			final double[][] scales )
+	{
+		this( name, channelsMetadata, scales, null, null );
+	}
+
+	public N5ExportMetadata(
+			final String name,
+			final ChannelMetadata[] channelsMetadata,
+			final double[][] scales,
+			final VoxelDimensions pixelResolution )
+	{
+		this( name, channelsMetadata, scales, pixelResolution, null );
+	}
+
+	public N5ExportMetadata(
+			final String name,
+			final ChannelMetadata[] channelsMetadata,
+			final double[][] scales,
+			final AffineTransform3D affineTransform )
+	{
+		this( name, channelsMetadata, scales, null, affineTransform );
+	}
+
+	public N5ExportMetadata(
+			final String name,
+			final ChannelMetadata[] channelsMetadata,
+			final double[][] scales,
+			final VoxelDimensions pixelResolution,
+			final AffineTransform3D affineTransform )
+	{
 		this.name = name;
+		this.channelsMetadata = channelsMetadata;
 		this.scales = scales;
 		this.pixelResolution = pixelResolution;
 		this.affineTransform = affineTransform;
@@ -145,6 +143,7 @@ public class N5ExportMetadata
 	public static void write( final String basePath, final N5ExportMetadata metadata ) throws IOException
 	{
 		final Map< String, Object > attributes = new HashMap<>();
+		attributes.put( nameKey, metadata.getName() );
 		attributes.put( numChannelsKey, metadata.getNumChannels() );
 		attributes.put( scalesKey, metadata.getScales() );
 		attributes.put( pixelResolutionKey, metadata.getPixelResolution() );
@@ -171,8 +170,8 @@ public class N5ExportMetadata
 			channelsMetadata[ channel ] = ChannelMetadata.read( basePath, channel );
 
 		return new N5ExportMetadata(
+				n5.getAttribute( "", nameKey, String.class ),
 				channelsMetadata,
-				Paths.get( basePath ).getFileName().toString(),
 				n5.getAttribute( "", scalesKey, double[][].class ),
 				n5.getAttribute( "", pixelResolutionKey, FinalVoxelDimensions.class ),
 				n5.getAttribute( "", affineTransformKey, AffineTransform3D.class ) );
