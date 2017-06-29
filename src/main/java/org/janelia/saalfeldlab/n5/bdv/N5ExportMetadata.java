@@ -18,11 +18,8 @@ package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.N5;
-import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
 import com.google.gson.GsonBuilder;
@@ -40,193 +37,83 @@ import net.imglib2.realtransform.AffineTransform3D;
 
 public class N5ExportMetadata
 {
-	private static final String nameKey = "name";
-	private static final String numChannelsKey = "numChannels";
-	private static final String scalesKey = "scales";
-	private static final String pixelResolutionKey = "pixelResolution";
-	private static final String affineTransformKey = "affineTransform";
-
-	private final ChannelMetadata[] channelsMetadata;
-	private final String name;
-	private final double[][] scales;
-	private final VoxelDimensions pixelResolution;
-	private final AffineTransform3D affineTransform;
-
-	public N5ExportMetadata(
-			final String name,
-			final int numChannels,
-			final double[][] scales )
+	public static class DisplayRange
 	{
-		this( name, numChannels, scales, null, null );
+		public final double min, max;
+		public DisplayRange( final double min, final double max )
+		{
+			this.min = min;
+			this.max = max;
+		}
 	}
 
-	public N5ExportMetadata(
-			final String name,
-			final int numChannels,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution )
+	public static String getChannelGroupPath( final int channel )
 	{
-		this( name, new ChannelMetadata[ numChannels ], scales, pixelResolution, null );
+		return String.format( "c%d", channel );
 	}
-
-	public N5ExportMetadata(
-			final String name,
-			final int numChannels,
-			final double[][] scales,
-			final AffineTransform3D affineTransform )
-	{
-		this( name, new ChannelMetadata[ numChannels ], scales, null, affineTransform );
-	}
-
-	public N5ExportMetadata(
-			final String name,
-			final int numChannels,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution,
-			final AffineTransform3D affineTransform )
-	{
-		this( name, new ChannelMetadata[ numChannels ], scales, pixelResolution, affineTransform );
-	}
-
-	public N5ExportMetadata(
-			final String name,
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales )
-	{
-		this( name, channelsMetadata, scales, null, null );
-	}
-
-	public N5ExportMetadata(
-			final String name,
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution )
-	{
-		this( name, channelsMetadata, scales, pixelResolution, null );
-	}
-
-	public N5ExportMetadata(
-			final String name,
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales,
-			final AffineTransform3D affineTransform )
-	{
-		this( name, channelsMetadata, scales, null, affineTransform );
-	}
-
-	public N5ExportMetadata(
-			final String name,
-			final ChannelMetadata[] channelsMetadata,
-			final double[][] scales,
-			final VoxelDimensions pixelResolution,
-			final AffineTransform3D affineTransform )
-	{
-		this.name = name;
-		this.channelsMetadata = channelsMetadata;
-		this.scales = scales;
-		this.pixelResolution = pixelResolution;
-		this.affineTransform = affineTransform;
-	}
-
-	public String getName() { return name; }
-	public int getNumChannels() { return channelsMetadata.length; }
-	public ChannelMetadata getChannelMetadata( final int channel ) { return channelsMetadata[ channel ]; }
-	public double[][] getScales() { return scales; }
-	public VoxelDimensions getPixelResolution() { return pixelResolution; }
-	public AffineTransform3D getAffineTransform() { return affineTransform; }
 
 	public static String getScaleLevelDatasetPath( final int channel, final int scale )
 	{
-		return String.format( "%s/s%d", ChannelMetadata.getChannelGroupPath( channel ), scale );
+		return String.format( "%s/s%d", getChannelGroupPath( channel ), scale );
 	}
 
-	public static void write( final String basePath, final N5ExportMetadata metadata ) throws IOException
-	{
-		final Map< String, Object > attributes = new HashMap<>();
-		attributes.put( nameKey, metadata.getName() );
-		attributes.put( numChannelsKey, metadata.getNumChannels() );
-		attributes.put( scalesKey, metadata.getScales() );
-		attributes.put( pixelResolutionKey, metadata.getPixelResolution() );
-		attributes.put( affineTransformKey, metadata.getAffineTransform() );
+	private static final String nameKey = "name";
+	private static final String scalesKey = "scales";
+	private static final String pixelResolutionKey = "pixelResolution";
+	private static final String affineTransformKey = "affineTransform";
+	private static final String displayRangeKey = "displayRange";
 
-		final GsonBuilder gsonBuilder = new GsonBuilder();
-		gsonBuilder.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() );
-		final N5Writer n5 = N5.openFSWriter( basePath, gsonBuilder );
-		n5.setAttributes( "", attributes );
+	private final N5Writer n5;
 
-		for ( int channel = 0; channel < metadata.getNumChannels(); ++channel )
-			ChannelMetadata.write( basePath, channel, metadata.getChannelMetadata( channel ) );
-	}
-
-	public static N5ExportMetadata read( final String basePath ) throws IOException
+	public N5ExportMetadata( final String basePath )
 	{
 		final GsonBuilder gsonBuilder = new GsonBuilder();
 		gsonBuilder.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() );
-		final N5Reader n5 = N5.openFSReader( basePath, gsonBuilder );
-
-		final int numChannels = n5.getAttribute( "", numChannelsKey, Integer.class );
-		final ChannelMetadata[] channelsMetadata = new ChannelMetadata[ numChannels ];
-		for ( int channel = 0; channel < numChannels; ++channel )
-			channelsMetadata[ channel ] = ChannelMetadata.read( basePath, channel );
-
-		return new N5ExportMetadata(
-				n5.getAttribute( "", nameKey, String.class ),
-				channelsMetadata,
-				n5.getAttribute( "", scalesKey, double[][].class ),
-				n5.getAttribute( "", pixelResolutionKey, FinalVoxelDimensions.class ),
-				n5.getAttribute( "", affineTransformKey, AffineTransform3D.class ) );
+		n5 = N5.openFSWriter( basePath, gsonBuilder );
 	}
 
-	public static class ChannelMetadata
+	public int getNumChannels() throws IOException
 	{
-		private static final String displayRangeMinKey = "displayRangeMin";
-		private static final String displayRangeMaxKey = "displayRangeMax";
+		return n5.list( "" ).length;
+	}
 
-		private final Double displayRangeMin;
-		private final Double displayRangeMax;
+	public void setName( final String name ) throws IOException { setAttribute( nameKey, name ); }
+	public String getName() throws IOException { return getAttribute( nameKey, String.class ); }
 
-		public ChannelMetadata()
-		{
-			this( null, null );
-		}
+	public void setDefaultScales( final double[][] scales ) throws IOException { setAttribute( scalesKey, scales ); }
+	public void setDefaultPixelResolution( final VoxelDimensions pixelResolution ) throws IOException { setAttribute( pixelResolutionKey, pixelResolution ); }
+	public void setDefaultAffineTransform( final AffineTransform3D affineTransform ) throws IOException { setAttribute( affineTransformKey, affineTransform ); }
+	public void setDefaultDisplayRange( final DisplayRange displayRange ) throws IOException { setAttribute( displayRangeKey, displayRange ); }
 
-		public ChannelMetadata( final double displayRangeMin, final double displayRangeMax )
-		{
-			this( new Double( displayRangeMin ), new Double( displayRangeMax ) );
-		}
+	public void setScales( final int channel, final double[][] scales ) throws IOException { setAttribute( channel, scalesKey, scales ); }
+	public void setPixelResolution( final int channel, final VoxelDimensions pixelResolution ) throws IOException { setAttribute( channel, pixelResolutionKey, pixelResolution ); }
+	public void setAffineTransform( final int channel, final AffineTransform3D affineTransform ) throws IOException { setAttribute( channel, affineTransformKey, affineTransform ); }
+	public void setDisplayRange( final int channel, final DisplayRange displayRange ) throws IOException { setAttribute( channel, displayRangeKey, displayRange ); }
 
-		private ChannelMetadata( final Double displayRangeMin, final Double displayRangeMax )
-		{
-			this.displayRangeMin = displayRangeMin;
-			this.displayRangeMax = displayRangeMax;
-		}
+	public double[][] getScales( final int channel ) throws IOException { return getAttribute( channel, scalesKey, double[][].class ); }
+	public VoxelDimensions getPixelResolution( final int channel ) throws IOException { return getAttribute( channel, pixelResolutionKey, FinalVoxelDimensions.class ); }
+	public AffineTransform3D getAffineTransform( final int channel ) throws IOException { return getAttribute( channel, affineTransformKey, AffineTransform3D.class ); }
+	public DisplayRange getDisplayRange( final int channel ) throws IOException { return getAttribute( channel, displayRangeKey, DisplayRange.class ); }
 
-		public Double getDisplayRangeMin() { return displayRangeMin; }
-		public Double getDisplayRangeMax() { return displayRangeMax; }
+	private < T > T getAttribute( final String key, final Class< T > clazz ) throws IOException
+	{
+		return n5.getAttribute( "", key, clazz );
+	}
 
-		public static String getChannelGroupPath( final int channel )
-		{
-			return String.format( "c%d", channel );
-		}
+	private < T > void setAttribute( final String key, final T value ) throws IOException
+	{
+		n5.setAttribute( "", key, value );
+	}
 
-		public static void write( final String basePath, final int channel, final ChannelMetadata metadata ) throws IOException
-		{
-			final Map< String, Object > attributes = new HashMap<>();
-			attributes.put( displayRangeMinKey, metadata.getDisplayRangeMin() );
-			attributes.put( displayRangeMaxKey, metadata.getDisplayRangeMax() );
-			final N5Writer n5 = N5.openFSWriter( basePath );
-			final String channelGroupPath = getChannelGroupPath( channel );
-			n5.setAttributes( channelGroupPath, attributes );
-		}
+	private < T > T getAttribute( final int channel, final String key, final Class< T > clazz ) throws IOException
+	{
+		final T overriddenValue = n5.getAttribute( getChannelGroupPath( channel ), key, clazz );
+		return overriddenValue != null ? overriddenValue : getAttribute( key, clazz );
+	}
 
-		public static ChannelMetadata read( final String basePath, final int channel ) throws IOException
-		{
-			final N5Reader n5 = N5.openFSReader( basePath );
-			final String channelGroupPath = getChannelGroupPath( channel );
-			return new ChannelMetadata(
-					n5.getAttribute( channelGroupPath, displayRangeMinKey, Double.class ),
-					n5.getAttribute( channelGroupPath, displayRangeMaxKey, Double.class ) );
-		}
+	private < T > void setAttribute( final int channel, final String key, final T value ) throws IOException
+	{
+		n5.setAttribute( getChannelGroupPath( channel ), key, value );
 	}
 
 	private static class AffineTransform3DJsonAdapter implements JsonSerializer< AffineTransform3D >, JsonDeserializer< AffineTransform3D >
