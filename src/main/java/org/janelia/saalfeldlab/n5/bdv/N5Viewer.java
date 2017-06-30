@@ -79,6 +79,8 @@ public class N5Viewer implements PlugIn
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec( final String n5Path ) throws IOException
 	{
 		final BdvOptions bdvOptions = BdvOptions.options();
+		bdvOptions.frameTitle( "N5 Viewer" );
+
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
 		final N5Reader n5 = N5.openFSReader( n5Path );
