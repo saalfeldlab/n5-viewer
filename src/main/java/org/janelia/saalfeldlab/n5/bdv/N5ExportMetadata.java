@@ -35,6 +35,40 @@ import mpicbg.spim.data.sequence.FinalVoxelDimensions;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.realtransform.AffineTransform3D;
 
+/**
+ * <p>
+ * Defines the format for multichannel multiscale datasets stored in an N5 container:
+ * </p><p>
+ * /attributes.json<br>
+ * <br>
+ * /c0/attributes.json<br>
+ * /c0/s0/<br>
+ * /c0/s1/<br>
+ * /c0/s2/<br>
+ * /c0/...<br>
+ * <br>
+ * /c1/attributes.json<br>
+ * /c1/s0/<br>
+ * /c1/s1/<br>
+ * /c1/s2/<br>
+ * /c1/...<br>
+ * <br>
+ * ...<br>
+ * </p><p>
+ * Root attributes are used as defaults for all channels. They can be overridden by setting channel-specific attributes.
+ * </p><p>
+ * Example of the attributes.json file:<br>
+ * <pre>{
+ *   "name":"some data",
+ *   "scales":[[1,1,1],[2,2,1],[4,4,2],[8,8,4],[16,16,9],[32,32,17]],
+ *   "pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]},
+ *   "affineTransform":[[1,-0.30,-0.25,0],[0,1.25,0,0],[0,0,0.85,0]],
+ *   "displayRange":{"min":500,"max":3000}
+ *}</pre>
+ *
+ * @author Igor Pisarev
+ */
+
 public class N5ExportMetadata
 {
 	public static class DisplayRange
