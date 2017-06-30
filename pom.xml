@@ -60,14 +60,30 @@
 	</repositories>
 
 	<build>
-		<plugins>
-			<plugin>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
-				</configuration>
-			</plugin>
-		</plugins>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<configuration>
+						<source>1.8</source>
+						<target>1.8</target>
+					</configuration>
+				</plugin>
+				<plugin>
+					<artifactId>maven-deploy-plugin</artifactId>
+					<configuration>
+						<altDeploymentRepository>internal.repo::default::file://${deploy.path}</altDeploymentRepository>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
+	
+	<distributionManagement>
+		<repository>
+			<id>local-maven-repo</id>
+			<name>Local Maven Repository</name>
+			<url>file://${deploy.path}</url>
+		</repository>
+	</distributionManagement>
 </project>
