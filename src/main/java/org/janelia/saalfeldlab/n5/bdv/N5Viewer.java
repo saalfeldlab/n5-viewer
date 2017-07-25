@@ -135,13 +135,13 @@ public class N5Viewer implements PlugIn
 
 				transformedSource.setFixedTransform( voxelSizeTransform );
 				transformedVolatileSource.setFixedTransform( voxelSizeTransform );
-
-				final AffineTransform3D metadataTransform = metadata.getAffineTransform( c );
-				if ( metadataTransform != null )
-				{
-					transformedSource.setIncrementalTransform( metadataTransform );
-					transformedVolatileSource.setIncrementalTransform( metadataTransform );
-				}
+			}
+			// prepend with the source transform
+			final AffineTransform3D metadataTransform = metadata.getAffineTransform( c );
+			if ( metadataTransform != null )
+			{
+				transformedSource.setIncrementalTransform( metadataTransform );
+				transformedVolatileSource.setIncrementalTransform( metadataTransform );
 			}
 
 			// display in BDV
