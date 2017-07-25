@@ -16,6 +16,13 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
+import java.awt.Checkbox;
+import java.awt.Panel;
+import java.awt.TextField;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -124,6 +131,9 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 
 	private class Crop extends SelfRegisteringBehaviour implements ClickBehaviour
 	{
+		private	List< TextField > centerPointTextFields;
+		private long[] centerPoint;
+
 		public Crop( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
@@ -133,17 +143,58 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 		public void click( final int x, final int y )
 		{
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
+
+			centerPoint = new long[ lastClick.numDimensions() ];
+			for ( int i = 0; i < centerPoint.length; ++i )
+				centerPoint[ i ] = Math.round( lastClick.getDoublePosition( i ) );
+
 			final GenericDialog gd = new GenericDialog( "Crop" );
+
+			gd.addCheckbox( "Custom_center_point", false );
+			gd.addNumericField( "X : ", centerPoint[ 0 ], 0 );
+			gd.addNumericField( "Y : ", centerPoint[ 1 ], 0 );
+			gd.addNumericField( "Z : ", centerPoint[ 2 ], 0 );
+			gd.addPanel( new Panel() );
 			gd.addNumericField( "width : ", width, 0, 5, "px" );
 			gd.addNumericField( "height : ", height, 0, 5, "px" );
 			gd.addNumericField( "depth : ", depth, 0, 5, "px" );
 			gd.addNumericField( "scale_level : ", scaleLevel, 0 );
 			gd.addCheckbox( "Single_4D_stack", single4DStack );
 
+			centerPointTextFields = new ArrayList<>();
+			for ( int i = 0; i < 3; ++i )
+				centerPointTextFields.add( ( TextField ) gd.getNumericFields().get( i ) );
+
+			final Checkbox centerPointCheckbox = ( Checkbox ) gd.getCheckboxes().get( 0 );
+			centerPointCheckbox.addItemListener(
+				new ItemListener()
+				{
+					@Override
+					public void itemStateChanged( final ItemEvent e )
+					{
+						setCenterPointTextFieldsEnabled( e.getStateChange() == ItemEvent.SELECTED );
+					}
+				}
+			);
+
+			gd.addComponentListener( new ComponentAdapter()
+				{
+					@Override
+					public void componentShown( final ComponentEvent e )
+					{
+						setCenterPointTextFieldsEnabled( false );
+					}
+				}
+			);
+
 			gd.showDialog();
 
 			if ( gd.wasCanceled() )
 				return;
+
+			final boolean customCenterPoint = gd.getNextBoolean();
+			for ( int i = 0; i < 3; ++i )
+				centerPoint[ i ] = ( long ) gd.getNextNumber();
 
 			width = ( int )gd.getNextNumber();
 			height = ( int )gd.getNextNumber();
@@ -159,10 +210,9 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 			final List< RandomAccessibleInterval< T > > channelsImages = new ArrayList<>();
 			long[] min = null;
 
-			final long[] centerPosRounded = new long[ lastClick.numDimensions() ];
-			for ( int i = 0; i < centerPosRounded.length; ++i )
-				centerPosRounded[ i ] = Math.round( lastClick.getDoublePosition( i ) );
-			final String centerPosStr = Arrays.toString( centerPosRounded );
+			final String centerPosStr = Arrays.toString( centerPoint );
+			if ( customCenterPoint )
+				lastClick.setPosition( centerPoint );
 
 			final int timepoint = 1;
 			for ( int channel = 0; channel < sources.size(); ++channel )
@@ -226,6 +276,18 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 			imp.updateAndRepaintWindow();
 
 			return imp;
+		}
+
+		private void setCenterPointTextFieldsEnabled( final boolean enabled )
+		{
+			for ( int i = 0; i < centerPointTextFields.size(); ++i )
+			{
+				final TextField tf = centerPointTextFields.get( i );
+				tf.setEnabled( enabled );
+
+				if ( !enabled )
+					tf.setText( Long.toString( centerPoint[ i ] ) );
+			}
 		}
 	}
 }
