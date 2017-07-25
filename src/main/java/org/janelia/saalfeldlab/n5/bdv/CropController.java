@@ -68,7 +68,7 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 	static private int height = 1024;
 	static private int depth = 512;
 	static private int scaleLevel = 0;
-	static private boolean single4DStack = false;
+	static private boolean single4DStack = true;
 
 	// for behavioUrs
 	private final BehaviourMap behaviourMap = new BehaviourMap();
