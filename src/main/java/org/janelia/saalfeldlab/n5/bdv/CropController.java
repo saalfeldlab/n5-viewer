@@ -159,6 +159,11 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 			final List< RandomAccessibleInterval< T > > channelsImages = new ArrayList<>();
 			long[] min = null;
 
+			final long[] centerPosRounded = new long[ lastClick.numDimensions() ];
+			for ( int i = 0; i < centerPosRounded.length; ++i )
+				centerPosRounded[ i ] = Math.round( lastClick.getDoublePosition( i ) );
+			final String centerPosStr = Arrays.toString( centerPosRounded );
+
 			final int timepoint = 1;
 			for ( int channel = 0; channel < sources.size(); ++channel )
 			{
@@ -191,13 +196,13 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 				channelsImages.add( crop );
 
 				if ( !single4DStack )
-					show( crop, "channel " + channel + " " + Arrays.toString( min ) );
+					show( crop, "channel " + channel + " " + centerPosStr );
 			}
 
 			if ( single4DStack )
 			{
 				// FIXME: need to permute slices/channels. Swapping them in the resulting ImagePlus produces wrong output
-				ImageJFunctions.show( Views.permute( Views.stack( channelsImages ), 2, 3 ), Arrays.toString( min ) );
+				ImageJFunctions.show( Views.permute( Views.stack( channelsImages ), 2, 3 ), centerPosStr );
 			}
 
 			viewer.requestRepaint();
