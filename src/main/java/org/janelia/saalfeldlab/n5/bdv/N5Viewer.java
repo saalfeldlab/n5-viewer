@@ -16,7 +16,11 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +28,8 @@ import java.util.Random;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata.DisplayRange;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.jdom2.JDOMException;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -33,6 +37,7 @@ import bdv.BigDataViewer;
 import bdv.tools.transformation.TransformedSource;
 import bdv.util.BdvFunctions;
 import bdv.util.BdvHandle;
+import bdv.util.BdvHandleFrame;
 import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
 import bdv.util.RandomAccessibleIntervalMipmapSource;
@@ -149,10 +154,8 @@ public class N5Viewer implements PlugIn
 
 			// set metadata
 			stackSource.setColor( colors[ c ] );
-
-			final DisplayRange displayRange = metadata.getDisplayRange( c );
-			if ( displayRange != null )
-				stackSource.setDisplayRange( displayRange.min, displayRange.max );
+			// TODO: estimate the appropriate display range from the displayed data
+			stackSource.setDisplayRange( 100, 1000 );
 
 			sources.add( transformedSource );
 
@@ -161,6 +164,63 @@ public class N5Viewer implements PlugIn
 		}
 
 		final BdvHandle bdvHandle = bdvOptions.values.addTo().getBdvHandle();
+
+		// load existing BDV settings and set up listeners to save them on close
+		if ( bdvHandle instanceof BdvHandleFrame )
+		{
+			final BdvHandleFrame bdvHandleFrame = ( BdvHandleFrame ) bdvHandle;
+			final String bdvSettingsFilepath = Paths.get( n5Path, "bdv-settings.xml" ).toString();
+			initBdvSettings( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+		}
+
+		initCropController( bdvHandle, sources );
+	}
+
+	private static void initBdvSettings( final BigDataViewer bdv, final String bdvSettingsFilepath )
+	{
+		if ( Files.exists( Paths.get( bdvSettingsFilepath ) ) )
+		{
+			try
+			{
+				bdv.loadSettings( bdvSettingsFilepath );
+			}
+			catch ( final IOException | JDOMException e )
+			{
+				IJ.handleException( e );
+			}
+		}
+
+		// save the settings on window closing
+		// workaround to make the custom window listener for saving BDV settings get called before the default listener which deletes all sources
+		final WindowListener[] bdvWindowListeners = bdv.getViewerFrame().getWindowListeners();
+		for ( final WindowListener bdvWindowListener : bdvWindowListeners )
+			bdv.getViewerFrame().removeWindowListener( bdvWindowListener );
+
+		bdv.getViewerFrame().addWindowListener(
+			new WindowAdapter()
+			{
+				@Override
+				public void windowClosing( final WindowEvent event )
+				{
+					try
+					{
+						bdv.saveSettings( bdvSettingsFilepath );
+					}
+					catch ( final IOException e )
+					{
+						IJ.handleException( e );
+					}
+				}
+			}
+		);
+
+		// add all existing listeners back, after the custom listener has been added
+		for ( final WindowListener bdvWindowListener : bdvWindowListeners )
+			bdv.getViewerFrame().addWindowListener( bdvWindowListener );
+	}
+
+	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BdvHandle bdvHandle, final List< Source< T > > sources )
+	{
 		final TriggerBehaviourBindings bindings = bdvHandle.getTriggerbindings();
 		final InputTriggerConfig config = new InputTriggerConfig();
 

@@ -62,8 +62,7 @@ import net.imglib2.realtransform.AffineTransform3D;
  *   "name":"some data",
  *   "scales":[[1,1,1],[2,2,1],[4,4,2],[8,8,4],[16,16,9],[32,32,17]],
  *   "pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]},
- *   "affineTransform":[[1,-0.30,-0.25,0],[0,1.25,0,0],[0,0,0.85,0]],
- *   "displayRange":{"min":500,"max":3000}
+ *   "affineTransform":[[1,-0.30,-0.25,0],[0,1.25,0,0],[0,0,0.85,0]]
  *}</pre>
  *
  * @author Igor Pisarev
@@ -71,16 +70,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 
 public class N5ExportMetadata
 {
-	public static class DisplayRange
-	{
-		public final double min, max;
-		public DisplayRange( final double min, final double max )
-		{
-			this.min = min;
-			this.max = max;
-		}
-	}
-
 	public static String getChannelGroupPath( final int channel )
 	{
 		return String.format( "c%d", channel );
@@ -95,7 +84,6 @@ public class N5ExportMetadata
 	private static final String scalesKey = "scales";
 	private static final String pixelResolutionKey = "pixelResolution";
 	private static final String affineTransformKey = "affineTransform";
-	private static final String displayRangeKey = "displayRange";
 
 	private final N5Writer n5;
 
@@ -117,17 +105,14 @@ public class N5ExportMetadata
 	public void setDefaultScales( final double[][] scales ) throws IOException { setAttribute( scalesKey, scales ); }
 	public void setDefaultPixelResolution( final VoxelDimensions pixelResolution ) throws IOException { setAttribute( pixelResolutionKey, pixelResolution ); }
 	public void setDefaultAffineTransform( final AffineTransform3D affineTransform ) throws IOException { setAttribute( affineTransformKey, affineTransform ); }
-	public void setDefaultDisplayRange( final DisplayRange displayRange ) throws IOException { setAttribute( displayRangeKey, displayRange ); }
 
 	public void setScales( final int channel, final double[][] scales ) throws IOException { setAttribute( channel, scalesKey, scales ); }
 	public void setPixelResolution( final int channel, final VoxelDimensions pixelResolution ) throws IOException { setAttribute( channel, pixelResolutionKey, pixelResolution ); }
 	public void setAffineTransform( final int channel, final AffineTransform3D affineTransform ) throws IOException { setAttribute( channel, affineTransformKey, affineTransform ); }
-	public void setDisplayRange( final int channel, final DisplayRange displayRange ) throws IOException { setAttribute( channel, displayRangeKey, displayRange ); }
 
 	public double[][] getScales( final int channel ) throws IOException { return getAttribute( channel, scalesKey, double[][].class ); }
 	public VoxelDimensions getPixelResolution( final int channel ) throws IOException { return getAttribute( channel, pixelResolutionKey, FinalVoxelDimensions.class ); }
 	public AffineTransform3D getAffineTransform( final int channel ) throws IOException { return getAttribute( channel, affineTransformKey, AffineTransform3D.class ); }
-	public DisplayRange getDisplayRange( final int channel ) throws IOException { return getAttribute( channel, displayRangeKey, DisplayRange.class ); }
 
 	private < T > T getAttribute( final String key, final Class< T > clazz ) throws IOException
 	{
