@@ -106,11 +106,10 @@ public class N5Viewer implements PlugIn
 
 		final N5Reader n5 = N5.openFSReader( n5Path );
 		final N5ExportMetadata metadata = new N5ExportMetadata( n5Path );
-
-		final ARGBType[] colors = getColors( metadata.getNumChannels() );
 		final String displayName = metadata.getName() != null ? metadata.getName() : Paths.get( n5Path ).getFileName().toString();
 
 		final List< Source< T > > sources = new ArrayList<>();
+		final List< BdvStackSource< V > > stackSources = new ArrayList<>();
 
 		for ( int c = 0; c < metadata.getNumChannels(); ++c )
 		{
@@ -152,12 +151,8 @@ public class N5Viewer implements PlugIn
 			// display in BDV
 			final BdvStackSource< V > stackSource = BdvFunctions.show( transformedVolatileSource, bdvOptions );
 
-			// set metadata
-			stackSource.setColor( colors[ c ] );
-			// TODO: estimate the appropriate display range from the displayed data
-			stackSource.setDisplayRange( 100, 1000 );
-
 			sources.add( transformedSource );
+			stackSources.add( stackSource );
 
 			// reuse BDV handle
 			bdvOptions.addTo( stackSource.getBdvHandle() );
@@ -165,24 +160,45 @@ public class N5Viewer implements PlugIn
 
 		final BdvHandle bdvHandle = bdvOptions.values.addTo().getBdvHandle();
 
+		final boolean bdvSettingsLoaded;
+
 		// load existing BDV settings and set up listeners to save them on close
 		if ( bdvHandle instanceof BdvHandleFrame )
 		{
 			final BdvHandleFrame bdvHandleFrame = ( BdvHandleFrame ) bdvHandle;
 			final String bdvSettingsFilepath = Paths.get( n5Path, "bdv-settings.xml" ).toString();
-			initBdvSettings( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+			bdvSettingsLoaded = initBdvSettings( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+		}
+		else
+		{
+			bdvSettingsLoaded = false;
+		}
+
+		if ( !bdvSettingsLoaded )
+		{
+			// set default display settings if BDV settings files does not exist cannot be loaded
+			final ARGBType[] colors = getColors( metadata.getNumChannels() );
+			for ( int i = 0; i < stackSources.size(); ++i )
+			{
+				final BdvStackSource< V > stackSource = stackSources.get( i );
+				stackSource.setColor( colors[ i ] );
+				// TODO: estimate the appropriate display range from the displayed data
+				stackSource.setDisplayRange( 100, 1000 );
+			}
 		}
 
 		initCropController( bdvHandle, sources );
 	}
 
-	private static void initBdvSettings( final BigDataViewer bdv, final String bdvSettingsFilepath )
+	private static boolean initBdvSettings( final BigDataViewer bdv, final String bdvSettingsFilepath )
 	{
+		boolean bdvSettingsLoaded = false;
 		if ( Files.exists( Paths.get( bdvSettingsFilepath ) ) )
 		{
 			try
 			{
 				bdv.loadSettings( bdvSettingsFilepath );
+				bdvSettingsLoaded = true;
 			}
 			catch ( final IOException | JDOMException e )
 			{
@@ -217,6 +233,8 @@ public class N5Viewer implements PlugIn
 		// add all existing listeners back, after the custom listener has been added
 		for ( final WindowListener bdvWindowListener : bdvWindowListeners )
 			bdv.getViewerFrame().addWindowListener( bdvWindowListener );
+
+		return bdvSettingsLoaded;
 	}
 
 	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BdvHandle bdvHandle, final List< Source< T > > sources )
