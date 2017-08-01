@@ -25,6 +25,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -206,6 +208,29 @@ public class N5Viewer implements PlugIn
 			}
 		}
 
+		// save the settings every 5 min
+		final int settingsSaveInterval = 5 * 60 * 1000;
+		final Timer timer = new Timer();
+		timer.schedule(
+			new TimerTask()
+			{
+				@Override
+				public void run()
+				{
+					try
+					{
+						bdv.saveSettings( bdvSettingsFilepath );
+					}
+					catch ( final IOException e )
+					{
+						IJ.handleException( e );
+					}
+				}
+			},
+			settingsSaveInterval,
+			settingsSaveInterval
+		);
+
 		// save the settings on window closing
 		// workaround to make the custom window listener for saving BDV settings get called before the default listener which deletes all sources
 		final WindowListener[] bdvWindowListeners = bdv.getViewerFrame().getWindowListeners();
@@ -220,6 +245,7 @@ public class N5Viewer implements PlugIn
 				{
 					try
 					{
+						timer.cancel();
 						bdv.saveSettings( bdvSettingsFilepath );
 					}
 					catch ( final IOException e )
