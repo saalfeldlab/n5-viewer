@@ -47,7 +47,6 @@ import bdv.util.VolatileRandomAccessibleIntervalMipmapSource;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Source;
-import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
@@ -80,13 +79,9 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
-		final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
-		gd.addDirectoryField( "N5_export_path: ", n5Path );
-		gd.showDialog();
-		if ( gd.wasCanceled() )
+		n5Path = new DatasetSelectorDialog().run();
+		if ( n5Path == null )
 			return;
-
-		n5Path = gd.getNextString();
 
 		try
 		{
