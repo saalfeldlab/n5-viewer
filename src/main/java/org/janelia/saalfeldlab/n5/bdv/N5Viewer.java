@@ -253,6 +253,8 @@ public class N5Viewer implements PlugIn
 		try
 		{
 			bdv.saveSettings( path );
+			Paths.get( path ).toFile().setReadable( true, false );
+			Paths.get( path ).toFile().setWritable( true, false );
 			return true;
 		}
 		catch ( final IOException e )
