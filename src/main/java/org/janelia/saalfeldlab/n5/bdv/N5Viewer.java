@@ -191,17 +191,7 @@ public class N5Viewer implements PlugIn
 	{
 		boolean bdvSettingsLoaded = false;
 		if ( Files.exists( Paths.get( bdvSettingsFilepath ) ) )
-		{
-			try
-			{
-				bdv.loadSettings( bdvSettingsFilepath );
-				bdvSettingsLoaded = true;
-			}
-			catch ( final IOException | JDOMException e )
-			{
-				IJ.handleException( e );
-			}
-		}
+			bdvSettingsLoaded = loadSettings( bdv, bdvSettingsFilepath );
 
 		// save the settings every 5 min
 		final int settingsSaveInterval = 5 * 60 * 1000;
@@ -212,14 +202,7 @@ public class N5Viewer implements PlugIn
 				@Override
 				public void run()
 				{
-					try
-					{
-						bdv.saveSettings( bdvSettingsFilepath );
-					}
-					catch ( final IOException e )
-					{
-						IJ.handleException( e );
-					}
+					saveSettings( bdv, bdvSettingsFilepath );
 				}
 			},
 			settingsSaveInterval,
@@ -238,15 +221,8 @@ public class N5Viewer implements PlugIn
 				@Override
 				public void windowClosing( final WindowEvent event )
 				{
-					try
-					{
-						timer.cancel();
-						bdv.saveSettings( bdvSettingsFilepath );
-					}
-					catch ( final IOException e )
-					{
-						IJ.handleException( e );
-					}
+					timer.cancel();
+					saveSettings( bdv, bdvSettingsFilepath );
 				}
 			}
 		);
@@ -256,6 +232,34 @@ public class N5Viewer implements PlugIn
 			bdv.getViewerFrame().addWindowListener( bdvWindowListener );
 
 		return bdvSettingsLoaded;
+	}
+
+	private static boolean loadSettings( final BigDataViewer bdv, final String path )
+	{
+		try
+		{
+			bdv.loadSettings( path );
+			return true;
+		}
+		catch ( final IOException | JDOMException e )
+		{
+			IJ.handleException( e );
+			return false;
+		}
+	}
+
+	private static boolean saveSettings( final BigDataViewer bdv, final String path )
+	{
+		try
+		{
+			bdv.saveSettings( path );
+			return true;
+		}
+		catch ( final IOException e )
+		{
+			IJ.handleException( e );
+			return false;
+		}
 	}
 
 	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BdvHandle bdvHandle, final List< Source< T > > sources )
