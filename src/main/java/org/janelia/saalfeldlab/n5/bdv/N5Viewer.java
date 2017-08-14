@@ -51,8 +51,6 @@ import net.imglib2.type.numeric.NumericType;
 
 public class N5Viewer implements PlugIn
 {
-	protected static String n5Path = "";
-
 	final public static void main( final String... args ) throws IOException
 	{
 		new ImageJ();
@@ -62,7 +60,7 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
-		n5Path = new DatasetSelectorDialog().run();
+		final String n5Path = new DatasetSelectorDialog().run();
 		if ( n5Path == null )
 			return;
 
