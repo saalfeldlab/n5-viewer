@@ -30,34 +30,25 @@ import java.util.TimerTask;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.jdom2.JDOMException;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.BigDataViewer;
-import bdv.tools.transformation.TransformedSource;
 import bdv.util.BdvFunctions;
 import bdv.util.BdvHandle;
 import bdv.util.BdvHandleFrame;
 import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
-import bdv.util.RandomAccessibleIntervalMipmapSource;
-import bdv.util.VolatileRandomAccessibleIntervalMipmapSource;
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Source;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
-import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
-import net.imglib2.util.Util;
 
 /**
  * {@link BigDataViewer}-based application for exploring {@link N5} datasets that conform to the {@link N5ExportMetadata} format (multichannel, multiscale).
@@ -93,7 +84,6 @@ public class N5Viewer implements PlugIn
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec( final String n5Path ) throws IOException
 	{
 		final BdvOptions bdvOptions = BdvOptions.options();
@@ -110,45 +100,13 @@ public class N5Viewer implements PlugIn
 
 		for ( int c = 0; c < metadata.getNumChannels(); ++c )
 		{
-			final double[][] scales = metadata.getScales( c );
-			final RandomAccessibleInterval< T >[] scaleLevelImgs = new RandomAccessibleInterval[ scales.length ];
-			for ( int s = 0; s < scales.length; ++s )
-				scaleLevelImgs[ s ] = N5Utils.openVolatile( n5, N5ExportMetadata.getScaleLevelDatasetPath( c, s ) );
+			final Source< T > source = N5Source.getSource( n5, metadata, c, displayName );
+			final Source< V > volatileSource = N5Source.getVolatileSource( n5, metadata, c, displayName, sharedQueue );
 
-			final RandomAccessibleIntervalMipmapSource< T > source = new RandomAccessibleIntervalMipmapSource<>(
-					scaleLevelImgs,
-					Util.getTypeFromInterval( scaleLevelImgs[ 0 ] ),
-					scales,
-					metadata.getPixelResolution( c ),
-					displayName );
+			// show in BDV
+			final BdvStackSource< V > stackSource = BdvFunctions.show( volatileSource, bdvOptions );
 
-			final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), sharedQueue );
-
-			// account for the voxel size
-			final TransformedSource< T > transformedSource = new TransformedSource<>( source );
-			final TransformedSource< V > transformedVolatileSource = new TransformedSource<>( volatileSource );
-			if ( source.getVoxelDimensions() != null )
-			{
-				final AffineTransform3D voxelSizeTransform = new AffineTransform3D();
-				final double[] normalizedVoxelSize = getNormalizedVoxelSize( source.getVoxelDimensions() );
-				for ( int d = 0; d < voxelSizeTransform.numDimensions(); ++d )
-					voxelSizeTransform.set( normalizedVoxelSize[ d ], d, d );
-
-				transformedSource.setFixedTransform( voxelSizeTransform );
-				transformedVolatileSource.setFixedTransform( voxelSizeTransform );
-			}
-			// prepend with the source transform
-			final AffineTransform3D metadataTransform = metadata.getAffineTransform( c );
-			if ( metadataTransform != null )
-			{
-				transformedSource.setIncrementalTransform( metadataTransform );
-				transformedVolatileSource.setIncrementalTransform( metadataTransform );
-			}
-
-			// display in BDV
-			final BdvStackSource< V > stackSource = BdvFunctions.show( transformedVolatileSource, bdvOptions );
-
-			sources.add( transformedSource );
+			sources.add( source );
 			stackSources.add( stackSource );
 
 			// reuse BDV handle
@@ -316,16 +274,5 @@ public class N5Viewer implements PlugIn
 		}
 
 		return colors;
-	}
-
-	private static double[] getNormalizedVoxelSize( final VoxelDimensions voxelDimensions )
-	{
-		double minVoxelDim = Double.POSITIVE_INFINITY;
-		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
-			minVoxelDim = Math.min( minVoxelDim, voxelDimensions.dimension( d ) );
-		final double[] normalizedVoxelSize = new double[ voxelDimensions.numDimensions() ];
-		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
-			normalizedVoxelSize[ d ] = voxelDimensions.dimension( d ) / minVoxelDim;
-		return normalizedVoxelSize;
 	}
 }
