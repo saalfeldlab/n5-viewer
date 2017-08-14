@@ -119,12 +119,19 @@ public class N5Viewer implements PlugIn
 			throw new RuntimeException( "Cannot get BigDataViewer instance" );
 		}
 
-		if ( settingsLoadResult == BdvSettingsManager.InitBdvSettingsResult.CANCELED )
+		if ( settingsLoadResult == InitBdvSettingsResult.CANCELED )
 		{
 			bdvHandle.close();
 			return;
 		}
-		else if ( settingsLoadResult == BdvSettingsManager.InitBdvSettingsResult.NOT_LOADED )
+
+		if ( settingsLoadResult == InitBdvSettingsResult.LOADED_READ_ONLY || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
+		{
+			final BdvHandleFrame bdvHandleFrame = ( BdvHandleFrame ) bdvHandle;
+			bdvHandleFrame.getBigDataViewer().getViewerFrame().setTitle( "N5 Viewer (read-only)" );
+		}
+
+		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
 		{
 			// set default display settings if BDV settings files does not exist cannot be loaded
 			final ARGBType[] colors = ColorGenerator.getColors( metadata.getNumChannels() );

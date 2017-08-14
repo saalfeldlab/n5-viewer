@@ -28,7 +28,9 @@ public class BdvSettingsManager
 	public static enum InitBdvSettingsResult
 	{
 		LOADED,
+		LOADED_READ_ONLY,
 		NOT_LOADED,
+		NOT_LOADED_READ_ONLY,
 		CANCELED
 	}
 
@@ -139,7 +141,7 @@ public class BdvSettingsManager
 			if ( gd.wasCanceled() )
 				return InitBdvSettingsResult.CANCELED;
 
-			return loadSettingsNonLocking() ? InitBdvSettingsResult.LOADED : InitBdvSettingsResult.NOT_LOADED;
+			return loadSettingsNonLocking() ? InitBdvSettingsResult.LOADED_READ_ONLY : InitBdvSettingsResult.NOT_LOADED_READ_ONLY;
 		}
 	}
 
