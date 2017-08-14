@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -132,7 +131,7 @@ public class N5Viewer implements PlugIn
 		if ( !bdvSettingsLoaded )
 		{
 			// set default display settings if BDV settings files does not exist cannot be loaded
-			final ARGBType[] colors = getColors( metadata.getNumChannels() );
+			final ARGBType[] colors = ColorGenerator.getColors( metadata.getNumChannels() );
 			for ( int i = 0; i < stackSources.size(); ++i )
 			{
 				final BdvStackSource< V > stackSource = stackSources.get( i );
@@ -236,43 +235,5 @@ public class N5Viewer implements PlugIn
 
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
-	}
-
-	private static ARGBType[] getColors( final int numChannels )
-	{
-		assert numChannels >= 0;
-		if ( numChannels <= 0 )
-			return new ARGBType[ 0 ];
-		else if ( numChannels == 1 )
-			return new ARGBType[] { new ARGBType( 0xffffffff ) };
-
-		final int[] predefinedColors = new int[] {
-				ARGBType.rgba( 0xff, 0, 0xff, 0xff ),
-				ARGBType.rgba( 0, 0xff, 0, 0xff ),
-				ARGBType.rgba( 0, 0, 0xff, 0xff ),
-				ARGBType.rgba( 0xff, 0, 0, 0xff ),
-				ARGBType.rgba( 0xff, 0xff, 0, 0xff ),
-				ARGBType.rgba( 0, 0xff, 0xff, 0xff ),
-		};
-
-		final ARGBType[] colors = new ARGBType[ numChannels ];
-		Random rnd = null;
-
-		for ( int c = 0; c < numChannels; ++c )
-		{
-			if ( c < predefinedColors.length )
-			{
-				colors[ c ] = new ARGBType( predefinedColors[ c ] );
-			}
-			else
-			{
-				if ( rnd == null )
-					rnd = new Random();
-
-				colors[ c ] = new ARGBType( ARGBType.rgba( rnd.nextInt( 1 << 7) << 1, rnd.nextInt( 1 << 7) << 1, rnd.nextInt( 1 << 7) << 1, 0xff ) );
-			}
-		}
-
-		return colors;
 	}
 }
