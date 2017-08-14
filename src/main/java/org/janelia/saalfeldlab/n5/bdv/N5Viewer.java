@@ -16,20 +16,13 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.jdom2.JDOMException;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -115,17 +108,20 @@ public class N5Viewer implements PlugIn
 		final BdvHandle bdvHandle = bdvOptions.values.addTo().getBdvHandle();
 
 		final boolean bdvSettingsLoaded;
+		final BdvSettingsManager settingsManager;
 
 		// load existing BDV settings and set up listeners to save them on close
 		if ( bdvHandle instanceof BdvHandleFrame )
 		{
 			final BdvHandleFrame bdvHandleFrame = ( BdvHandleFrame ) bdvHandle;
 			final String bdvSettingsFilepath = Paths.get( n5Path, "bdv-settings.xml" ).toString();
-			bdvSettingsLoaded = initBdvSettings( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+			settingsManager = new BdvSettingsManager( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+			bdvSettingsLoaded = settingsManager.initBdvSettings();
 		}
 		else
 		{
 			bdvSettingsLoaded = false;
+			settingsManager = null;
 		}
 
 		if ( !bdvSettingsLoaded )
@@ -142,83 +138,6 @@ public class N5Viewer implements PlugIn
 		}
 
 		initCropController( bdvHandle, sources );
-	}
-
-	private static boolean initBdvSettings( final BigDataViewer bdv, final String bdvSettingsFilepath )
-	{
-		boolean bdvSettingsLoaded = false;
-		if ( Files.exists( Paths.get( bdvSettingsFilepath ) ) )
-			bdvSettingsLoaded = loadSettings( bdv, bdvSettingsFilepath );
-
-		// save the settings every 5 min
-		final int settingsSaveInterval = 5 * 60 * 1000;
-		final Timer timer = new Timer();
-		timer.schedule(
-			new TimerTask()
-			{
-				@Override
-				public void run()
-				{
-					saveSettings( bdv, bdvSettingsFilepath );
-				}
-			},
-			settingsSaveInterval,
-			settingsSaveInterval
-		);
-
-		// save the settings on window closing
-		// workaround to make the custom window listener for saving BDV settings get called before the default listener which deletes all sources
-		final WindowListener[] bdvWindowListeners = bdv.getViewerFrame().getWindowListeners();
-		for ( final WindowListener bdvWindowListener : bdvWindowListeners )
-			bdv.getViewerFrame().removeWindowListener( bdvWindowListener );
-
-		bdv.getViewerFrame().addWindowListener(
-			new WindowAdapter()
-			{
-				@Override
-				public void windowClosing( final WindowEvent event )
-				{
-					timer.cancel();
-					saveSettings( bdv, bdvSettingsFilepath );
-				}
-			}
-		);
-
-		// add all existing listeners back, after the custom listener has been added
-		for ( final WindowListener bdvWindowListener : bdvWindowListeners )
-			bdv.getViewerFrame().addWindowListener( bdvWindowListener );
-
-		return bdvSettingsLoaded;
-	}
-
-	private static boolean loadSettings( final BigDataViewer bdv, final String path )
-	{
-		try
-		{
-			bdv.loadSettings( path );
-			return true;
-		}
-		catch ( final IOException | JDOMException e )
-		{
-			IJ.handleException( e );
-			return false;
-		}
-	}
-
-	private static boolean saveSettings( final BigDataViewer bdv, final String path )
-	{
-		try
-		{
-			bdv.saveSettings( path );
-			Paths.get( path ).toFile().setReadable( true, false );
-			Paths.get( path ).toFile().setWritable( true, false );
-			return true;
-		}
-		catch ( final IOException e )
-		{
-			IJ.handleException( e );
-			return false;
-		}
 	}
 
 	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BdvHandle bdvHandle, final List< Source< T > > sources )
