@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -105,24 +106,25 @@ public class N5Viewer implements PlugIn
 
 		final BdvHandle bdvHandle = bdvOptions.values.addTo().getBdvHandle();
 
-		final boolean bdvSettingsLoaded;
-		final BdvSettingsManager settingsManager;
-
-		// load existing BDV settings and set up listeners to save them on close
+		final InitBdvSettingsResult settingsLoadResult;
 		if ( bdvHandle instanceof BdvHandleFrame )
 		{
 			final BdvHandleFrame bdvHandleFrame = ( BdvHandleFrame ) bdvHandle;
 			final String bdvSettingsFilepath = Paths.get( n5Path, "bdv-settings.xml" ).toString();
-			settingsManager = new BdvSettingsManager( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
-			bdvSettingsLoaded = settingsManager.initBdvSettings();
+			final BdvSettingsManager bdvSettingsManager = new BdvSettingsManager( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+			settingsLoadResult = bdvSettingsManager.initBdvSettings();
 		}
 		else
 		{
-			bdvSettingsLoaded = false;
-			settingsManager = null;
+			settingsLoadResult = BdvSettingsManager.InitBdvSettingsResult.NOT_LOADED;
 		}
 
-		if ( !bdvSettingsLoaded )
+		if ( settingsLoadResult == BdvSettingsManager.InitBdvSettingsResult.CANCELED )
+		{
+			bdvHandle.close();
+			return;
+		}
+		else if ( settingsLoadResult == BdvSettingsManager.InitBdvSettingsResult.NOT_LOADED )
 		{
 			// set default display settings if BDV settings files does not exist cannot be loaded
 			final ARGBType[] colors = ColorGenerator.getColors( metadata.getNumChannels() );
