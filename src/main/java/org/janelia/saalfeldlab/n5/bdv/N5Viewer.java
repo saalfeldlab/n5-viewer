@@ -116,7 +116,7 @@ public class N5Viewer implements PlugIn
 		}
 		else
 		{
-			settingsLoadResult = BdvSettingsManager.InitBdvSettingsResult.NOT_LOADED;
+			throw new RuntimeException( "Cannot get BigDataViewer instance" );
 		}
 
 		if ( settingsLoadResult == BdvSettingsManager.InitBdvSettingsResult.CANCELED )
