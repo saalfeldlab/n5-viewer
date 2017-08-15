@@ -21,6 +21,9 @@ import net.imglib2.util.Util;
 
 public class N5Source
 {
+	/**
+	 * Creates a volatile multiscale {@link Source} for specified channel of an N5 dataset.
+	 */
 	@SuppressWarnings("unchecked")
 	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > Source< V > getVolatileSource(
 			final N5Reader n5,
@@ -35,6 +38,9 @@ public class N5Source
 		return transformedVolatileSource;
 	}
 
+	/**
+	 * Creates a multiscale {@link Source} for specified channel of an N5 dataset.
+	 */
 	public static < T extends NumericType< T > & NativeType< T > > Source< T > getSource(
 			final N5Reader n5,
 			final N5ExportMetadata metadata,
