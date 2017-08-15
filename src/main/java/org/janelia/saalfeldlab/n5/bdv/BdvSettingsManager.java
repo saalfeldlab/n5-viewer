@@ -38,6 +38,13 @@ public class BdvSettingsManager
 	private static class FileLockedException extends Exception
 	{
 		private static final long serialVersionUID = 4947244760247759947L;
+
+		public final boolean sameProcess;
+
+		public FileLockedException( final boolean sameProcess )
+		{
+			this.sameProcess = sameProcess;
+		}
 	}
 
 	private static final int SAVE_INTERVAL = 5 * 60 * 1000; // save the settings every 5 min
@@ -153,8 +160,14 @@ public class BdvSettingsManager
 		}
 		catch ( final FileLockedException e )
 		{
+			final String message;
+			if ( e.sameProcess )
+				message = "This dataset is already opened in another window." + System.lineSeparator() + "Would you like to open it anyway (read-only)?";
+			else
+				message = "Someone else is currently browsing this dataset." + System.lineSeparator() + "Would you like to open it anyway (read-only)?";
+
 			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
-			gd.addMessage( "Someone else is currently browsing this dataset." + System.lineSeparator() + "Would you like to open it anyway (read-only)?" );
+			gd.addMessage( message );
 			gd.showDialog();
 			if ( gd.wasCanceled() )
 				return InitBdvSettingsResult.CANCELED;
@@ -169,7 +182,7 @@ public class BdvSettingsManager
 		synchronized ( lockedFiles )
 		{
 			if ( lockedFiles.containsKey( bdvSettingsFilepath ) )
-				throw new FileLockedException();
+				throw new FileLockedException( true );
 		}
 
 		// check if settings file already exists
@@ -211,7 +224,7 @@ public class BdvSettingsManager
 				}
 				fileChannel = null;
 			}
-			throw new FileLockedException();
+			throw new FileLockedException( false );
 		}
 
 		// set permissions to grant everyone access to the dataset
