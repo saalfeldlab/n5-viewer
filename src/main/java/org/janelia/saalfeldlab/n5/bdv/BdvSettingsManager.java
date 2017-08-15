@@ -8,12 +8,13 @@ import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -41,6 +42,8 @@ public class BdvSettingsManager
 
 	private static final int SAVE_INTERVAL = 5 * 60 * 1000; // save the settings every 5 min
 
+	private static Map< String, FileChannel > lockedFiles = new HashMap<>();
+
 	private final BigDataViewer bdv;
 	private final String bdvSettingsFilepath;
 
@@ -60,7 +63,14 @@ public class BdvSettingsManager
 		if ( timer != null )
 			throw new RuntimeException( "Settings have already been initialized" );
 
-		final InitBdvSettingsResult result = loadSettings();
+		final InitBdvSettingsResult result;
+		synchronized ( lockedFiles )
+		{
+			result = loadSettings();
+			if ( result == InitBdvSettingsResult.LOADED )
+				lockedFiles.put( bdvSettingsFilepath, fileChannel );
+		}
+
 		if ( result == InitBdvSettingsResult.CANCELED )
 			return result;
 
@@ -98,26 +108,34 @@ public class BdvSettingsManager
 				@Override
 				public void windowClosing( final WindowEvent event )
 				{
-					saveSettingsLocking();
-
-					// release the file lock
-					if ( fileChannel != null )
+					synchronized ( lockedFiles )
 					{
-						try
+						if ( fileChannel != null )
 						{
-							fileChannel.close();
-						}
-						catch ( final IOException e )
-						{
-							IJ.handleException( e );
-						}
-						fileChannel = null;
-						fileLock = null;
-					}
+							synchronized ( fileChannel )
+							{
+								saveSettingsLocking();
 
-					// stop the timer
-					timer.cancel();
-					timer = null;
+								// release the file lock
+								try
+								{
+									fileChannel.close();
+								}
+								catch ( final IOException e )
+								{
+									IJ.handleException( e );
+								}
+								fileChannel = null;
+								fileLock = null;
+							}
+						}
+
+						// stop the timer
+						timer.cancel();
+						timer = null;
+
+						lockedFiles.remove( bdvSettingsFilepath );
+					}
 				}
 			}
 		);
@@ -147,8 +165,17 @@ public class BdvSettingsManager
 
 	private boolean loadSettingsLocking() throws FileLockedException
 	{
-		// open file channel
+		// check if already opened in another window
+		synchronized ( lockedFiles )
+		{
+			if ( lockedFiles.containsKey( bdvSettingsFilepath ) )
+				throw new FileLockedException();
+		}
+
+		// check if settings file already exists
 		final boolean openExisting = Files.exists( Paths.get( bdvSettingsFilepath ) );
+
+		// open file channel
 		try
 		{
 			fileChannel = FileChannel.open( Paths.get( bdvSettingsFilepath ), StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE );
@@ -163,10 +190,6 @@ public class BdvSettingsManager
 		try
 		{
 			fileLock = fileChannel.tryLock();
-		}
-		catch ( final OverlappingFileLockException e )
-		{
-			fileLock = null;
 		}
 		catch ( final IOException e )
 		{
@@ -200,14 +223,9 @@ public class BdvSettingsManager
 		if ( !openExisting )
 			return false;
 
-		Path tempPath = null;
 		try
 		{
-			tempPath = Files.createTempFile( "n5viewer-", null );
-			Files.copy( Channels.newInputStream( fileChannel ), tempPath, StandardCopyOption.REPLACE_EXISTING );
-			fileChannel.position( 0 );
-			bdv.loadSettings( tempPath.toString() );
-			Files.delete( tempPath );
+			loadSettings( fileChannel );
 			return true;
 		}
 		catch ( final IOException | JDOMException e )
@@ -226,33 +244,82 @@ public class BdvSettingsManager
 				fileChannel = null;
 				fileLock = null;
 			}
-			if ( tempPath != null )
-				tempPath.toFile().delete();
 			return false;
 		}
 	}
 
 	private boolean loadSettingsNonLocking()
 	{
-		Path tempPath = null;
-		try ( final FileChannel fileChannel = FileChannel.open( Paths.get( bdvSettingsFilepath ), StandardOpenOption.READ ) )
+		synchronized ( lockedFiles )
 		{
-			tempPath = Files.createTempFile( "n5viewer-", null );
-			Files.copy( Channels.newInputStream( fileChannel ), tempPath, StandardCopyOption.REPLACE_EXISTING );
-			bdv.loadSettings( tempPath.toString() );
-			Files.delete( tempPath );
-			return true;
-		}
-		catch ( final IOException | JDOMException e )
-		{
-			IJ.handleException( e );
-			if ( tempPath != null )
-				tempPath.toFile().delete();
-			return false;
+			if ( lockedFiles.containsKey( bdvSettingsFilepath ) )
+			{
+				final FileChannel fileChannel = lockedFiles.get( bdvSettingsFilepath );
+				synchronized ( fileChannel )
+				{
+					try
+					{
+						loadSettings( fileChannel );
+						return true;
+					}
+					catch ( final IOException | JDOMException e )
+					{
+						IJ.handleException( e );
+						return false;
+					}
+				}
+			}
+			else
+			{
+				try ( final FileChannel fileChannel = FileChannel.open( Paths.get( bdvSettingsFilepath ), StandardOpenOption.READ ) )
+				{
+					loadSettings( fileChannel );
+					return true;
+				}
+				catch ( final IOException | JDOMException e )
+				{
+					IJ.handleException( e );
+					return false;
+				}
+			}
 		}
 	}
 
 	private boolean saveSettingsLocking()
+	{
+		synchronized ( fileChannel )
+		{
+			try
+			{
+				saveSettings( fileChannel );
+				return true;
+			}
+			catch ( final IOException e )
+			{
+				IJ.handleException( e );
+				return false;
+			}
+		}
+	}
+
+	private void loadSettings( final FileChannel fileChannel ) throws IOException, JDOMException
+	{
+		Path tempPath = null;
+		try
+		{
+			tempPath = Files.createTempFile( "n5viewer-", null );
+			Files.copy( Channels.newInputStream( fileChannel ), tempPath, StandardCopyOption.REPLACE_EXISTING );
+			fileChannel.position( 0 );
+			bdv.loadSettings( tempPath.toString() );
+		}
+		finally
+		{
+			if ( tempPath != null )
+				tempPath.toFile().delete();
+		}
+	}
+
+	private void saveSettings( final FileChannel fileChannel ) throws IOException
 	{
 		Path tempPath = null;
 		try
@@ -262,14 +329,11 @@ public class BdvSettingsManager
 			Files.copy( tempPath, Channels.newOutputStream( fileChannel ) );
 			fileChannel.position( 0 );
 			Files.delete( tempPath );
-			return true;
 		}
-		catch ( final IOException e )
+		finally
 		{
-			IJ.handleException( e );
 			if ( tempPath != null )
 				tempPath.toFile().delete();
-			return false;
 		}
 	}
 }
