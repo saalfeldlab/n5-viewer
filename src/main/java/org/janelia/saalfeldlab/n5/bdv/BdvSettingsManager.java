@@ -341,7 +341,6 @@ public class BdvSettingsManager
 			bdv.saveSettings( tempPath.toString() );
 			Files.copy( tempPath, Channels.newOutputStream( fileChannel ) );
 			fileChannel.position( 0 );
-			Files.delete( tempPath );
 		}
 		finally
 		{
