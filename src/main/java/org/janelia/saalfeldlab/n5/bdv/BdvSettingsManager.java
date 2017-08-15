@@ -317,6 +317,7 @@ public class BdvSettingsManager
 
 	private void loadSettings( final FileChannel fileChannel ) throws IOException, JDOMException
 	{
+		// have to use temporary file and then copy its contents to the original file using already opened file channel, otherwise the lock goes away (on unix)
 		Path tempPath = null;
 		try
 		{
@@ -334,6 +335,7 @@ public class BdvSettingsManager
 
 	private void saveSettings( final FileChannel fileChannel ) throws IOException
 	{
+		// have to use temporary file and then copy its contents to the original file using already opened file channel, otherwise the lock goes away (on unix)
 		Path tempPath = null;
 		try
 		{
