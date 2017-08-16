@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.jdom2.JDOMException;
 
 import bdv.BigDataViewer;
@@ -51,15 +52,22 @@ public class BdvSettingsManager
 		CANCELED
 	}
 
-	private static class FileLockedException extends Exception
+	private static class FileAccessException extends Exception
 	{
-		private static final long serialVersionUID = 4947244760247759947L;
+		private static final long serialVersionUID = 3295627776916190862L;
 
-		public final boolean sameProcess;
-
-		public FileLockedException( final boolean sameProcess )
+		public static enum Reason
 		{
-			this.sameProcess = sameProcess;
+			LOCKED,
+			LOCKED_SAME_PROCESS,
+			NOT_WRITABLE
+		}
+
+		public final Reason reason;
+
+		public FileAccessException( final Reason reason )
+		{
+			this.reason = reason;
 		}
 	}
 
@@ -174,13 +182,23 @@ public class BdvSettingsManager
 		{
 			return loadSettingsLocking() ? InitBdvSettingsResult.LOADED : InitBdvSettingsResult.NOT_LOADED;
 		}
-		catch ( final FileLockedException e )
+		catch ( final FileAccessException e )
 		{
 			final String message;
-			if ( e.sameProcess )
-				message = "This dataset is already opened in another window." + System.lineSeparator() + "Would you like to open it anyway (read-only)?";
-			else
+			switch ( e.reason )
+			{
+			case LOCKED:
 				message = "Someone else is currently browsing this dataset." + System.lineSeparator() + "Would you like to open it anyway (read-only)?";
+				break;
+			case LOCKED_SAME_PROCESS:
+				message = "This dataset is already opened in another window." + System.lineSeparator() + "Would you like to open it anyway (read-only)?";
+				break;
+			case NOT_WRITABLE:
+				message = "You do not have write permissions for saving the viewer settings such as bookmarks, contrast, etc." + System.lineSeparator() + "Would you like to open the dataset anyway (read-only)?";
+				break;
+			default:
+				throw new NotImplementedException( "The file access error " + e.reason + " is not handled properly" );
+			}
 
 			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
 			gd.addMessage( message );
@@ -192,17 +210,21 @@ public class BdvSettingsManager
 		}
 	}
 
-	private boolean loadSettingsLocking() throws FileLockedException
+	private boolean loadSettingsLocking() throws FileAccessException
 	{
 		// check if already opened in another window
 		synchronized ( lockedFiles )
 		{
 			if ( lockedFiles.containsKey( bdvSettingsFilepath ) )
-				throw new FileLockedException( true );
+				throw new FileAccessException( FileAccessException.Reason.LOCKED_SAME_PROCESS );
 		}
 
 		// check if settings file already exists
 		final boolean openExisting = Files.exists( Paths.get( bdvSettingsFilepath ) );
+
+		// check if the path is writable
+		if ( ( openExisting && !Files.isWritable( Paths.get( bdvSettingsFilepath ) ) ) || ( !openExisting && !Files.isWritable( Paths.get( bdvSettingsFilepath ).getParent() ) ) )
+			throw new FileAccessException( FileAccessException.Reason.NOT_WRITABLE );
 
 		// open file channel
 		try
@@ -240,7 +262,7 @@ public class BdvSettingsManager
 				}
 				fileChannel = null;
 			}
-			throw new FileLockedException( false );
+			throw new FileAccessException( FileAccessException.Reason.LOCKED );
 		}
 
 		// set permissions to grant everyone access to the dataset
@@ -279,6 +301,9 @@ public class BdvSettingsManager
 
 	private boolean loadSettingsNonLocking()
 	{
+		if ( !Files.exists( Paths.get( bdvSettingsFilepath ) ) )
+			return false;
+
 		synchronized ( lockedFiles )
 		{
 			if ( lockedFiles.containsKey( bdvSettingsFilepath ) )
