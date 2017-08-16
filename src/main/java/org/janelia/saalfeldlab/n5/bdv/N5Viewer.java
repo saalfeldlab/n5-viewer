@@ -17,6 +17,7 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,7 @@ import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
+import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
@@ -77,6 +79,9 @@ public class N5Viewer implements PlugIn
 
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec( final String n5Path ) throws IOException
 	{
+		if ( !validateN5Path( n5Path ) )
+			return;
+
 		final BdvOptions bdvOptions = BdvOptions.options();
 		bdvOptions.frameTitle( "N5 Viewer" );
 
@@ -161,5 +166,28 @@ public class N5Viewer implements PlugIn
 
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
+	}
+
+	private static boolean validateN5Path( final String n5Path ) throws IOException
+	{
+		if ( !Files.exists( Paths.get( n5Path ) ) )
+		{
+			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+			gd.addMessage( "Selected path does not exist." );
+			gd.hideCancelButton();
+			gd.showDialog();
+			return false;
+		}
+
+		if ( !Files.isDirectory( Paths.get( n5Path ) ) || N5.openFSReader( n5Path ).getAttributes( "" ).isEmpty() )
+		{
+			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+			gd.addMessage( "Selected path is not an N5 dataset." );
+			gd.hideCancelButton();
+			gd.showDialog();
+			return false;
+		}
+
+		return true;
 	}
 }
