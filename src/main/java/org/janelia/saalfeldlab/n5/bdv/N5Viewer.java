@@ -84,7 +84,7 @@ public class N5Viewer implements PlugIn
 
 		final N5Reader n5 = N5.openFSReader( n5Path );
 		final N5ExportMetadata metadata = new N5ExportMetadata( n5Path );
-		final String displayName = metadata.getName() != null ? metadata.getName() : Paths.get( n5Path ).getFileName().toString();
+		final String displayName = metadata.getName() != null ? metadata.getName() : "";
 
 		final List< Source< T > > sources = new ArrayList<>();
 		final List< BdvStackSource< V > > stackSources = new ArrayList<>();
