@@ -383,6 +383,7 @@ public class BdvSettingsManager
 			tempPath = Files.createTempFile( "n5viewer-", null );
 			bdv.saveSettings( tempPath.toString() );
 			Files.copy( tempPath, Channels.newOutputStream( fileChannel ) );
+			fileChannel.truncate( fileChannel.position() );
 			fileChannel.position( 0 );
 		}
 		finally
