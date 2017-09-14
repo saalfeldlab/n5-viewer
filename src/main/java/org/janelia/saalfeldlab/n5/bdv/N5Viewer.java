@@ -36,7 +36,6 @@ import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
-import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
@@ -172,19 +171,13 @@ public class N5Viewer implements PlugIn
 	{
 		if ( !Files.exists( Paths.get( n5Path ) ) )
 		{
-			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
-			gd.addMessage( "Selected path does not exist." );
-			gd.hideCancelButton();
-			gd.showDialog();
+			IJ.showMessage( "Selected path does not exist." );
 			return false;
 		}
 
 		if ( !Files.isDirectory( Paths.get( n5Path ) ) || N5.openFSReader( n5Path ).getAttributes( "" ).isEmpty() )
 		{
-			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
-			gd.addMessage( "Selected path is not an N5 dataset." );
-			gd.hideCancelButton();
-			gd.showDialog();
+			IJ.showMessage( "Selected path is not an N5 dataset." );
 			return false;
 		}
 
