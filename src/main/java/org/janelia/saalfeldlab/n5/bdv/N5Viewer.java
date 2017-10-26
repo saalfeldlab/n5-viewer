@@ -50,7 +50,6 @@ import net.imglib2.type.numeric.NumericType;
  *
  * @author Igor Pisarev
  */
-
 public class N5Viewer implements PlugIn
 {
 	final public static void main( final String... args ) throws IOException
@@ -86,8 +85,8 @@ public class N5Viewer implements PlugIn
 
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
-		final N5Reader n5 = N5.openFSReader( n5Path );
-		final N5ExportMetadata metadata = new N5ExportMetadata( n5Path );
+		final N5Reader n5 = N5.openFSReader( n5Path, N5ExportMetadata.getGsonBuilder() );
+		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
 		final String displayName = metadata.getName() != null ? metadata.getName() : "";
 
 		final List< Source< T > > sources = new ArrayList<>();
@@ -95,8 +94,8 @@ public class N5Viewer implements PlugIn
 
 		for ( int c = 0; c < metadata.getNumChannels(); ++c )
 		{
-			final Source< T > source = N5Source.getSource( n5, metadata, c, displayName );
-			final Source< V > volatileSource = N5Source.getVolatileSource( n5, metadata, c, displayName, sharedQueue );
+			final Source< T > source = N5Source.getSource( n5, c, displayName );
+			final Source< V > volatileSource = N5Source.getVolatileSource( n5, c, displayName, sharedQueue );
 
 			// show in BDV
 			final BdvStackSource< V > stackSource = BdvFunctions.show( volatileSource, bdvOptions );
