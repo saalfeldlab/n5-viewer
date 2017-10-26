@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import com.google.gson.GsonBuilder;
 
 import net.imglib2.realtransform.AffineTransform3D;
+
 /**
  * <p>
  * Defines the format for multichannel multiscale datasets stored in an N5 container:
@@ -64,6 +65,18 @@ public interface N5ExportMetadata
 	public static String getScaleLevelDatasetPath( final int channel, final int scale )
 	{
 		return String.format( "%s/s%d", getChannelGroupPath( channel ), scale );
+	}
+
+	public static GsonBuilder getGsonBuilder()
+	{
+		final GsonBuilder gsonBuilder = new GsonBuilder();
+		registerGsonTypeAdapters( gsonBuilder );
+		return gsonBuilder;
+	}
+
+	public static void registerGsonTypeAdapters( final GsonBuilder gsonBuilder )
+	{
+		gsonBuilder.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() );
 	}
 
 	public static N5ExportMetadataReader openForReading( final N5Reader n5Reader )
