@@ -16,17 +16,12 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
-import java.io.IOException;
-
-import org.janelia.saalfeldlab.n5.N5;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
 import com.google.gson.GsonBuilder;
 
-import mpicbg.spim.data.sequence.FinalVoxelDimensions;
-import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.realtransform.AffineTransform3D;
-
 /**
  * <p>
  * Defines the format for multichannel multiscale datasets stored in an N5 container:
@@ -59,8 +54,7 @@ import net.imglib2.realtransform.AffineTransform3D;
  *
  * @author Igor Pisarev
  */
-
-public class N5ExportMetadata
+public interface N5ExportMetadata
 {
 	public static String getChannelGroupPath( final int channel )
 	{
@@ -72,59 +66,13 @@ public class N5ExportMetadata
 		return String.format( "%s/s%d", getChannelGroupPath( channel ), scale );
 	}
 
-	private static final String nameKey = "name";
-	private static final String scalesKey = "scales";
-	private static final String pixelResolutionKey = "pixelResolution";
-	private static final String affineTransformKey = "affineTransform";
-
-	private final N5Writer n5;
-
-	public N5ExportMetadata( final String basePath )
+	public static N5ExportMetadataReader openForReading( final N5Reader n5Reader )
 	{
-		final GsonBuilder gsonBuilder = new GsonBuilder();
-		gsonBuilder.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() );
-		n5 = N5.openFSWriter( basePath, gsonBuilder );
+		return new N5ExportMetadataReader( n5Reader );
 	}
 
-	public int getNumChannels() throws IOException
+	public static N5ExportMetadataWriter openForWriting( final N5Writer n5Writer )
 	{
-		return n5.list( "" ).length;
+		return new N5ExportMetadataWriter( n5Writer );
 	}
-
-	public void setName( final String name ) throws IOException { setAttribute( nameKey, name ); }
-	public String getName() throws IOException { return getAttribute( nameKey, String.class ); }
-
-	public void setDefaultScales( final double[][] scales ) throws IOException { setAttribute( scalesKey, scales ); }
-	public void setDefaultPixelResolution( final VoxelDimensions pixelResolution ) throws IOException { setAttribute( pixelResolutionKey, pixelResolution ); }
-	public void setDefaultAffineTransform( final AffineTransform3D affineTransform ) throws IOException { setAttribute( affineTransformKey, affineTransform ); }
-
-	public void setScales( final int channel, final double[][] scales ) throws IOException { setAttribute( channel, scalesKey, scales ); }
-	public void setPixelResolution( final int channel, final VoxelDimensions pixelResolution ) throws IOException { setAttribute( channel, pixelResolutionKey, pixelResolution ); }
-	public void setAffineTransform( final int channel, final AffineTransform3D affineTransform ) throws IOException { setAttribute( channel, affineTransformKey, affineTransform ); }
-
-	public double[][] getScales( final int channel ) throws IOException { return getAttribute( channel, scalesKey, double[][].class ); }
-	public VoxelDimensions getPixelResolution( final int channel ) throws IOException { return getAttribute( channel, pixelResolutionKey, FinalVoxelDimensions.class ); }
-	public AffineTransform3D getAffineTransform( final int channel ) throws IOException { return getAttribute( channel, affineTransformKey, AffineTransform3D.class ); }
-
-	private < T > T getAttribute( final String key, final Class< T > clazz ) throws IOException
-	{
-		return n5.getAttribute( "", key, clazz );
-	}
-
-	private < T > void setAttribute( final String key, final T value ) throws IOException
-	{
-		n5.setAttribute( "", key, value );
-	}
-
-	private < T > T getAttribute( final int channel, final String key, final Class< T > clazz ) throws IOException
-	{
-		final T overriddenValue = n5.getAttribute( getChannelGroupPath( channel ), key, clazz );
-		return overriddenValue != null ? overriddenValue : getAttribute( key, clazz );
-	}
-
-	private < T > void setAttribute( final int channel, final String key, final T value ) throws IOException
-	{
-		n5.setAttribute( getChannelGroupPath( channel ), key, value );
-	}
-
 }
