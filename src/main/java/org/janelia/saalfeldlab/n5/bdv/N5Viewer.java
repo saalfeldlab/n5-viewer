@@ -17,7 +17,7 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,22 +77,27 @@ public class N5Viewer implements PlugIn
 
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec( final String n5Path ) throws IOException
 	{
-		if ( !validateN5Path( n5Path ) )
+		final N5Reader n5 = N5ReaderFactory.createN5Reader( URI.create( n5Path ), N5ExportMetadata.getGsonBuilder() );
+		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
+
+		final int numChannels = metadata.getNumChannels();
+		if ( numChannels <= 0 )
+		{
+			IJ.error( "No channels found" );
 			return;
+		}
+
+		final String displayName = metadata.getName() != null ? metadata.getName() : "";
 
 		final BdvOptions bdvOptions = BdvOptions.options();
 		bdvOptions.frameTitle( "N5 Viewer" );
 
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
-		final N5Reader n5 = N5.openFSReader( n5Path, N5ExportMetadata.getGsonBuilder() );
-		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
-		final String displayName = metadata.getName() != null ? metadata.getName() : "";
-
 		final List< Source< T > > sources = new ArrayList<>();
 		final List< BdvStackSource< V > > stackSources = new ArrayList<>();
 
-		for ( int c = 0; c < metadata.getNumChannels(); ++c )
+		for ( int c = 0; c < numChannels; ++c )
 		{
 			final Source< T > source = N5Source.getSource( n5, c, displayName );
 			final Source< V > volatileSource = N5Source.getVolatileSource( n5, c, displayName, sharedQueue );
@@ -137,7 +142,7 @@ public class N5Viewer implements PlugIn
 		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
 		{
 			// set default display settings if BDV settings files does not exist cannot be loaded
-			final ARGBType[] colors = ColorGenerator.getColors( metadata.getNumChannels() );
+			final ARGBType[] colors = ColorGenerator.getColors( numChannels );
 			for ( int i = 0; i < stackSources.size(); ++i )
 			{
 				final BdvStackSource< V > stackSource = stackSources.get( i );
@@ -164,22 +169,5 @@ public class N5Viewer implements PlugIn
 
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
-	}
-
-	private static boolean validateN5Path( final String n5Path ) throws IOException
-	{
-		if ( !Files.exists( Paths.get( n5Path ) ) )
-		{
-			IJ.showMessage( "Selected path does not exist." );
-			return false;
-		}
-
-		if ( !Files.isDirectory( Paths.get( n5Path ) ) || N5.openFSReader( n5Path ).getAttributes( "" ).isEmpty() )
-		{
-			IJ.showMessage( "Selected path is not an N5 dataset." );
-			return false;
-		}
-
-		return true;
 	}
 }
