@@ -17,8 +17,6 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -77,7 +75,9 @@ public class N5Viewer implements PlugIn
 
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec( final String n5Path ) throws IOException
 	{
-		final N5Reader n5 = N5ReaderFactory.createN5Reader( URI.create( n5Path ), N5ExportMetadata.getGsonBuilder() );
+		final DataAccessFactory dataAccessFactory = new DataAccessFactory( DataAccessFactory.getTypeByPath( n5Path ) );
+
+		final N5Reader n5 = dataAccessFactory.createN5Reader( n5Path );
 		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
 
 		final int numChannels = metadata.getNumChannels();
@@ -118,8 +118,8 @@ public class N5Viewer implements PlugIn
 		if ( bdvHandle instanceof BdvHandleFrame )
 		{
 			final BdvHandleFrame bdvHandleFrame = ( BdvHandleFrame ) bdvHandle;
-			final String bdvSettingsFilepath = Paths.get( n5Path, "bdv-settings.xml" ).toString();
-			final BdvSettingsManager bdvSettingsManager = new BdvSettingsManager( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+			final String bdvSettingsPath = dataAccessFactory.combinePaths( n5Path, "bdv-settings.xml" );
+			final BdvSettingsManager bdvSettingsManager = dataAccessFactory.createBdvSettingsManager( bdvHandleFrame.getBigDataViewer(), bdvSettingsPath );
 			settingsLoadResult = bdvSettingsManager.initBdvSettings();
 		}
 		else
