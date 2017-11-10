@@ -43,6 +43,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-google-cloud</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-imglib2</artifactId>
 			<version>1.0.0</version>
 		</dependency>
@@ -50,6 +55,32 @@
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
 			<version>1.0.0-beta-7-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-resourcemanager</artifactId>
+			<version>0.28.0-alpha</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.apis</groupId>
+			<artifactId>google-api-services-oauth2</artifactId>
+			<version>v2-rev131-1.23.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava-jdk5</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.google.http-client</groupId>
+			<artifactId>google-http-client-jackson2</artifactId>
+			<version>1.23.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.oauth-client</groupId>
+			<artifactId>google-oauth-client-jetty</artifactId>
+			<version>1.23.0</version>
 		</dependency>
 	</dependencies>
 
