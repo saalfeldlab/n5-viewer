@@ -14,12 +14,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package org.janelia.saalfeldlab.n5.bdv;
+package org.janelia.saalfeldlab.n5.bdv.s3;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
+import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
 import org.jdom2.JDOMException;
 
 import com.amazonaws.services.s3.AmazonS3;

@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3;
 
 import com.amazonaws.services.s3.AmazonS3;
