@@ -104,9 +104,12 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 				}
 			}
 
-			// stop the timer
-			saveSettingsTimer.cancel();
-			saveSettingsTimer = null;
+			if ( saveSettingsTimer != null )
+			{
+				// stop the timer
+				saveSettingsTimer.cancel();
+				saveSettingsTimer = null;
+			}
 
 			lockedFiles.remove( bdvSettingsFilepath );
 		}

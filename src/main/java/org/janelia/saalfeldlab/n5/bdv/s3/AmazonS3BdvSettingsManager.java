@@ -21,7 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
 import org.jdom2.JDOMException;
 
 import com.amazonaws.services.s3.AmazonS3;
@@ -76,9 +75,12 @@ public class AmazonS3BdvSettingsManager extends BdvSettingsManager
 	@Override
 	protected void saveSettingsOnWindowClosing()
 	{
-		saveSettings();
-		saveSettingsTimer.cancel();
-		saveSettingsTimer = null;
+		if ( saveSettingsTimer != null )
+		{
+			saveSettings();
+			saveSettingsTimer.cancel();
+			saveSettingsTimer = null;
+		}
 	}
 
 	private InitBdvSettingsResult loadSettings()

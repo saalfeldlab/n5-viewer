@@ -68,9 +68,12 @@ public class GoogleCloudBdvSettingsManager extends BdvSettingsManager
 	@Override
 	protected void saveSettingsOnWindowClosing()
 	{
-		saveSettings();
-		saveSettingsTimer.cancel();
-		saveSettingsTimer = null;
+		if ( saveSettingsTimer != null )
+		{
+			saveSettings();
+			saveSettingsTimer.cancel();
+			saveSettingsTimer = null;
+		}
 	}
 
 	private InitBdvSettingsResult loadSettings()
