@@ -19,12 +19,14 @@ package org.janelia.saalfeldlab.n5.bdv;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorage;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3;
@@ -90,7 +92,16 @@ public class DataAccessFactory
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			googleCloudStorage = GoogleCloudStorageClient.create();
+			googleCloudStorage =
+					new GoogleCloudStorageClient(
+							new GoogleCloudOAuth(
+									Arrays.asList( GoogleCloudStorageClient.StorageScope.READ_WRITE ),
+									"n5-viewer-google-cloud-oauth2",
+									getClass().getResourceAsStream( "/googlecloud_client_secrets.json" )
+								)
+							.getAccessToken()
+						)
+					.create();
 			break;
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
