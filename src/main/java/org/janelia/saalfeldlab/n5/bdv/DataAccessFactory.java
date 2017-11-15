@@ -92,16 +92,17 @@ public class DataAccessFactory
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			googleCloudStorage =
-					new GoogleCloudStorageClient(
-							new GoogleCloudOAuth(
-									Arrays.asList( GoogleCloudStorageClient.StorageScope.READ_WRITE ),
-									"n5-viewer-google-cloud-oauth2",
-									getClass().getResourceAsStream( "/googlecloud_client_secrets.json" )
-								)
-							.getAccessToken()
-						)
-					.create();
+			final GoogleCloudOAuth googleCloudOAuth = new GoogleCloudOAuth(
+					Arrays.asList( GoogleCloudStorageClient.StorageScope.READ_WRITE ),
+					"n5-viewer-google-cloud-oauth2",
+					getClass().getResourceAsStream( "/googlecloud_client_secrets.json" )
+				);
+			final GoogleCloudStorageClient googleCloudStorageClient = new GoogleCloudStorageClient(
+					googleCloudOAuth.getAccessToken(),
+					googleCloudOAuth.getClientSecrets(),
+					googleCloudOAuth.getRefreshToken()
+				);
+			googleCloudStorage = googleCloudStorageClient.create();
 			break;
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
