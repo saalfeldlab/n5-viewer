@@ -262,9 +262,8 @@ public class DatasetSelectorDialog
 			final JFileChooser directoryChooser = new JFileChooser( directory );
 			directoryChooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
 
-			directoryChooser.showOpenDialog( gd );
-			final File selectedDirectory = directoryChooser.getSelectedFile();
-			return selectedDirectory != null ? selectedDirectory.getAbsolutePath() : null;
+			final int result = directoryChooser.showOpenDialog( gd );
+			return result == JFileChooser.APPROVE_OPTION ? directoryChooser.getSelectedFile().getAbsolutePath() : null;
 		}
 	}
 
