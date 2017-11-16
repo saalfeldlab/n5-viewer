@@ -43,6 +43,7 @@ import java.util.regex.Pattern;
 
 import javax.swing.JFileChooser;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 
 import fiji.util.gui.GenericDialogPlus;
@@ -77,7 +78,9 @@ public class DatasetSelectorDialog
 	private static final String EMPTY_ITEM = "                                                                                                ";
 
 	private DataAccessType selectedStorageType;
+
 	private Map< DataAccessType, SelectionHistory > storageSelectionHistory;
+	private Map< DataAccessType, BrowseHandler > storageBrowseHandlers;
 
 	private GenericDialogPlus gd;
 	private Choice choice;
@@ -93,6 +96,12 @@ public class DatasetSelectorDialog
 		storageSelectionHistory = new HashMap<>();
 		for ( final Entry< DataAccessType, String > entry : storageHistoryPrefKeys.entrySet() )
 			storageSelectionHistory.put( entry.getKey(), new SelectionHistory( entry.getValue() ) );
+
+		// create browse handlers
+		storageBrowseHandlers = new HashMap<>();
+		storageBrowseHandlers.put( DataAccessType.FILESYSTEM, new FilesystemBrowseHandler() );
+		storageBrowseHandlers.put( DataAccessType.AMAZON_S3, new S3BrowseHandler() );
+		storageBrowseHandlers.put( DataAccessType.GOOGLE_CLOUD, new GoogleCloudBrowseHandler() );
 
 		// add storage type selector
 		selectedStorageType = DataAccessType.valueOf( Prefs.get( STORAGE_PREF_KEY, DataAccessType.FILESYSTEM.toString() ) );
@@ -130,9 +139,18 @@ public class DatasetSelectorDialog
 		gd.addChoice( "N5_dataset_path: ", getChoiceItems().toArray( new String[ 0 ] ), null );
 		choice = ( Choice ) gd.getChoices().get( 0 );
 
-		// add browse listener
-		final ChoiceDirectoryListener choiceDirectoryListener = addChoiceDirectorySelector();
+		// add browse button & listener
+		final Button button = new Button( "Browse..." );
+		final BrowseListener browseListener = new BrowseListener();
+		button.addActionListener( browseListener );
+		button.addKeyListener( gd );
+		final GridBagConstraints constraints = new GridBagConstraints();
+		constraints.gridwidth = 2;
+		constraints.gridy = 1;
+		constraints.insets = new Insets( 0, 5, 0, 0 );
+		gd.add( button, constraints );
 
+		// add handler to toggle OK button state at startup
 		gd.addWindowListener(
 				new WindowAdapter()
 				{
@@ -141,7 +159,6 @@ public class DatasetSelectorDialog
 					{
 						okButton = gd.getButtons()[ 0 ];
 						okButton.setEnabled( !fakeFirstItem );
-						choiceDirectoryListener.setOKButton( okButton );
 					}
 				}
 			);
@@ -151,8 +168,10 @@ public class DatasetSelectorDialog
 		if ( gd.wasCanceled() )
 			return null;
 
+		// update selected storage type
 		Prefs.set( STORAGE_PREF_KEY, selectedStorageType.toString() );
 
+		// update selection history
 		final String selection = gd.getNextChoice();
 		storageSelectionHistory.get( selectedStorageType ).addToHistory( selection );
 
@@ -166,22 +185,6 @@ public class DatasetSelectorDialog
 		if ( fakeFirstItem )
 			choiceItems.add( EMPTY_ITEM );
 		return choiceItems;
-	}
-
-	private ChoiceDirectoryListener addChoiceDirectorySelector()
-	{
-		final Button button = new Button( "Browse..." );
-		final ChoiceDirectoryListener listener = new ChoiceDirectoryListener();
-		button.addActionListener( listener );
-		button.addKeyListener( gd );
-
-		final GridBagConstraints constraints = new GridBagConstraints();
-		constraints.gridwidth = 2;
-		constraints.gridy = 1;
-		constraints.insets = new Insets( 0, 5, 0, 0 );
-
-		gd.add( button, constraints );
-		return listener;
 	}
 
 	private class StorageTypeListener implements ItemListener
@@ -198,36 +201,22 @@ public class DatasetSelectorDialog
 		}
 	}
 
-	private class ChoiceDirectoryListener implements ActionListener
+	private class BrowseListener implements ActionListener
 	{
-		private Button okButton;
 		private int lastItemIndex = -1;
-
-		public void setOKButton( final Button okButton )
-		{
-			this.okButton = okButton;
-		}
 
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			File directory = new File( choice.getSelectedItem() );
-			while ( directory != null && !directory.exists() )
-				directory = directory.getParentFile();
-
-			final JFileChooser fc = new JFileChooser( directory );
-			fc.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
-
-			fc.showOpenDialog( null );
-			final File selFile = fc.getSelectedFile();
-			if ( selFile != null )
+			final BrowseHandler browseHandler = storageBrowseHandlers.get( selectedStorageType );
+			final String newSelected = browseHandler.select();
+			if ( newSelected != null )
 			{
 				final List< String > choiceItems = new ArrayList<>();
 				for ( int i = 0; i < choice.getItemCount(); ++i )
 					choiceItems.add( choice.getItem( i ) );
 
 				final String oldSelected = choiceItems.get( 0 );
-				final String newSelected = selFile.getAbsolutePath();
 
 				// put old selected item back on its position, or just remove it if was not present in the history
 				if ( fakeFirstItem )
@@ -255,6 +244,49 @@ public class DatasetSelectorDialog
 			}
 		}
 	}
+
+	private interface BrowseHandler
+	{
+		String select();
+	}
+
+	private class FilesystemBrowseHandler implements BrowseHandler
+	{
+		@Override
+		public String select()
+		{
+			File directory = new File( choice.getSelectedItem() );
+			while ( directory != null && !directory.exists() )
+				directory = directory.getParentFile();
+
+			final JFileChooser directoryChooser = new JFileChooser( directory );
+			directoryChooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+
+			directoryChooser.showOpenDialog( null );
+			final File selectedDirectory = directoryChooser.getSelectedFile();
+			return selectedDirectory != null ? selectedDirectory.getAbsolutePath() : null;
+		}
+	}
+
+	private class S3BrowseHandler implements BrowseHandler
+	{
+		@Override
+		public String select()
+		{
+			throw new NotImplementedException( "TODO: S3BrowseHandler" );
+		}
+	}
+
+	private class GoogleCloudBrowseHandler implements BrowseHandler
+	{
+		@Override
+		public String select()
+		{
+			throw new NotImplementedException( "TODO: GoogleCloudBrowseHandler" );
+		}
+	}
+
+
 
 	private static class SelectionHistory
 	{
