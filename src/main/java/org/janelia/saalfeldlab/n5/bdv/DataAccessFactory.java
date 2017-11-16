@@ -20,9 +20,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth.Scope;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -49,9 +51,9 @@ public class DataAccessFactory
 		GOOGLE_CLOUD
 	}
 
-	private static final String localFileProtocol = "file";
-	private static final String s3Protocol = "s3";
-	private static final String googleCloudProtocol = "gs";
+	public static final String localFileProtocol = "file";
+	public static final String s3Protocol = "s3";
+	public static final String googleCloudProtocol = "gs";
 
 	private final DataAccessType type;
 	private final AmazonS3 s3;
@@ -77,6 +79,15 @@ public class DataAccessFactory
 		}
 	}
 
+	public static GoogleCloudOAuth createGoogleCloudOAuth( final Collection< ? extends Scope > scopes ) throws IOException
+	{
+		return new GoogleCloudOAuth(
+				scopes,
+				"n5-viewer-google-cloud-oauth2",
+				DataAccessFactory.class.getResourceAsStream( "/googlecloud_client_secrets.json" )
+			);
+	}
+
 	public DataAccessFactory( final DataAccessType type ) throws IOException
 	{
 		this.type = type;
@@ -92,11 +103,7 @@ public class DataAccessFactory
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			final GoogleCloudOAuth googleCloudOAuth = new GoogleCloudOAuth(
-					Arrays.asList( GoogleCloudStorageClient.StorageScope.READ_WRITE ),
-					"n5-viewer-google-cloud-oauth2",
-					getClass().getResourceAsStream( "/googlecloud_client_secrets.json" )
-				);
+			final GoogleCloudOAuth googleCloudOAuth = createGoogleCloudOAuth( Arrays.asList( GoogleCloudStorageClient.StorageScope.READ_WRITE ) );
 			final GoogleCloudStorageClient googleCloudStorageClient = new GoogleCloudStorageClient(
 					googleCloudOAuth.getAccessToken(),
 					googleCloudOAuth.getClientSecrets(),
