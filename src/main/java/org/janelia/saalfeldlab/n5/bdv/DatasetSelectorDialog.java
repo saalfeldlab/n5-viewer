@@ -17,40 +17,121 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.awt.Button;
+import java.awt.Checkbox;
 import java.awt.Choice;
-import java.awt.FlowLayout;
-import java.awt.Panel;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import javax.swing.JFileChooser;
+
+import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 
 import fiji.util.gui.GenericDialogPlus;
 import ij.Prefs;
 
 public class DatasetSelectorDialog
 {
+	private static final Map< DataAccessType, String > storages;
+	private static final Map< DataAccessType, String > storageHistoryPrefKeys;
+	static
+	{
+		storages = new HashMap<>();
+		storages.put( DataAccessType.FILESYSTEM, "Filesystem" );
+		storages.put( DataAccessType.AMAZON_S3, "Amazon Web Services S3" );
+		storages.put( DataAccessType.GOOGLE_CLOUD, "Google Cloud Storage" );
+
+		storageHistoryPrefKeys = new HashMap<>();
+		storageHistoryPrefKeys.put( DataAccessType.FILESYSTEM, "n5-viewer.history" );
+		storageHistoryPrefKeys.put( DataAccessType.AMAZON_S3, "n5-viewer-s3.history" );
+		storageHistoryPrefKeys.put( DataAccessType.GOOGLE_CLOUD, "n5-viewer-gs.history" );
+	}
+	private static DataAccessType getAccessTypeByLabel( final String label )
+	{
+		for ( final Entry< DataAccessType, String > entry : storages.entrySet() )
+			if ( entry.getValue().equals( label ) )
+				return entry.getKey();
+		return null;
+	}
+
+	private static final String STORAGE_PREF_KEY = "n5-viewer.storage";
+
 	private static final String EMPTY_ITEM = "                                                                                                ";
+
+	private DataAccessType selectedStorageType;
+	private Map< DataAccessType, SelectionHistory > storageSelectionHistory;
+
+	private GenericDialogPlus gd;
+	private Choice choice;
+	private Button okButton;
+
+	private boolean fakeFirstItem;
 
 	public String run()
 	{
-		final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+		gd = new GenericDialogPlus( "N5 Viewer" );
 
-		final SelectionHistory selectionHistory = new SelectionHistory();
-		final List< String > choiceItems = new ArrayList<>( selectionHistory.getHistory() );
-		final boolean fakeFirstItem = choiceItems.isEmpty();
-		if ( fakeFirstItem )
-			choiceItems.add( EMPTY_ITEM );
+		// load selection history for all storage types
+		storageSelectionHistory = new HashMap<>();
+		for ( final Entry< DataAccessType, String > entry : storageHistoryPrefKeys.entrySet() )
+			storageSelectionHistory.put( entry.getKey(), new SelectionHistory( entry.getValue() ) );
 
-		gd.addChoice( "N5_dataset_path: ", choiceItems.toArray( new String[ 0 ] ), null );
-		final ChoiceDirectoryListener choiceDirectoryListener = addChoiceDirectorySelector( gd, ( Choice ) gd.getChoices().get( 0 ), fakeFirstItem );
+		// add storage type selector
+		selectedStorageType = DataAccessType.valueOf( Prefs.get( STORAGE_PREF_KEY, DataAccessType.FILESYSTEM.toString() ) );
+		gd.addRadioButtonGroup(
+				null,
+				new String[] {
+						storages.get( DataAccessType.FILESYSTEM ),
+						storages.get( DataAccessType.AMAZON_S3 ),
+						storages.get( DataAccessType.GOOGLE_CLOUD )
+					},
+				1,
+				3,
+				storages.get( selectedStorageType )
+			);
+
+		// add storage type change listener
+		final StorageTypeListener storageListener = new StorageTypeListener();
+		final Deque< Component > components = new ArrayDeque<>( Collections.singleton( gd ) );
+		while ( !components.isEmpty() )
+		{
+			final Component component = components.pop();
+			if ( component instanceof Container )
+			{
+				final Container container = ( Container ) component;
+				components.addAll( Arrays.asList( container.getComponents() ) );
+			}
+			else if ( component instanceof Checkbox )
+			{
+				final Checkbox checkbox = ( Checkbox ) component;
+				checkbox.addItemListener( storageListener );
+			}
+		}
+
+		// add selection history component
+		gd.addChoice( "N5_dataset_path: ", getChoiceItems().toArray( new String[ 0 ] ), null );
+		choice = ( Choice ) gd.getChoices().get( 0 );
+
+		// add browse listener
+		final ChoiceDirectoryListener choiceDirectoryListener = addChoiceDirectorySelector();
 
 		gd.addWindowListener(
 				new WindowAdapter()
@@ -58,7 +139,7 @@ public class DatasetSelectorDialog
 					@Override
 					public void windowOpened( final WindowEvent e )
 					{
-						final Button okButton = gd.getButtons()[ 0 ];
+						okButton = gd.getButtons()[ 0 ];
 						okButton.setEnabled( !fakeFirstItem );
 						choiceDirectoryListener.setOKButton( okButton );
 					}
@@ -70,51 +151,57 @@ public class DatasetSelectorDialog
 		if ( gd.wasCanceled() )
 			return null;
 
+		Prefs.set( STORAGE_PREF_KEY, selectedStorageType.toString() );
+
 		final String selection = gd.getNextChoice();
-		selectionHistory.addToHistory( selection );
+		storageSelectionHistory.get( selectedStorageType ).addToHistory( selection );
 
 		return selection;
 	}
 
-	private ChoiceDirectoryListener addChoiceDirectorySelector( final GenericDialogPlus gd, final Choice choice, final boolean fakeFirstItem )
+	private List< String > getChoiceItems()
+	{
+		final List< String > choiceItems = new ArrayList<>( storageSelectionHistory.get( selectedStorageType ).getHistory() );
+		fakeFirstItem = choiceItems.isEmpty();
+		if ( fakeFirstItem )
+			choiceItems.add( EMPTY_ITEM );
+		return choiceItems;
+	}
+
+	private ChoiceDirectoryListener addChoiceDirectorySelector()
 	{
 		final Button button = new Button( "Browse..." );
-		final ChoiceDirectoryListener listener = new ChoiceDirectoryListener( choice, fakeFirstItem );
+		final ChoiceDirectoryListener listener = new ChoiceDirectoryListener();
 		button.addActionListener( listener );
 		button.addKeyListener( gd );
 
-		gd.add( new Panel() );
+		final GridBagConstraints constraints = new GridBagConstraints();
+		constraints.gridwidth = 2;
+		constraints.gridy = 1;
+		constraints.insets = new Insets( 0, 5, 0, 0 );
 
-		final Panel panel = new Panel();
-		panel.setLayout( new FlowLayout( FlowLayout.LEFT, 0, 0 ) );
-		panel.add( button );
-
-		gd.add( panel );
+		gd.add( button, constraints );
 		return listener;
 	}
 
-	private static class ChoiceDirectoryListener implements ActionListener
+	private class StorageTypeListener implements ItemListener
 	{
-		private final Choice choice;
-		private final int fileSelectionMode;
+		@Override
+		public void itemStateChanged( final ItemEvent event )
+		{
+			selectedStorageType = getAccessTypeByLabel( ( String ) event.getItem() );
+			final List< String > choiceItems = getChoiceItems();
+			choice.removeAll();
+			for ( final String choiceItem : choiceItems )
+				choice.add( choiceItem );
+			okButton.setEnabled( !fakeFirstItem );
+		}
+	}
 
-		private boolean removeFirstItem;
-		private int lastItemIndex;
-
+	private class ChoiceDirectoryListener implements ActionListener
+	{
 		private Button okButton;
-
-		public ChoiceDirectoryListener( final Choice choice, final boolean removeFirstItem )
-		{
-			this( choice, JFileChooser.DIRECTORIES_ONLY, removeFirstItem );
-		}
-
-		public ChoiceDirectoryListener( final Choice choice, final int fileSelectionMode, final boolean removeFirstItem )
-		{
-			this.choice = choice;
-			this.fileSelectionMode = fileSelectionMode;
-			this.removeFirstItem = removeFirstItem;
-			this.lastItemIndex = -1;
-		}
+		private int lastItemIndex = -1;
 
 		public void setOKButton( final Button okButton )
 		{
@@ -129,7 +216,7 @@ public class DatasetSelectorDialog
 				directory = directory.getParentFile();
 
 			final JFileChooser fc = new JFileChooser( directory );
-			fc.setFileSelectionMode( fileSelectionMode );
+			fc.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
 
 			fc.showOpenDialog( null );
 			final File selFile = fc.getSelectedFile();
@@ -143,7 +230,7 @@ public class DatasetSelectorDialog
 				final String newSelected = selFile.getAbsolutePath();
 
 				// put old selected item back on its position, or just remove it if was not present in the history
-				if ( removeFirstItem )
+				if ( fakeFirstItem )
 				{
 					choiceItems.remove( 0 );
 					if ( lastItemIndex != -1 )
@@ -156,7 +243,7 @@ public class DatasetSelectorDialog
 					choiceItems.remove( newSelectedIndex );
 				choiceItems.add( 0, newSelected );
 
-				removeFirstItem = true;
+				fakeFirstItem = true;
 				lastItemIndex = newSelectedIndex;
 				if ( okButton != null )
 					okButton.setEnabled( true );
@@ -171,15 +258,16 @@ public class DatasetSelectorDialog
 
 	private static class SelectionHistory
 	{
-		private static final String PREF_KEY = "n5-viewer.history";
 		private static final String DELIMETER = "|";
 		private static final int MAX_ENTRIES = 10;
 
+		private final String prefKey;
 		private final List< String > history;
 
-		public SelectionHistory()
+		public SelectionHistory( final String prefKey )
 		{
-			final String pref = Prefs.get( PREF_KEY, "" );
+			this.prefKey = prefKey;
+			final String pref = Prefs.get( prefKey, "" );
 			history = new ArrayList<>();
 			if ( !pref.isEmpty() )
 				history.addAll( Arrays.asList( pref.split( Pattern.quote( DELIMETER ) ) ) );
@@ -205,7 +293,7 @@ public class DatasetSelectorDialog
 				history.add( 0, item );
 			}
 
-			Prefs.set( PREF_KEY, String.join( DELIMETER, history ) );
+			Prefs.set( prefKey, String.join( DELIMETER, history ) );
 		}
 	}
 }
