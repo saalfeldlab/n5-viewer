@@ -23,13 +23,10 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.File;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,12 +36,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
 
-import javax.swing.JFileChooser;
-
-import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBrowseHandler;
+import org.janelia.saalfeldlab.n5.bdv.s3.S3BrowseHandler;
 
 import fiji.util.gui.GenericDialogPlus;
 import ij.Prefs;
@@ -74,34 +69,24 @@ public class DatasetSelectorDialog
 	}
 
 	private static final String STORAGE_PREF_KEY = "n5-viewer.storage";
-
 	private static final String EMPTY_ITEM = "                                                                                                ";
-
-	private DataAccessType selectedStorageType;
 
 	private Map< DataAccessType, SelectionHistory > storageSelectionHistory;
 	private Map< DataAccessType, BrowseHandler > storageBrowseHandlers;
 
-	private GenericDialogPlus gd;
+	private DataAccessType selectedStorageType;
+	private BrowseListener browseListener;
 	private Choice choice;
-	private Button okButton;
-
 	private boolean fakeFirstItem;
 
 	public String run()
 	{
-		gd = new GenericDialogPlus( "N5 Viewer" );
+		final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
 
 		// load selection history for all storage types
 		storageSelectionHistory = new HashMap<>();
 		for ( final Entry< DataAccessType, String > entry : storageHistoryPrefKeys.entrySet() )
 			storageSelectionHistory.put( entry.getKey(), new SelectionHistory( entry.getValue() ) );
-
-		// create browse handlers
-		storageBrowseHandlers = new HashMap<>();
-		storageBrowseHandlers.put( DataAccessType.FILESYSTEM, new FilesystemBrowseHandler() );
-		storageBrowseHandlers.put( DataAccessType.AMAZON_S3, new S3BrowseHandler() );
-		storageBrowseHandlers.put( DataAccessType.GOOGLE_CLOUD, new GoogleCloudBrowseHandler() );
 
 		// add storage type selector
 		selectedStorageType = DataAccessType.valueOf( Prefs.get( STORAGE_PREF_KEY, DataAccessType.FILESYSTEM.toString() ) );
@@ -139,16 +124,25 @@ public class DatasetSelectorDialog
 		gd.addChoice( "N5_dataset_path: ", getChoiceItems().toArray( new String[ 0 ] ), null );
 		choice = ( Choice ) gd.getChoices().get( 0 );
 
+		// create browse handlers
+		storageBrowseHandlers = new HashMap<>();
+		storageBrowseHandlers.put( DataAccessType.FILESYSTEM, new FilesystemBrowseHandler( gd, choice ) );
+		storageBrowseHandlers.put( DataAccessType.AMAZON_S3, new S3BrowseHandler() );
+		storageBrowseHandlers.put( DataAccessType.GOOGLE_CLOUD, new GoogleCloudBrowseHandler() );
+
 		// add browse button & listener
-		final Button button = new Button( "Browse..." );
-		final BrowseListener browseListener = new BrowseListener();
-		button.addActionListener( browseListener );
-		button.addKeyListener( gd );
+		browseListener = new BrowseListener();
+		browseListener.setChoice( choice );
+		updateBrowseListener();
+
+		final Button browseButton = new Button( "Browse..." );
+		browseButton.addActionListener( browseListener );
+		browseButton.addKeyListener( gd );
 		final GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridwidth = 2;
 		constraints.gridy = 1;
 		constraints.insets = new Insets( 0, 5, 0, 0 );
-		gd.add( button, constraints );
+		gd.add( browseButton, constraints );
 
 		// add handler to toggle OK button state at startup
 		gd.addWindowListener(
@@ -157,8 +151,8 @@ public class DatasetSelectorDialog
 					@Override
 					public void windowOpened( final WindowEvent e )
 					{
-						okButton = gd.getButtons()[ 0 ];
-						okButton.setEnabled( !fakeFirstItem );
+						final Button okButton = gd.getButtons()[ 0 ];
+						browseListener.setOkButton( okButton );
 					}
 				}
 			);
@@ -187,6 +181,11 @@ public class DatasetSelectorDialog
 		return choiceItems;
 	}
 
+	private void updateBrowseListener()
+	{
+		browseListener.update( storageBrowseHandlers.get( selectedStorageType ), fakeFirstItem );
+	}
+
 	private class StorageTypeListener implements ItemListener
 	{
 		@Override
@@ -197,134 +196,7 @@ public class DatasetSelectorDialog
 			choice.removeAll();
 			for ( final String choiceItem : choiceItems )
 				choice.add( choiceItem );
-			okButton.setEnabled( !fakeFirstItem );
-		}
-	}
-
-	private class BrowseListener implements ActionListener
-	{
-		private int lastItemIndex = -1;
-
-		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
-			final BrowseHandler browseHandler = storageBrowseHandlers.get( selectedStorageType );
-			final String newSelected = browseHandler.select();
-			if ( newSelected != null )
-			{
-				final List< String > choiceItems = new ArrayList<>();
-				for ( int i = 0; i < choice.getItemCount(); ++i )
-					choiceItems.add( choice.getItem( i ) );
-
-				final String oldSelected = choiceItems.get( 0 );
-
-				// put old selected item back on its position, or just remove it if was not present in the history
-				if ( fakeFirstItem )
-				{
-					choiceItems.remove( 0 );
-					if ( lastItemIndex != -1 )
-						choiceItems.add( lastItemIndex, oldSelected );
-				}
-
-				// move new selected item to the top, or just add it if was not present if the history
-				final int newSelectedIndex = choiceItems.indexOf( newSelected );
-				if ( newSelectedIndex != -1 )
-					choiceItems.remove( newSelectedIndex );
-				choiceItems.add( 0, newSelected );
-
-				fakeFirstItem = true;
-				lastItemIndex = newSelectedIndex;
-				if ( okButton != null )
-					okButton.setEnabled( true );
-
-				choice.removeAll();
-				for ( final String item : choiceItems )
-					choice.add( item );
-				choice.select( 0 );
-			}
-		}
-	}
-
-	private interface BrowseHandler
-	{
-		String select();
-	}
-
-	private class FilesystemBrowseHandler implements BrowseHandler
-	{
-		@Override
-		public String select()
-		{
-			File directory = new File( choice.getSelectedItem() );
-			while ( directory != null && !directory.exists() )
-				directory = directory.getParentFile();
-
-			final JFileChooser directoryChooser = new JFileChooser( directory );
-			directoryChooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
-
-			final int result = directoryChooser.showOpenDialog( gd );
-			return result == JFileChooser.APPROVE_OPTION ? directoryChooser.getSelectedFile().getAbsolutePath() : null;
-		}
-	}
-
-	private class S3BrowseHandler implements BrowseHandler
-	{
-		@Override
-		public String select()
-		{
-			throw new NotImplementedException( "TODO: S3BrowseHandler" );
-		}
-	}
-
-	private class GoogleCloudBrowseHandler implements BrowseHandler
-	{
-		@Override
-		public String select()
-		{
-			throw new NotImplementedException( "TODO: GoogleCloudBrowseHandler" );
-		}
-	}
-
-
-
-	private static class SelectionHistory
-	{
-		private static final String DELIMETER = "|";
-		private static final int MAX_ENTRIES = 10;
-
-		private final String prefKey;
-		private final List< String > history;
-
-		public SelectionHistory( final String prefKey )
-		{
-			this.prefKey = prefKey;
-			final String pref = Prefs.get( prefKey, "" );
-			history = new ArrayList<>();
-			if ( !pref.isEmpty() )
-				history.addAll( Arrays.asList( pref.split( Pattern.quote( DELIMETER ) ) ) );
-		}
-
-		public List< String > getHistory()
-		{
-			return history;
-		}
-
-		public void addToHistory( final String item )
-		{
-			final int index = history.indexOf( item );
-			if ( index == -1 )
-			{
-				history.add( 0, item );
-				if ( history.size() > MAX_ENTRIES )
-					history.remove( history.size() - 1 );
-			}
-			else
-			{
-				history.remove( index );
-				history.add( 0, item );
-			}
-
-			Prefs.set( prefKey, String.join( DELIMETER, history ) );
+			updateBrowseListener();
 		}
 	}
 }
