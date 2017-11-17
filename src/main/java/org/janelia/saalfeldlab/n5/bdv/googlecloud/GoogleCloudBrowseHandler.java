@@ -26,12 +26,11 @@ import ij.IJ;
 
 public class GoogleCloudBrowseHandler implements BrowseHandler
 {
-	final java.awt.List bucketsList = new java.awt.List();
-	final java.awt.List projectsList = new java.awt.List();
-
-	GoogleCloudOAuth oauth;
-	List< Project > projects;
-	List< Bucket > buckets;
+	private GoogleCloudOAuth oauth;
+	private List< Project > projects;
+	private List< Bucket > buckets;
+	private java.awt.List projectsList;
+	private java.awt.List bucketsList;
 
 	@Override
 	public String select()
@@ -69,6 +68,8 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 			projects.add( projectIterator.next() );
 
 		// add project names as list items
+		bucketsList = new java.awt.List();
+		projectsList = new java.awt.List();
 		for ( final Project project : projects )
 			projectsList.add( project.getName() );
 		projectsList.addItemListener( new GoogleCloudProjectListener() );
@@ -77,7 +78,7 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 		listsPanel.add( projectsList );
 		listsPanel.add( bucketsList );
 
-		final GenericDialogPlus projectsDialog = new GenericDialogPlus( "Google Cloud" );
+		final GenericDialogPlus projectsDialog = new GenericDialogPlus( "N5 Viewer" );
 		projectsDialog.addMessage( "Select Google Cloud project and bucket:" );
 		projectsDialog.addComponent( listsPanel );
 		projectsDialog.showDialog();
