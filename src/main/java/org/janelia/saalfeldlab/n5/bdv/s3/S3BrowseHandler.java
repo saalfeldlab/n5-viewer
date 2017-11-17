@@ -5,11 +5,11 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.net.URI;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
@@ -77,12 +77,7 @@ public class S3BrowseHandler implements BrowseHandler
 			return null;
 
 		final String selectedBucketName = buckets.get( bucketsList.getSelectedIndex() ).getName();
-		return createS3BucketUri( selectedBucketName ).toString();
-	}
-
-	private static URI createS3BucketUri( final String bucketName )
-	{
-		return URI.create( DataAccessFactory.s3Protocol + "://" + bucketName + "/" );
+		return DataAccessFactory.createBucketUri( DataAccessType.AMAZON_S3, selectedBucketName ).toString();
 	}
 
 	private class BucketsListener implements ItemListener

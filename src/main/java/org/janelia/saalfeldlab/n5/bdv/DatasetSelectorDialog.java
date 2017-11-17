@@ -27,6 +27,8 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,13 +41,31 @@ import java.util.Map.Entry;
 
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBrowseHandler;
+import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudHttpBucketLinkParser;
+import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudHttpBucketLinkParser.NotBucketLinkException;
+import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudHttpBucketLinkParser.NotGoogleCloudLinkException;
 import org.janelia.saalfeldlab.n5.bdv.s3.S3BrowseHandler;
 
+import com.amazonaws.services.s3.AmazonS3URI;
+
 import fiji.util.gui.GenericDialogPlus;
+import ij.IJ;
 import ij.Prefs;
 
 public class DatasetSelectorDialog
 {
+	public static class Selection
+	{
+		public final String n5Path;
+		public final DataAccessType storageType;
+
+		private Selection( final String n5Path, final DataAccessType storageType )
+		{
+			this.n5Path = n5Path;
+			this.storageType = storageType;
+		}
+	}
+
 	private static final Map< DataAccessType, String > storages;
 	private static final Map< DataAccessType, String > storageHistoryPrefKeys;
 	static
@@ -70,6 +90,7 @@ public class DatasetSelectorDialog
 
 	private static final String STORAGE_PREF_KEY = "n5-viewer.storage";
 
+	private Map< DataAccessType, Checkbox > storageCheckboxes;
 	private Map< DataAccessType, SelectionHistory > storageSelectionHistory;
 	private Map< DataAccessType, BrowseHandler > storageBrowseHandlers;
 
@@ -77,7 +98,7 @@ public class DatasetSelectorDialog
 	private BrowseListener browseListener;
 	private Choice choice;
 
-	public String run()
+	public Selection run()
 	{
 		final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
 
@@ -93,16 +114,19 @@ public class DatasetSelectorDialog
 				new String[] {
 						storages.get( DataAccessType.FILESYSTEM ),
 						storages.get( DataAccessType.AMAZON_S3 ),
-						storages.get( DataAccessType.GOOGLE_CLOUD )
+						storages.get( DataAccessType.GOOGLE_CLOUD ),
+						"Link"
 					},
 				1,
-				3,
+				storages.size() + 1,
 				storages.get( selectedStorageType )
 			);
 
 		// add storage type change listener
 		final StorageTypeListener storageListener = new StorageTypeListener();
+		final LinkListener linkListener = new LinkListener();
 		final Deque< Component > components = new ArrayDeque<>( Collections.singleton( gd ) );
+		storageCheckboxes = new HashMap<>();
 		while ( !components.isEmpty() )
 		{
 			final Component component = components.pop();
@@ -114,7 +138,16 @@ public class DatasetSelectorDialog
 			else if ( component instanceof Checkbox )
 			{
 				final Checkbox checkbox = ( Checkbox ) component;
-				checkbox.addItemListener( storageListener );
+				final DataAccessType storageType = getAccessTypeByLabel( checkbox.getLabel() );
+				if ( storageType != null )
+				{
+					storageCheckboxes.put( storageType, checkbox );
+					checkbox.addItemListener( storageListener );
+				}
+				else
+				{
+					checkbox.addItemListener( linkListener );
+				}
 			}
 		}
 
@@ -173,10 +206,24 @@ public class DatasetSelectorDialog
 		Prefs.set( STORAGE_PREF_KEY, selectedStorageType.toString() );
 
 		// update selection history
-		final String selection = gd.getNextChoice();
-		storageSelectionHistory.get( selectedStorageType ).addToHistory( selection );
+		final String n5Path = gd.getNextChoice();
+		storageSelectionHistory.get( selectedStorageType ).addToHistory( n5Path );
 
-		return selection;
+		return new Selection( n5Path, selectedStorageType );
+	}
+
+	private void updateSelectedStorageType()
+	{
+		storageCheckboxes.get( selectedStorageType ).setState( true );
+	}
+
+	private void updateSelectionHistory()
+	{
+		final List< String > choiceItems = getChoiceItems();
+		choice.removeAll();
+		for ( final String choiceItem : choiceItems )
+			choice.add( choiceItem );
+		updateBrowseListener();
 	}
 
 	private List< String > getChoiceItems()
@@ -195,11 +242,117 @@ public class DatasetSelectorDialog
 		public void itemStateChanged( final ItemEvent event )
 		{
 			selectedStorageType = getAccessTypeByLabel( ( String ) event.getItem() );
-			final List< String > choiceItems = getChoiceItems();
-			choice.removeAll();
-			for ( final String choiceItem : choiceItems )
-				choice.add( choiceItem );
-			updateBrowseListener();
+			updateSelectionHistory();
+		}
+	}
+
+	private class LinkListener implements ItemListener
+	{
+		@Override
+		public void itemStateChanged( final ItemEvent event )
+		{
+			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+			gd.addStringField( "Paste_link_here:", "", 50 );
+			gd.showDialog();
+			if ( gd.wasCanceled() )
+			{
+				updateSelectedStorageType();
+				return;
+			}
+
+			final String linkStr = gd.getNextString();
+			URI uri;
+			try
+			{
+				uri = URI.create( linkStr );
+				if ( uri.getScheme() == null )
+					throw new NullPointerException();
+			}
+			catch ( final Exception e )
+			{
+				fallback( "Link cannot be parsed." );
+				return;
+			}
+
+			final DataAccessType storageType;
+			if ( uri.getScheme().equalsIgnoreCase( "http" ) || uri.getScheme().equalsIgnoreCase( "https" ) )
+			{
+				// s3 uri parser is capable of parsing http links, try to parse it first as an s3 uri
+				AmazonS3URI s3Uri;
+				try
+				{
+					s3Uri = new AmazonS3URI( uri );
+				}
+				catch ( final Exception e )
+				{
+					s3Uri = null;
+				}
+
+				if ( s3Uri != null )
+				{
+					if ( s3Uri.getBucket() == null || s3Uri.getBucket().isEmpty() || ( s3Uri.getKey() != null && !s3Uri.getKey().isEmpty() ) )
+					{
+						fallback( "N5 datasets on AWS S3 are stored in buckets. Please provide a link to a bucket." );
+						return;
+					}
+					storageType = DataAccessType.AMAZON_S3;
+					uri = DataAccessFactory.createBucketUri( DataAccessType.AMAZON_S3, s3Uri.getBucket() );
+				}
+				else
+				{
+					// might be a google cloud link
+					final String bucketName;
+					try
+					{
+						bucketName = GoogleCloudHttpBucketLinkParser.parseBucketName( uri );
+					}
+					catch ( final NotGoogleCloudLinkException e )
+					{
+						fallback( "The link should point to AWS S3 bucket or Google Cloud Storage bucket." );
+						return;
+					}
+					catch ( final NotBucketLinkException e )
+					{
+						fallback( "N5 datasets on Google Cloud are stored in buckets. Please provide a link to a bucket." );
+						return;
+					}
+					storageType = DataAccessType.GOOGLE_CLOUD;
+					uri = DataAccessFactory.createBucketUri( DataAccessType.GOOGLE_CLOUD, bucketName );
+				}
+			}
+			else
+			{
+				try
+				{
+					storageType = DataAccessFactory.getTypeByUri( uri );
+				}
+				catch ( final Exception e )
+				{
+					fallback( "The protocol is not supported." );
+					return;
+				}
+			}
+
+			final String correctedLink;
+			if ( storageType == DataAccessType.FILESYSTEM )
+			{
+				correctedLink = Paths.get( uri ).toString();
+			}
+			else
+			{
+				correctedLink = uri.toString();
+			}
+
+			selectedStorageType = storageType;
+			updateSelectedStorageType();
+			updateSelectionHistory();
+			browseListener.setSelectedItem( correctedLink );
+		}
+
+		private void fallback( final String errorMessage )
+		{
+			IJ.error( "N5 Viewer", errorMessage );
+			updateSelectedStorageType();
 		}
 	}
 }

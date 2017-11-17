@@ -51,22 +51,17 @@ public class DataAccessFactory
 		GOOGLE_CLOUD
 	}
 
-	public static final String localFileProtocol = "file";
-	public static final String s3Protocol = "s3";
-	public static final String googleCloudProtocol = "gs";
+	private static final String localFileProtocol = "file";
+	private static final String s3Protocol = "s3";
+	private static final String googleCloudProtocol = "gs";
 
 	private final DataAccessType type;
 	private final AmazonS3 s3;
 	private final Storage googleCloudStorage;
 
-	public static DataAccessType getTypeByPath( final String path )
+	public static DataAccessType getTypeByUri( final URI uri )
 	{
-		final URI uri = URI.create( path );
-
-		if ( uri.getScheme() == null )
-			return DataAccessType.FILESYSTEM;
-
-		switch ( uri.getScheme() )
+		switch ( uri.getScheme().toLowerCase() )
 		{
 		case localFileProtocol:
 			return DataAccessType.FILESYSTEM;
@@ -86,6 +81,25 @@ public class DataAccessFactory
 				"n5-viewer-google-cloud-oauth2",
 				DataAccessFactory.class.getResourceAsStream( "/googlecloud_client_secrets.json" )
 			);
+	}
+
+	public static URI createBucketUri( final DataAccessType type, final String bucketName )
+	{
+		final String protocol;
+		switch ( type )
+		{
+		case AMAZON_S3:
+			protocol = s3Protocol;
+			break;
+		case GOOGLE_CLOUD:
+			protocol = googleCloudProtocol;
+			break;
+		case FILESYSTEM:
+			throw new IllegalArgumentException( "Not supported for filesystem storage" );
+		default:
+			throw new NotImplementedException( "Not implemented for type " + type );
+		}
+		return URI.create( protocol + "://" + bucketName + "/" );
 	}
 
 	public DataAccessFactory( final DataAccessType type ) throws IOException

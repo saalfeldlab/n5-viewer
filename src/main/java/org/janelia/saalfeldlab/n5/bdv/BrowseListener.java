@@ -46,34 +46,37 @@ class BrowseListener implements ActionListener
 	{
 		final String newSelected = browseHandler.select();
 		if ( newSelected != null )
+			setSelectedItem( newSelected );
+	}
+
+	public void setSelectedItem( final String newSelected )
+	{
+		final List< String > choiceItems = new ArrayList<>();
+		for ( int i = 0; i < choice.getItemCount(); ++i )
+			choiceItems.add( choice.getItem( i ) );
+
+		// put old selected item back on its position, or just remove it if was not present in the history
+		if ( removeFirstItem )
 		{
-			final List< String > choiceItems = new ArrayList<>();
-			for ( int i = 0; i < choice.getItemCount(); ++i )
-				choiceItems.add( choice.getItem( i ) );
-
-			// put old selected item back on its position, or just remove it if was not present in the history
-			if ( removeFirstItem )
-			{
-				final String oldSelected = choiceItems.remove( 0 );
-				if ( lastItemIndex != -1 )
-					choiceItems.add( lastItemIndex, oldSelected );
-			}
-
-			// move new selected item to the top, or just add it if was not present if the history
-			final int newSelectedIndex = choiceItems.indexOf( newSelected );
-			if ( newSelectedIndex != -1 )
-				choiceItems.remove( newSelectedIndex );
-			choiceItems.add( 0, newSelected );
-
-			removeFirstItem = true;
-			lastItemIndex = newSelectedIndex;
-			if ( okButton != null )
-				okButton.setEnabled( true );
-
-			choice.removeAll();
-			for ( final String item : choiceItems )
-				choice.add( item );
-			choice.select( 0 );
+			final String oldSelected = choiceItems.remove( 0 );
+			if ( lastItemIndex != -1 )
+				choiceItems.add( lastItemIndex, oldSelected );
 		}
+
+		// move new selected item to the top, or just add it if was not present if the history
+		final int newSelectedIndex = choiceItems.indexOf( newSelected );
+		if ( newSelectedIndex != -1 )
+			choiceItems.remove( newSelectedIndex );
+		choiceItems.add( 0, newSelected );
+
+		removeFirstItem = true;
+		lastItemIndex = newSelectedIndex;
+		if ( okButton != null )
+			okButton.setEnabled( true );
+
+		choice.removeAll();
+		for ( final String item : choiceItems )
+			choice.add( item );
+		choice.select( 0 );
 	}
 }

@@ -23,6 +23,8 @@ import java.util.List;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -53,19 +55,19 @@ public class N5Viewer implements PlugIn
 	final public static void main( final String... args ) throws IOException
 	{
 		new ImageJ();
-		exec( args[ 0 ] );
+		new N5Viewer().run( "" );
 	}
 
 	@Override
 	public void run( final String args )
 	{
-		final String n5Path = new DatasetSelectorDialog().run();
-		if ( n5Path == null )
+		final Selection selection = new DatasetSelectorDialog().run();
+		if ( selection == null )
 			return;
 
 		try
 		{
-			exec( n5Path );
+			exec( selection.n5Path, selection.storageType );
 		}
 		catch ( final IOException e )
 		{
@@ -73,9 +75,11 @@ public class N5Viewer implements PlugIn
 		}
 	}
 
-	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec( final String n5Path ) throws IOException
+	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
+			final String n5Path,
+			final DataAccessType storageType ) throws IOException
 	{
-		final DataAccessFactory dataAccessFactory = new DataAccessFactory( DataAccessFactory.getTypeByPath( n5Path ) );
+		final DataAccessFactory dataAccessFactory = new DataAccessFactory( storageType );
 
 		final N5Reader n5 = dataAccessFactory.createN5Reader( n5Path );
 		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );

@@ -7,7 +7,6 @@ import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -18,6 +17,7 @@ import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 
 import com.google.cloud.resourcemanager.Project;
 import com.google.cloud.resourcemanager.ResourceManager;
@@ -105,12 +105,7 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 			return null;
 
 		final String selectedBucketName = buckets.get( bucketsList.getSelectedIndex() ).getName();
-		return createGoogleCloudBucketUri( selectedBucketName ).toString();
-	}
-
-	private static URI createGoogleCloudBucketUri( final String bucketName )
-	{
-		return URI.create( DataAccessFactory.googleCloudProtocol + "://" + bucketName + "/" );
+		return DataAccessFactory.createBucketUri( DataAccessType.GOOGLE_CLOUD, selectedBucketName ).toString();
 	}
 
 	private class ProjectsListener implements ItemListener
