@@ -69,7 +69,6 @@ public class DatasetSelectorDialog
 	}
 
 	private static final String STORAGE_PREF_KEY = "n5-viewer.storage";
-	private static final String EMPTY_ITEM = "                                                                                                ";
 
 	private Map< DataAccessType, SelectionHistory > storageSelectionHistory;
 	private Map< DataAccessType, BrowseHandler > storageBrowseHandlers;
@@ -77,7 +76,6 @@ public class DatasetSelectorDialog
 	private DataAccessType selectedStorageType;
 	private BrowseListener browseListener;
 	private Choice choice;
-	private boolean fakeFirstItem;
 
 	public String run()
 	{
@@ -121,7 +119,7 @@ public class DatasetSelectorDialog
 		}
 
 		// add selection history component
-		gd.addChoice( "N5_dataset_path: ", getChoiceItems().toArray( new String[ 0 ] ), null );
+		gd.addChoice( "N5_dataset_path: ", getChoiceItems().toArray( new String[ 0 ] ), "" );
 		choice = ( Choice ) gd.getChoices().get( 0 );
 
 		// hack to stretch the choice component horizontally
@@ -183,16 +181,12 @@ public class DatasetSelectorDialog
 
 	private List< String > getChoiceItems()
 	{
-		final List< String > choiceItems = new ArrayList<>( storageSelectionHistory.get( selectedStorageType ).getHistory() );
-		fakeFirstItem = choiceItems.isEmpty();
-		if ( fakeFirstItem )
-			choiceItems.add( EMPTY_ITEM );
-		return choiceItems;
+		return new ArrayList<>( storageSelectionHistory.get( selectedStorageType ).getHistory() );
 	}
 
 	private void updateBrowseListener()
 	{
-		browseListener.update( storageBrowseHandlers.get( selectedStorageType ), fakeFirstItem );
+		browseListener.update( storageBrowseHandlers.get( selectedStorageType ) );
 	}
 
 	private class StorageTypeListener implements ItemListener

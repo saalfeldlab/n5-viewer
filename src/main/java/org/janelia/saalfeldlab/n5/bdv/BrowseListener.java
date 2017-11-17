@@ -17,10 +17,10 @@ class BrowseListener implements ActionListener
 	private BrowseHandler browseHandler;
 	private boolean removeFirstItem;
 
-	public void update( final BrowseHandler browseHandler, final boolean removeFirstItem )
+	public void update( final BrowseHandler browseHandler )
 	{
 		this.browseHandler = browseHandler;
-		this.removeFirstItem = removeFirstItem;
+		removeFirstItem = false;
 		updateOkButtonState();
 	}
 
@@ -51,12 +51,10 @@ class BrowseListener implements ActionListener
 			for ( int i = 0; i < choice.getItemCount(); ++i )
 				choiceItems.add( choice.getItem( i ) );
 
-			final String oldSelected = choiceItems.get( 0 );
-
 			// put old selected item back on its position, or just remove it if was not present in the history
 			if ( removeFirstItem )
 			{
-				choiceItems.remove( 0 );
+				final String oldSelected = choiceItems.remove( 0 );
 				if ( lastItemIndex != -1 )
 					choiceItems.add( lastItemIndex, oldSelected );
 			}
