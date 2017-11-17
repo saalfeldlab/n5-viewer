@@ -22,24 +22,25 @@ public class S3BrowseHandler implements BrowseHandler
 	@Override
 	public String select()
 	{
-		final DefaultAWSCredentialsProviderChain provider = new DefaultAWSCredentialsProviderChain();
+		final AmazonS3 s3;
+		final DefaultAWSCredentialsProviderChain credentialsProvider = new DefaultAWSCredentialsProviderChain();
 		try
 		{
-			final AWSCredentials credentials = provider.getCredentials();
+			final AWSCredentials credentials = credentialsProvider.getCredentials();
 			if ( credentials == null )
 				throw new NullPointerException();
+			s3 = AmazonS3ClientBuilder.standard().withCredentials( credentialsProvider ).build();
 		}
 		catch ( final Exception e )
 		{
 			IJ.error(
 					"N5 Viewer",
-					"<html>Could not find AWS credentials. Please initialize them using one of the methods listed here:<br/>"
+					"<html>Could not find AWS credentials/region. Please initialize them using one of the methods listed here:<br/>"
 							+ "<a href=\"" + credentialsDocsLink + "\">" + credentialsDocsLink + "</a></html>"
 				);
 			return null;
 		}
 
-		final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
 
 		final List< Bucket > buckets = s3.listBuckets();
 		final java.awt.List bucketsList = new java.awt.List();
