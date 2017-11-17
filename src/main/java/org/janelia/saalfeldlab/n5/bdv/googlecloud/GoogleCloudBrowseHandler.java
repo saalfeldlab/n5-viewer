@@ -1,8 +1,11 @@
 package org.janelia.saalfeldlab.n5.bdv.googlecloud;
 
+import java.awt.Button;
 import java.awt.Panel;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -31,6 +34,7 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 	private List< Bucket > buckets;
 	private java.awt.List projectsList;
 	private java.awt.List bucketsList;
+	private Button okButton;
 
 	@Override
 	public String select()
@@ -68,21 +72,36 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 			projects.add( projectIterator.next() );
 
 		// add project names as list items
-		bucketsList = new java.awt.List();
 		projectsList = new java.awt.List();
 		for ( final Project project : projects )
 			projectsList.add( project.getName() );
-		projectsList.addItemListener( new GoogleCloudProjectListener() );
+		projectsList.addItemListener( new ProjectsListener() );
+
+		bucketsList = new java.awt.List();
+		bucketsList.addItemListener( new BucketsListener() );
 
 		final Panel listsPanel = new Panel();
 		listsPanel.add( projectsList );
 		listsPanel.add( bucketsList );
 
-		final GenericDialogPlus projectsDialog = new GenericDialogPlus( "N5 Viewer" );
-		projectsDialog.addMessage( "Select Google Cloud project and bucket:" );
-		projectsDialog.addComponent( listsPanel );
-		projectsDialog.showDialog();
-		if ( projectsDialog.wasCanceled() )
+		final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+		gd.addMessage( "Select Google Cloud project and bucket:" );
+		gd.addComponent( listsPanel );
+
+		gd.addWindowListener(
+				new WindowAdapter()
+				{
+					@Override
+					public void windowOpened( final WindowEvent e )
+					{
+						okButton = gd.getButtons()[ 0 ];
+						okButton.setEnabled( false );
+					}
+				}
+			);
+
+		gd.showDialog();
+		if ( gd.wasCanceled() )
 			return null;
 
 		final String selectedBucketName = buckets.get( bucketsList.getSelectedIndex() ).getName();
@@ -94,13 +113,14 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 		return URI.create( DataAccessFactory.googleCloudProtocol + "://" + bucketName + "/" );
 	}
 
-	private class GoogleCloudProjectListener implements ItemListener
+	private class ProjectsListener implements ItemListener
 	{
 		@Override
 		public void itemStateChanged( final ItemEvent event )
 		{
+			okButton.setEnabled( false );
 			final int selectedProjectIndex = projectsList.getSelectedIndex();
-			if ( selectedProjectIndex >= projects.size() )
+			if ( selectedProjectIndex == -1 )
 			{
 				bucketsList.removeAll();
 				return;
@@ -122,6 +142,15 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 			bucketsList.removeAll();
 			for ( final Bucket bucket : buckets )
 				bucketsList.add( bucket.getName() );
+		}
+	}
+
+	private class BucketsListener implements ItemListener
+	{
+		@Override
+		public void itemStateChanged( final ItemEvent event )
+		{
+			okButton.setEnabled( projectsList.getSelectedIndex() != -1 );
 		}
 	}
 }

@@ -1,5 +1,10 @@
 package org.janelia.saalfeldlab.n5.bdv.s3;
 
+import java.awt.Button;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.net.URI;
 import java.util.List;
 
@@ -18,6 +23,9 @@ import ij.IJ;
 public class S3BrowseHandler implements BrowseHandler
 {
 	private static final String credentialsDocsLink = "http://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html";
+
+	private java.awt.List bucketsList;
+	private Button okButton;
 
 	@Override
 	public String select()
@@ -41,17 +49,31 @@ public class S3BrowseHandler implements BrowseHandler
 			return null;
 		}
 
-
 		final List< Bucket > buckets = s3.listBuckets();
-		final java.awt.List bucketsList = new java.awt.List();
+
+		bucketsList = new java.awt.List();
 		for ( final Bucket bucket : buckets )
 			bucketsList.add( bucket.getName() );
+		bucketsList.addItemListener( new BucketsListener() );
 
-		final GenericDialogPlus projectsDialog = new GenericDialogPlus( "N5 Viewer" );
-		projectsDialog.addMessage( "Select AWS S3 bucket:" );
-		projectsDialog.addComponent( bucketsList );
-		projectsDialog.showDialog();
-		if ( projectsDialog.wasCanceled() )
+		final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+		gd.addMessage( "Select AWS S3 bucket:" );
+		gd.addComponent( bucketsList );
+
+		gd.addWindowListener(
+				new WindowAdapter()
+				{
+					@Override
+					public void windowOpened( final WindowEvent e )
+					{
+						okButton = gd.getButtons()[ 0 ];
+						okButton.setEnabled( false );
+					}
+				}
+			);
+
+		gd.showDialog();
+		if ( gd.wasCanceled() )
 			return null;
 
 		final String selectedBucketName = buckets.get( bucketsList.getSelectedIndex() ).getName();
@@ -61,5 +83,14 @@ public class S3BrowseHandler implements BrowseHandler
 	private static URI createS3BucketUri( final String bucketName )
 	{
 		return URI.create( DataAccessFactory.s3Protocol + "://" + bucketName + "/" );
+	}
+
+	private class BucketsListener implements ItemListener
+	{
+		@Override
+		public void itemStateChanged( final ItemEvent event )
+		{
+			okButton.setEnabled( bucketsList.getSelectedIndex() != -1 );
+		}
 	}
 }
