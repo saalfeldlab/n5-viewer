@@ -124,6 +124,15 @@ public class DatasetSelectorDialog
 		gd.addChoice( "N5_dataset_path: ", getChoiceItems().toArray( new String[ 0 ] ), null );
 		choice = ( Choice ) gd.getChoices().get( 0 );
 
+		// hack to stretch the choice component horizontally
+		gd.remove( choice );
+		final GridBagConstraints choiceConstraints = new GridBagConstraints();
+		choiceConstraints.fill = GridBagConstraints.HORIZONTAL;
+		choiceConstraints.gridx = 1;
+		choiceConstraints.gridy = 1;
+		choiceConstraints.insets = new Insets( 5, 0, 5, 0 );
+		gd.add( choice, choiceConstraints);
+
 		// create browse handlers
 		storageBrowseHandlers = new HashMap<>();
 		storageBrowseHandlers.put( DataAccessType.FILESYSTEM, new FilesystemBrowseHandler( gd, choice ) );
@@ -138,11 +147,11 @@ public class DatasetSelectorDialog
 		final Button browseButton = new Button( "Browse..." );
 		browseButton.addActionListener( browseListener );
 		browseButton.addKeyListener( gd );
-		final GridBagConstraints constraints = new GridBagConstraints();
-		constraints.gridwidth = 2;
-		constraints.gridy = 1;
-		constraints.insets = new Insets( 0, 5, 0, 0 );
-		gd.add( browseButton, constraints );
+		final GridBagConstraints browseButtonConstraints = new GridBagConstraints();
+		browseButtonConstraints.gridwidth = 2;
+		browseButtonConstraints.gridy = 1;
+		browseButtonConstraints.insets = new Insets( 0, 5, 0, 0 );
+		gd.add( browseButton, browseButtonConstraints );
 
 		// add handler to toggle OK button state at startup
 		gd.addWindowListener(
