@@ -33,7 +33,7 @@ class BrowseListener implements ActionListener
 	private void updateOkButtonState()
 	{
 		if ( okButton != null )
-			okButton.setEnabled( !removeFirstItem );
+			okButton.setEnabled( choice.getItemCount() > 0 );
 	}
 
 	public void setChoice( final Choice choice )
