@@ -340,7 +340,7 @@ public class DatasetSelectorDialog
 			}
 			else
 			{
-				correctedLink = uri.toString();
+				correctedLink = uri.toString() + ( uri.getPath().isEmpty() ? "/" : "" );
 			}
 
 			selectedStorageType = storageType;
