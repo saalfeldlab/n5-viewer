@@ -340,6 +340,15 @@ public class DatasetSelectorDialog
 			}
 			else
 			{
+				if ( !uri.getPath().isEmpty() && !uri.getPath().equals( "/" ) )
+				{
+					fallback(
+							storageType == DataAccessType.AMAZON_S3 ?
+									"N5 datasets on AWS S3 are stored in buckets. Please provide a link to a bucket." :
+									"N5 datasets on Google Cloud are stored in buckets. Please provide a link to a bucket."
+						);
+					return;
+				}
 				correctedLink = uri.toString() + ( uri.getPath().isEmpty() ? "/" : "" );
 			}
 
