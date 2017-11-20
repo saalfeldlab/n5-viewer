@@ -24,6 +24,7 @@ import java.util.Collection;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth.Scope;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.N5;
@@ -74,6 +75,13 @@ public class DataAccessFactory
 		}
 	}
 
+	public static GoogleCloudOAuth createGoogleCloudOAuth() throws IOException
+	{
+		return createGoogleCloudOAuth( Arrays.asList(
+				GoogleCloudResourceManagerClient.ProjectsScope.READ_ONLY,
+				GoogleCloudStorageClient.StorageScope.READ_WRITE
+			) );
+	}
 	public static GoogleCloudOAuth createGoogleCloudOAuth( final Collection< ? extends Scope > scopes ) throws IOException
 	{
 		return new GoogleCloudOAuth(
@@ -117,7 +125,7 @@ public class DataAccessFactory
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			final GoogleCloudOAuth googleCloudOAuth = createGoogleCloudOAuth( Arrays.asList( GoogleCloudStorageClient.StorageScope.READ_WRITE ) );
+			final GoogleCloudOAuth googleCloudOAuth = createGoogleCloudOAuth();
 			final GoogleCloudStorageClient googleCloudStorageClient = new GoogleCloudStorageClient(
 					googleCloudOAuth.getAccessToken(),
 					googleCloudOAuth.getClientSecrets(),

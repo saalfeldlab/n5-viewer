@@ -41,12 +41,7 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 	{
 		try
 		{
-			oauth = DataAccessFactory.createGoogleCloudOAuth(
-					Arrays.asList(
-							GoogleCloudResourceManagerClient.ProjectsScope.READ_ONLY,
-							GoogleCloudStorageClient.StorageScope.READ_WRITE
-						)
-				);
+			oauth = DataAccessFactory.createGoogleCloudOAuth();
 		}
 		catch ( final IOException e)
 		{
