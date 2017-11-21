@@ -23,6 +23,7 @@ import java.util.List;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessException;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
@@ -79,7 +80,15 @@ public class N5Viewer implements PlugIn
 			final String n5Path,
 			final DataAccessType storageType ) throws IOException
 	{
-		final DataAccessFactory dataAccessFactory = new DataAccessFactory( storageType );
+		final DataAccessFactory dataAccessFactory;
+		try
+		{
+			dataAccessFactory = new DataAccessFactory( storageType );
+		}
+		catch ( final DataAccessException e )
+		{
+			return;
+		}
 
 		final N5Reader n5 = dataAccessFactory.createN5Reader( n5Path );
 		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );

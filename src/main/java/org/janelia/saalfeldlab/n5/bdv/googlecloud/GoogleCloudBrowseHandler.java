@@ -12,8 +12,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
@@ -40,21 +38,15 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 	{
 		try
 		{
-			oauth = DataAccessFactory.createGoogleCloudOAuth();
+			oauth = GoogleCloudClientBuilder.createOAuth();
 		}
-		catch ( final IOException e)
+		catch ( final IOException e )
 		{
 			IJ.handleException( e );
 		}
 
 		// query a list of user's projects first
-		final ResourceManager resourceManager = new GoogleCloudResourceManagerClient(
-				oauth.getAccessToken(),
-				oauth.getClientSecrets(),
-				oauth.getRefreshToken()
-			).create();
-
-		// list projects
+		final ResourceManager resourceManager = GoogleCloudClientBuilder.createResourceManager( oauth );
 		projects = new ArrayList<>();
 		final Iterator< Project > projectIterator = resourceManager.list().iterateAll().iterator();
 		if ( !projectIterator.hasNext() )
@@ -116,12 +108,7 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 			}
 
 			final String selectedProjectId = projects.get( selectedProjectIndex ).getProjectId();
-
-			final Storage storage = new GoogleCloudStorageClient(
-					oauth.getAccessToken(),
-					oauth.getClientSecrets(),
-					oauth.getRefreshToken()
-				).create( selectedProjectId );
+			final Storage storage = GoogleCloudClientBuilder.createStorage( oauth, selectedProjectId );
 
 			buckets = new ArrayList<>();
 			final Iterator< Bucket > bucketIterator = storage.list().iterateAll().iterator();

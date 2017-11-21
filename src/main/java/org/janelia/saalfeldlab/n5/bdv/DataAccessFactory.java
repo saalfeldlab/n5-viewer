@@ -19,23 +19,18 @@ package org.janelia.saalfeldlab.n5.bdv;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collection;
 
 import org.apache.commons.lang.NotImplementedException;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth.Scope;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBdvSettingsManager;
+import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudClientBuilder;
 import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3BdvSettingsManager;
+import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3ClientBuilderWithProfileCredentials;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorage;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3;
 
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.AmazonS3URI;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
@@ -45,11 +40,16 @@ import bdv.BigDataViewer;
 
 public class DataAccessFactory
 {
-	public enum DataAccessType
+	public static enum DataAccessType
 	{
 		FILESYSTEM,
 		AMAZON_S3,
 		GOOGLE_CLOUD
+	}
+
+	public static class DataAccessException extends Exception
+	{
+		private static final long serialVersionUID = -5034540320996772468L;
 	}
 
 	private static final String localFileProtocol = "file";
@@ -75,22 +75,6 @@ public class DataAccessFactory
 		}
 	}
 
-	public static GoogleCloudOAuth createGoogleCloudOAuth() throws IOException
-	{
-		return createGoogleCloudOAuth( Arrays.asList(
-				GoogleCloudResourceManagerClient.ProjectsScope.READ_ONLY,
-				GoogleCloudStorageClient.StorageScope.READ_WRITE
-			) );
-	}
-	public static GoogleCloudOAuth createGoogleCloudOAuth( final Collection< ? extends Scope > scopes ) throws IOException
-	{
-		return new GoogleCloudOAuth(
-				scopes,
-				"n5-viewer-google-cloud-oauth2",
-				DataAccessFactory.class.getResourceAsStream( "/googlecloud_client_secrets.json" )
-			);
-	}
-
 	public static URI createBucketUri( final DataAccessType type, final String bucketName )
 	{
 		final String protocol;
@@ -110,7 +94,7 @@ public class DataAccessFactory
 		return URI.create( protocol + "://" + bucketName + "/" );
 	}
 
-	public DataAccessFactory( final DataAccessType type ) throws IOException
+	public DataAccessFactory( final DataAccessType type ) throws IOException, DataAccessException
 	{
 		this.type = type;
 		switch ( type )
@@ -120,18 +104,12 @@ public class DataAccessFactory
 			googleCloudStorage = null;
 			break;
 		case AMAZON_S3:
-			s3 = AmazonS3ClientBuilder.standard().build();
+			s3 = AmazonS3ClientBuilderWithProfileCredentials.create();
 			googleCloudStorage = null;
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			final GoogleCloudOAuth googleCloudOAuth = createGoogleCloudOAuth();
-			final GoogleCloudStorageClient googleCloudStorageClient = new GoogleCloudStorageClient(
-					googleCloudOAuth.getAccessToken(),
-					googleCloudOAuth.getClientSecrets(),
-					googleCloudOAuth.getRefreshToken()
-				);
-			googleCloudStorage = googleCloudStorageClient.create();
+			googleCloudStorage = GoogleCloudClientBuilder.createStorage();
 			break;
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
