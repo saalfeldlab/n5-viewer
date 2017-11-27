@@ -39,11 +39,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBrowseHandler;
-import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudHttpBucketLinkParser;
-import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudHttpBucketLinkParser.NotBucketLinkException;
-import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudHttpBucketLinkParser.NotGoogleCloudLinkException;
 import org.janelia.saalfeldlab.n5.bdv.s3.S3BrowseHandler;
 
 import com.amazonaws.services.s3.AmazonS3URI;
@@ -301,23 +299,24 @@ public class DatasetSelectorDialog
 				else
 				{
 					// might be a google cloud link
-					final String bucketName;
+					final GoogleCloudStorageURI googleCloudUri;
 					try
 					{
-						bucketName = GoogleCloudHttpBucketLinkParser.parseBucketName( uri );
+						googleCloudUri = new GoogleCloudStorageURI( uri );
 					}
-					catch ( final NotGoogleCloudLinkException e )
+					catch ( final Exception e )
 					{
 						fallback( "The link should point to AWS S3 bucket or Google Cloud Storage bucket." );
 						return;
 					}
-					catch ( final NotBucketLinkException e )
+
+					if ( googleCloudUri.getBucket() == null || googleCloudUri.getBucket().isEmpty() || ( googleCloudUri.getKey() != null && !googleCloudUri.getKey().isEmpty() ) )
 					{
 						fallback( "N5 datasets on Google Cloud are stored in buckets. Please provide a link to a bucket." );
 						return;
 					}
 					storageType = DataAccessType.GOOGLE_CLOUD;
-					uri = DataAccessFactory.createBucketUri( DataAccessType.GOOGLE_CLOUD, bucketName );
+					uri = DataAccessFactory.createBucketUri( DataAccessType.GOOGLE_CLOUD, googleCloudUri.getBucket() );
 				}
 			}
 			else
