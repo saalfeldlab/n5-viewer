@@ -10,7 +10,7 @@ import ij.IJ;
 
 public class AmazonS3ClientBuilderWithProfileCredentials
 {
-	private static final String credentialsDocsLink = "http://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html";
+	private static final String credentialsDocsLink = "https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-quick-configuration";
 
 	public static AmazonS3 create() throws DataAccessException
 	{
@@ -22,7 +22,7 @@ public class AmazonS3ClientBuilderWithProfileCredentials
 		{
 			IJ.error(
 					"N5 Viewer",
-					"<html>Could not find AWS credentials/region. Please initialize them using one of the methods listed here:<br/>"
+					"<html>Could not find AWS credentials/region. Please initialize them using AWS Command Line Interface:<br/>"
 							+ "<a href=\"" + credentialsDocsLink + "\">" + credentialsDocsLink + "</a></html>"
 				);
 			throw new DataAccessException();
