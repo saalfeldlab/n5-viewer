@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
 import org.jdom2.JDOMException;
 
@@ -43,11 +44,11 @@ public class GoogleCloudBdvSettingsManager extends BdvSettingsManager
 	private final Storage storage;
 	private final BlobId bdvSettingsBlobId;
 
-	public GoogleCloudBdvSettingsManager( final Storage storage, final BigDataViewer bdv, final BlobId bdvSettingsBlobId )
+	public GoogleCloudBdvSettingsManager( final Storage storage, final BigDataViewer bdv, final GoogleCloudStorageURI bdvSettingsUri )
 	{
 		super( bdv );
 		this.storage = storage;
-		this.bdvSettingsBlobId = bdvSettingsBlobId;
+		bdvSettingsBlobId = BlobId.of( bdvSettingsUri.getBucket(), bdvSettingsUri.getKey() );
 	}
 
 	@Override

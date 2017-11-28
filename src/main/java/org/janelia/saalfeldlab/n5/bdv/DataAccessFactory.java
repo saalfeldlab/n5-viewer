@@ -21,6 +21,7 @@ import java.net.URI;
 import java.nio.file.Paths;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBdvSettingsManager;
@@ -32,7 +33,6 @@ import org.janelia.saalfeldlab.n5.s3.N5AmazonS3;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3URI;
-import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
 import com.google.gson.GsonBuilder;
 
@@ -143,10 +143,10 @@ public class DataAccessFactory
 				throw new IllegalArgumentException( "Object key is not null. Expected bucket name only (as N5 containers are represented by buckets in S3 implementation)" );
 			return N5AmazonS3.openS3Reader( s3, s3Uri.getBucket(), gsonBuilder );
 		case GOOGLE_CLOUD:
-			final BlobId blobId = parseGoogleCloudStorageLink( basePath );
-			if ( blobId.getName() != null && !blobId.getName().isEmpty() )
+			final GoogleCloudStorageURI googleCloudUri = new GoogleCloudStorageURI( basePath );
+			if ( googleCloudUri.getKey() != null && !googleCloudUri.getKey().isEmpty() )
 				throw new IllegalArgumentException( "Object key is not null. Expected bucket name only (as N5 containers are represented by buckets in Google Cloud implementation)" );
-			return N5GoogleCloudStorage.openCloudStorageReader( googleCloudStorage, blobId.getBucket(), gsonBuilder );
+			return N5GoogleCloudStorage.openCloudStorageReader( googleCloudStorage, googleCloudUri.getBucket(), gsonBuilder );
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
 		}
@@ -161,20 +161,9 @@ public class DataAccessFactory
 		case AMAZON_S3:
 			return new AmazonS3BdvSettingsManager( s3, bdv, new AmazonS3URI( bdvSettingsPath ) );
 		case GOOGLE_CLOUD:
-			return new GoogleCloudBdvSettingsManager( googleCloudStorage, bdv, parseGoogleCloudStorageLink( bdvSettingsPath ) );
+			return new GoogleCloudBdvSettingsManager( googleCloudStorage, bdv, new GoogleCloudStorageURI( bdvSettingsPath ) );
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
 		}
-	}
-
-	private static BlobId parseGoogleCloudStorageLink( final String googleCloudStorageLink )
-	{
-		final URI uri = URI.create( googleCloudStorageLink );
-		if ( !uri.getScheme().equals( googleCloudProtocol ) )
-			throw new IllegalArgumentException( "incorrect protocol" );
-
-		final String bucketName = uri.getHost();
-		final String blobName = uri.getPath().startsWith( "/" ) ? uri.getPath().substring( 1 ) : uri.getPath();
-		return BlobId.of( bucketName, blobName != null ? blobName : "" );
 	}
 }
