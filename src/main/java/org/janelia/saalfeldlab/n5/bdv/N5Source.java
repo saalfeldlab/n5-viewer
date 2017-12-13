@@ -43,11 +43,11 @@ public class N5Source
 	@SuppressWarnings("unchecked")
 	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > Source< V > getVolatileSource(
 			final N5Reader n5,
-			final N5ExportMetadata metadata,
 			final int channel,
 			final String name,
 			final SharedQueue queue ) throws IOException
 	{
+		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
 		final RandomAccessibleIntervalMipmapSource< T > source = getRandomAccessibleIntervalMipmapSource( n5, metadata, channel, name );
 		final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), queue );
 		final Source< V > transformedVolatileSource = applyTransform( volatileSource, metadata, channel );
@@ -59,10 +59,10 @@ public class N5Source
 	 */
 	public static < T extends NumericType< T > & NativeType< T > > Source< T > getSource(
 			final N5Reader n5,
-			final N5ExportMetadata metadata,
 			final int channel,
 			final String name ) throws IOException
 	{
+		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
 		final RandomAccessibleIntervalMipmapSource< T > source = getRandomAccessibleIntervalMipmapSource( n5, metadata, channel, name );
 		final Source< T > transformedSource = applyTransform( source, metadata, channel );
 		return transformedSource;
@@ -71,7 +71,7 @@ public class N5Source
 	@SuppressWarnings("unchecked")
 	private static < T extends NumericType< T > & NativeType< T > > RandomAccessibleIntervalMipmapSource< T > getRandomAccessibleIntervalMipmapSource(
 			final N5Reader n5,
-			final N5ExportMetadata metadata,
+			final N5ExportMetadataReader metadata,
 			final int channel,
 			final String name ) throws IOException
 	{
@@ -92,7 +92,7 @@ public class N5Source
 
 	private static < T > Source< T > applyTransform(
 			final Source< T > source,
-			final N5ExportMetadata metadata,
+			final N5ExportMetadataReader metadata,
 			final int channel ) throws IOException
 	{
 		final TransformedSource< T > transformedSource = new TransformedSource<>( source );

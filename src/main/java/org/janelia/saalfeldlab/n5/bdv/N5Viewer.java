@@ -17,14 +17,15 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessException;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -50,25 +51,24 @@ import net.imglib2.type.numeric.NumericType;
  *
  * @author Igor Pisarev
  */
-
 public class N5Viewer implements PlugIn
 {
 	final public static void main( final String... args ) throws IOException
 	{
 		new ImageJ();
-		exec( args[ 0 ] );
+		new N5Viewer().run( "" );
 	}
 
 	@Override
 	public void run( final String args )
 	{
-		final String n5Path = new DatasetSelectorDialog().run();
-		if ( n5Path == null )
+		final Selection selection = new DatasetSelectorDialog().run();
+		if ( selection == null )
 			return;
 
 		try
 		{
-			exec( n5Path );
+			exec( selection.n5Path, selection.storageType );
 		}
 		catch ( final IOException e )
 		{
@@ -76,27 +76,44 @@ public class N5Viewer implements PlugIn
 		}
 	}
 
-	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec( final String n5Path ) throws IOException
+	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
+			final String n5Path,
+			final DataAccessType storageType ) throws IOException
 	{
-		if ( !validateN5Path( n5Path ) )
+		final DataAccessFactory dataAccessFactory;
+		try
+		{
+			dataAccessFactory = new DataAccessFactory( storageType );
+		}
+		catch ( final DataAccessException e )
+		{
 			return;
+		}
+
+		final N5Reader n5 = dataAccessFactory.createN5Reader( n5Path );
+		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
+
+		final int numChannels = metadata.getNumChannels();
+		if ( numChannels <= 0 )
+		{
+			IJ.error( "No channels found" );
+			return;
+		}
+
+		final String displayName = metadata.getName() != null ? metadata.getName() : "";
 
 		final BdvOptions bdvOptions = BdvOptions.options();
 		bdvOptions.frameTitle( "N5 Viewer" );
 
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
-		final N5Reader n5 = N5.openFSReader( n5Path );
-		final N5ExportMetadata metadata = new N5ExportMetadata( n5Path );
-		final String displayName = metadata.getName() != null ? metadata.getName() : "";
-
 		final List< Source< T > > sources = new ArrayList<>();
 		final List< BdvStackSource< V > > stackSources = new ArrayList<>();
 
-		for ( int c = 0; c < metadata.getNumChannels(); ++c )
+		for ( int c = 0; c < numChannels; ++c )
 		{
-			final Source< T > source = N5Source.getSource( n5, metadata, c, displayName );
-			final Source< V > volatileSource = N5Source.getVolatileSource( n5, metadata, c, displayName, sharedQueue );
+			final Source< T > source = N5Source.getSource( n5, c, displayName );
+			final Source< V > volatileSource = N5Source.getVolatileSource( n5, c, displayName, sharedQueue );
 
 			// show in BDV
 			final BdvStackSource< V > stackSource = BdvFunctions.show( volatileSource, bdvOptions );
@@ -114,8 +131,8 @@ public class N5Viewer implements PlugIn
 		if ( bdvHandle instanceof BdvHandleFrame )
 		{
 			final BdvHandleFrame bdvHandleFrame = ( BdvHandleFrame ) bdvHandle;
-			final String bdvSettingsFilepath = Paths.get( n5Path, "bdv-settings.xml" ).toString();
-			final BdvSettingsManager bdvSettingsManager = new BdvSettingsManager( bdvHandleFrame.getBigDataViewer(), bdvSettingsFilepath );
+			final String bdvSettingsPath = dataAccessFactory.combinePaths( n5Path, "bdv-settings.xml" );
+			final BdvSettingsManager bdvSettingsManager = dataAccessFactory.createBdvSettingsManager( bdvHandleFrame.getBigDataViewer(), bdvSettingsPath );
 			settingsLoadResult = bdvSettingsManager.initBdvSettings();
 		}
 		else
@@ -138,7 +155,7 @@ public class N5Viewer implements PlugIn
 		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
 		{
 			// set default display settings if BDV settings files does not exist cannot be loaded
-			final ARGBType[] colors = ColorGenerator.getColors( metadata.getNumChannels() );
+			final ARGBType[] colors = ColorGenerator.getColors( numChannels );
 			for ( int i = 0; i < stackSources.size(); ++i )
 			{
 				final BdvStackSource< V > stackSource = stackSources.get( i );
@@ -165,22 +182,5 @@ public class N5Viewer implements PlugIn
 
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
-	}
-
-	private static boolean validateN5Path( final String n5Path ) throws IOException
-	{
-		if ( !Files.exists( Paths.get( n5Path ) ) )
-		{
-			IJ.showMessage( "Selected path does not exist." );
-			return false;
-		}
-
-		if ( !Files.isDirectory( Paths.get( n5Path ) ) || N5.openFSReader( n5Path ).getAttributes( "" ).isEmpty() )
-		{
-			IJ.showMessage( "Selected path is not an N5 dataset." );
-			return false;
-		}
-
-		return true;
 	}
 }
