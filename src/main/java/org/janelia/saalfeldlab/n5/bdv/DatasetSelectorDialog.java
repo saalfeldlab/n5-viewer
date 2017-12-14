@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBrowseHandler;
 import org.janelia.saalfeldlab.n5.bdv.s3.S3BrowseHandler;
 

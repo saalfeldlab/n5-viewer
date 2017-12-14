@@ -14,7 +14,7 @@ import java.util.List;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
 import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessType;
 
 import com.google.cloud.resourcemanager.Project;
 import com.google.cloud.resourcemanager.ResourceManager;

@@ -8,9 +8,9 @@ import java.awt.event.WindowEvent;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessException;
 import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessException;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.DataAccessType;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.Bucket;

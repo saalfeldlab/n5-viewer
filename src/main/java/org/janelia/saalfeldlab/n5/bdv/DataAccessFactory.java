@@ -40,18 +40,6 @@ import bdv.BigDataViewer;
 
 public class DataAccessFactory
 {
-	public static enum DataAccessType
-	{
-		FILESYSTEM,
-		AMAZON_S3,
-		GOOGLE_CLOUD
-	}
-
-	public static class DataAccessException extends Exception
-	{
-		private static final long serialVersionUID = -5034540320996772468L;
-	}
-
 	private static final String localFileProtocol = "file";
 	private static final String s3Protocol = "s3";
 	private static final String googleCloudProtocol = "gs";

@@ -23,8 +23,6 @@ import java.util.List;
 import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessException;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory.DataAccessType;
 import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
