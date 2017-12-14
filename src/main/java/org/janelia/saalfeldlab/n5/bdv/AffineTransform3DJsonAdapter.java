@@ -28,7 +28,7 @@ import com.google.gson.JsonSerializer;
 
 import net.imglib2.realtransform.AffineTransform3D;
 
-class AffineTransform3DJsonAdapter implements JsonSerializer< AffineTransform3D >, JsonDeserializer< AffineTransform3D >
+public class AffineTransform3DJsonAdapter implements JsonSerializer< AffineTransform3D >, JsonDeserializer< AffineTransform3D >
 {
 	@Override
 	public JsonElement serialize( final AffineTransform3D src, final Type typeOfSrc, final JsonSerializationContext context )
