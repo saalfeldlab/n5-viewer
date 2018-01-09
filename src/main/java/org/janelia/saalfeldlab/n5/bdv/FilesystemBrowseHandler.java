@@ -20,7 +20,7 @@ public class FilesystemBrowseHandler implements BrowseHandler
 	@Override
 	public String select()
 	{
-		File directory = new File( choice.getSelectedItem() );
+		File directory = choice.getSelectedItem() != null ? new File( choice.getSelectedItem() ) : null;
 		while ( directory != null && !directory.exists() )
 			directory = directory.getParentFile();
 
