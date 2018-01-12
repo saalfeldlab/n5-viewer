@@ -33,6 +33,7 @@ import bdv.util.BdvHandle;
 import bdv.util.BdvHandleFrame;
 import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
+import bdv.util.Prefs;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
 import ij.IJ;
@@ -102,6 +103,8 @@ public class N5Viewer implements PlugIn
 
 		final BdvOptions bdvOptions = BdvOptions.options();
 		bdvOptions.frameTitle( "N5 Viewer" );
+
+		Prefs.showScaleBar(true);
 
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
