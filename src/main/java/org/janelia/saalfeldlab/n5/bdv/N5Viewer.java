@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
 import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
@@ -155,7 +154,7 @@ public class N5Viewer implements PlugIn
 
 		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
 		{
-			// set default display settings if BDV settings files does not exist cannot be loaded
+			// set default display settings if BDV settings file does not exist or cannot be loaded
 			final ARGBType[] colors = ColorGenerator.getColors( numChannels );
 			for ( int i = 0; i < stackSources.size(); ++i )
 			{
