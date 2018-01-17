@@ -22,14 +22,14 @@ import java.nio.file.Paths;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
-import org.janelia.saalfeldlab.n5.N5;
+import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudClientBuilder;
 import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3ClientBuilderWithProfileCredentials;
-import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorage;
-import org.janelia.saalfeldlab.n5.s3.N5AmazonS3;
+import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
+import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3URI;
@@ -118,23 +118,23 @@ public class DataAccessFactory
 		}
 	}
 
-	public N5Reader createN5Reader( final String basePath )
+	public N5Reader createN5Reader( final String basePath ) throws IOException
 	{
 		final GsonBuilder gsonBuilder = N5ExportMetadata.getGsonBuilder();
 		switch ( type )
 		{
 		case FILESYSTEM:
-			return N5.openFSReader( basePath, gsonBuilder );
+			return new N5FSReader( basePath, gsonBuilder );
 		case AMAZON_S3:
 			final AmazonS3URI s3Uri = new AmazonS3URI( basePath );
 			if ( s3Uri.getKey() != null && !s3Uri.getKey().isEmpty() )
 				throw new IllegalArgumentException( "Object key is not null. Expected bucket name only (as N5 containers are represented by buckets in S3 implementation)" );
-			return N5AmazonS3.openS3Reader( s3, s3Uri.getBucket(), gsonBuilder );
+			return new N5AmazonS3Reader( s3, s3Uri.getBucket(), gsonBuilder );
 		case GOOGLE_CLOUD:
 			final GoogleCloudStorageURI googleCloudUri = new GoogleCloudStorageURI( basePath );
 			if ( googleCloudUri.getKey() != null && !googleCloudUri.getKey().isEmpty() )
 				throw new IllegalArgumentException( "Object key is not null. Expected bucket name only (as N5 containers are represented by buckets in Google Cloud implementation)" );
-			return N5GoogleCloudStorage.openCloudStorageReader( googleCloudStorage, googleCloudUri.getBucket(), gsonBuilder );
+			return new N5GoogleCloudStorageReader( googleCloudStorage, googleCloudUri.getBucket(), gsonBuilder );
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
 		}

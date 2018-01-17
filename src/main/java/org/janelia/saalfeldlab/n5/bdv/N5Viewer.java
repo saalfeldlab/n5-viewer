@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.janelia.saalfeldlab.n5.N5;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
 import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
@@ -33,6 +32,7 @@ import bdv.util.BdvHandle;
 import bdv.util.BdvHandleFrame;
 import bdv.util.BdvOptions;
 import bdv.util.BdvStackSource;
+import bdv.util.Prefs;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
 import ij.IJ;
@@ -103,6 +103,8 @@ public class N5Viewer implements PlugIn
 		final BdvOptions bdvOptions = BdvOptions.options();
 		bdvOptions.frameTitle( "N5 Viewer" );
 
+		Prefs.showScaleBar(true);
+
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
 		final List< Source< T > > sources = new ArrayList<>();
@@ -152,7 +154,7 @@ public class N5Viewer implements PlugIn
 
 		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
 		{
-			// set default display settings if BDV settings files does not exist cannot be loaded
+			// set default display settings if BDV settings file does not exist or cannot be loaded
 			final ARGBType[] colors = ColorGenerator.getColors( numChannels );
 			for ( int i = 0; i < stackSources.size(); ++i )
 			{

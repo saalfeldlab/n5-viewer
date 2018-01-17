@@ -25,7 +25,6 @@ import bdv.tools.transformation.TransformedSource;
 import bdv.util.RandomAccessibleIntervalMipmapSource;
 import bdv.util.VolatileRandomAccessibleIntervalMipmapSource;
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Source;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
@@ -49,7 +48,7 @@ public class N5Source
 	{
 		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
 		final RandomAccessibleIntervalMipmapSource< T > source = getRandomAccessibleIntervalMipmapSource( n5, metadata, channel, name );
-		final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( ( V ) VolatileTypeMatcher.getVolatileTypeForType( source.getType() ), queue );
+		final VolatileRandomAccessibleIntervalMipmapSource< T, V > volatileSource = source.asVolatile( queue );
 		final Source< V > transformedVolatileSource = applyTransform( volatileSource, metadata, channel );
 		return transformedVolatileSource;
 	}
