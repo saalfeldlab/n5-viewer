@@ -112,8 +112,8 @@ public class N5Viewer implements PlugIn
 
 		for ( int c = 0; c < numChannels; ++c )
 		{
-			final Source< T > source = N5Source.getSource( n5, c, displayName );
-			final Source< V > volatileSource = N5Source.getVolatileSource( n5, c, displayName, sharedQueue );
+			final Source< T > source = N5MultiscaleSource.getSource( n5, c, displayName );
+			final Source< V > volatileSource = N5MultiscaleSource.getVolatileSource( n5, c, displayName, sharedQueue );
 
 			// show in BDV
 			final BdvStackSource< V > stackSource = BdvFunctions.show( volatileSource, bdvOptions );
