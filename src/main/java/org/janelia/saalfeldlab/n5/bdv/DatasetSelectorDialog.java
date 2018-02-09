@@ -220,7 +220,6 @@ public class DatasetSelectorDialog
 		choice.removeAll();
 		for ( final String choiceItem : choiceItems )
 			choice.add( choiceItem );
-		updateBrowseListener();
 	}
 
 	private List< String > getChoiceItems()
@@ -240,6 +239,7 @@ public class DatasetSelectorDialog
 		{
 			selectedStorageType = getAccessTypeByLabel( ( String ) event.getItem() );
 			updateSelectionHistory();
+			updateBrowseListener();
 		}
 	}
 
@@ -353,6 +353,7 @@ public class DatasetSelectorDialog
 			selectedStorageType = storageType;
 			updateSelectedStorageType();
 			updateSelectionHistory();
+			updateBrowseListener();
 			browseListener.setSelectedItem( correctedLink );
 		}
 
