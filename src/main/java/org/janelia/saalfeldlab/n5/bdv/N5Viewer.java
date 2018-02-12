@@ -23,6 +23,7 @@ import java.util.List;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
 import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -38,6 +39,7 @@ import bdv.viewer.Source;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
+import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Volatile;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
@@ -54,7 +56,8 @@ public class N5Viewer implements PlugIn
 	final public static void main( final String... args ) throws IOException
 	{
 		new ImageJ();
-		new N5Viewer().run( "" );
+//		new N5Viewer().run( "" );
+		exec( args[ 0 ], args[ 1 ], DataAccessType.FILESYSTEM );
 	}
 
 	@Override
@@ -76,6 +79,14 @@ public class N5Viewer implements PlugIn
 
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
 			final String n5Path,
+			final DataAccessType storageType ) throws IOException
+	{
+		exec( n5Path, null, storageType );
+	}
+
+	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
+			final String n5Path,
+			final String n5TileCountPath,
 			final DataAccessType storageType ) throws IOException
 	{
 		final DataAccessFactory dataAccessFactory;
@@ -165,7 +176,19 @@ public class N5Viewer implements PlugIn
 			}
 		}
 
-		initCropController( bdvHandle, sources );
+		//initCropController( bdvHandle, sources );
+
+		if ( n5TileCountPath != null )
+		{
+			System.out.println( "Init tile counter" );
+			final N5Reader n5TileCount = dataAccessFactory.createN5Reader( n5TileCountPath );
+			initTileCounter(
+					bdvHandle,
+					n5TileCount,
+					n5,
+					metadata.getPixelResolution( 0 )
+				);
+		}
 	}
 
 	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BdvHandle bdvHandle, final List< Source< T > > sources )
@@ -182,5 +205,25 @@ public class N5Viewer implements PlugIn
 
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
+	}
+
+	private static void initTileCounter(
+			final BdvHandle bdvHandle,
+			final N5Reader n5TileCount,
+			final N5Reader n5Data,
+			final VoxelDimensions voxelDimensions ) throws IOException
+	{
+		final TriggerBehaviourBindings bindings = bdvHandle.getTriggerbindings();
+		final InputTriggerConfig config = new InputTriggerConfig();
+
+		final TileCounter tileCounter = new TileCounter(
+				config,
+				bdvHandle.getViewerPanel(),
+				N5Utils.open( n5TileCount, "data" ),
+				voxelDimensions
+			);
+
+		bindings.addBehaviourMap( "tiles", tileCounter.getBehaviourMap() );
+		bindings.addInputTriggerMap( "tiles", tileCounter.getInputTriggerMap() );
 	}
 }

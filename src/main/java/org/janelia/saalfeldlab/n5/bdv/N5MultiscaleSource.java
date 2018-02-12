@@ -113,7 +113,7 @@ public class N5MultiscaleSource
 		return transformedSource;
 	}
 
-	private static double[] getNormalizedVoxelSize( final VoxelDimensions voxelDimensions )
+	static double[] getNormalizedVoxelSize( final VoxelDimensions voxelDimensions )
 	{
 		double minVoxelDim = Double.POSITIVE_INFINITY;
 		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
