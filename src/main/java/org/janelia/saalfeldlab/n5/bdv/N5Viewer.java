@@ -56,8 +56,7 @@ public class N5Viewer implements PlugIn
 	final public static void main( final String... args ) throws IOException
 	{
 		new ImageJ();
-//		new N5Viewer().run( "" );
-		exec( args[ 0 ], args[ 1 ], DataAccessType.FILESYSTEM );
+		new N5Viewer().run( "" );
 	}
 
 	@Override
@@ -79,14 +78,6 @@ public class N5Viewer implements PlugIn
 
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
 			final String n5Path,
-			final DataAccessType storageType ) throws IOException
-	{
-		exec( n5Path, null, storageType );
-	}
-
-	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final String n5Path,
-			final String n5TileCountPath,
 			final DataAccessType storageType ) throws IOException
 	{
 		final DataAccessFactory dataAccessFactory;
@@ -114,7 +105,7 @@ public class N5Viewer implements PlugIn
 		final BdvOptions bdvOptions = BdvOptions.options();
 		bdvOptions.frameTitle( "N5 Viewer" );
 
-		Prefs.showScaleBar(true);
+		Prefs.showScaleBar( true );
 
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
@@ -178,14 +169,14 @@ public class N5Viewer implements PlugIn
 
 		//initCropController( bdvHandle, sources );
 
-		if ( n5TileCountPath != null )
+		// TODO: decide what to do with tile indexes for ch1, ch2...(they are the same in our case, but necessarily in general)
+		if ( n5.datasetExists( N5ExportMetadata.getScaleLevelDatasetPath( 0, 0 ) + "-tile-indexes" ) )
 		{
 			System.out.println( "Init tile counter" );
-			final N5Reader n5TileCount = dataAccessFactory.createN5Reader( n5TileCountPath );
-			initTileCounter(
+			initTilesAtPoint(
 					bdvHandle,
-					n5TileCount,
 					n5,
+					N5ExportMetadata.getScaleLevelDatasetPath( 0, 0 ) + "-tile-indexes",
 					metadata.getPixelResolution( 0 )
 				);
 		}
@@ -207,23 +198,23 @@ public class N5Viewer implements PlugIn
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
 	}
 
-	private static void initTileCounter(
+	private static void initTilesAtPoint(
 			final BdvHandle bdvHandle,
-			final N5Reader n5TileCount,
-			final N5Reader n5Data,
+			final N5Reader n5,
+			final String tileIndexesDatasetPath,
 			final VoxelDimensions voxelDimensions ) throws IOException
 	{
 		final TriggerBehaviourBindings bindings = bdvHandle.getTriggerbindings();
 		final InputTriggerConfig config = new InputTriggerConfig();
 
-		final TileCounter tileCounter = new TileCounter(
+		final TilesAtPoint< ? > tilesAtPoint = new TilesAtPoint<>(
 				config,
 				bdvHandle.getViewerPanel(),
-				N5Utils.open( n5TileCount, "data" ),
+				N5Utils.open( n5, tileIndexesDatasetPath ),
 				voxelDimensions
 			);
 
-		bindings.addBehaviourMap( "tiles", tileCounter.getBehaviourMap() );
-		bindings.addInputTriggerMap( "tiles", tileCounter.getInputTriggerMap() );
+		bindings.addBehaviourMap( "tiles", tilesAtPoint.getBehaviourMap() );
+		bindings.addInputTriggerMap( "tiles", tilesAtPoint.getInputTriggerMap() );
 	}
 }
