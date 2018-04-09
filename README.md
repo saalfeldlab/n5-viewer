@@ -42,7 +42,7 @@ Example of the `attributes.json` file:
 }
 ```
 
-Alternatively, scales and pixel resolution can be stored and queried as attributes of individual scale level datasets. The attribute keys for individual values are `downsamplingFactors` and `pixelResolution`. Thus, root attributes or channel group attributes are not mandatory, which makes it fully compatible with scale pyramid exports generated with https://github.com/saalfeldlab/n5-spark.
+Alternatively, scales and pixel resolution can be stored and queried as attributes of individual scale level datasets. The attribute keys for individual values are `downsamplingFactors` and `pixelResolution`. Thus, root attributes or channel group attributes are not mandatory, which makes it fully compatible with scale pyramid exports generated with [N5 Spark](https://github.com/saalfeldlab/n5-spark).
 
 ### Viewer state
 
