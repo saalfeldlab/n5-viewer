@@ -29,18 +29,20 @@ The application expects a path to a directory structured as follows:
 ...
 ```
 
-Root attributes are used as defaults for all channels. They can be overridden by setting channel-specific attributes.
-
+Root attributes are used as defaults for all channels. They can be overridden by setting channel-specific attributes.<br/>
 `s0`, `s1`, `s2` are standard N5 datasets that represent scale levels for each channel. `s0` corresponds to full resolution.
 
 Example of the `attributes.json` file:
 ```json
 {
+  "name":"some data",
   "scales":[[1,1,1],[2,2,1],[4,4,2],[8,8,4],[16,16,9],[32,32,17]],
   "pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]},
   "affineTransform":[[1,-0.30,-0.25,0],[0,1.25,0,0],[0,0,0.85,0]]
 }
 ```
+
+Alternatively, scales and pixel resolution can be stored and queried as attributes of individual scale level datasets. The attribute keys for individual values are `downsamplingFactors` and `pixelResolution`. Thus, root attributes or channel group attributes are not mandatory.
 
 ### Viewer state
 
