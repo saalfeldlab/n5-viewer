@@ -42,12 +42,14 @@ public class N5ExportMetadataReader
 
 	public int getNumChannels() throws IOException
 	{
-		return n5Reader.list( "" ).length;
+		return n5Reader.list( "/" ).length;
 	}
 
-	public String getName() throws IOException { return getAttribute( nameKey, String.class ); }
+	public String getName() throws IOException
+	{
+		return getAttribute( nameKey, String.class );
+	}
 
-	public AffineTransform3D getAffineTransform( final int channel ) throws IOException { return getAttribute( channel, affineTransformKey, AffineTransform3D.class ); }
 	public double[][] getScales( final int channel ) throws IOException
 	{
 		// check the root scales attribute
@@ -111,10 +113,14 @@ public class N5ExportMetadataReader
 		return pixelResolution;
 	}
 
+	public AffineTransform3D getAffineTransform( final int channel ) throws IOException
+	{
+		return getAttribute( channel, affineTransformKey, AffineTransform3D.class );
+	}
 
 	private < T > T getAttribute( final String key, final Class< T > clazz ) throws IOException
 	{
-		return n5Reader.getAttribute( "", key, clazz );
+		return n5Reader.getAttribute( "/", key, clazz );
 	}
 
 	private < T > T getAttribute( final int channel, final String key, final Class< T > clazz ) throws IOException

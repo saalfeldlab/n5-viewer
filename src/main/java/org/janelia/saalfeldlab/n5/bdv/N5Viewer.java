@@ -103,7 +103,7 @@ public class N5Viewer implements PlugIn
 		final BdvOptions bdvOptions = BdvOptions.options();
 		bdvOptions.frameTitle( "N5 Viewer" );
 
-		Prefs.showScaleBar(true);
+		Prefs.showScaleBar( true );
 
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
