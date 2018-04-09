@@ -43,7 +43,10 @@ import net.imglib2.realtransform.AffineTransform3D;
  * <br>
  * ...<br>
  * </p><p>
- * Root attributes are used as defaults for all channels. They can be overridden by setting channel-specific attributes.
+ * Root attributes are used as defaults for all channels. They can be overridden by setting channel-specific attributes.<br>
+ * Alternatively, scales and pixel resolution can be stored and queried as attributes of individual scale level datasets.
+ * The attribute keys for individual values are <code>downsamplingFactors</code> and <code>pixelResolution</code>.
+ * Thus, root attributes or channel group attributes are not mandatory.
  * </p><p>
  * Example of the attributes.json file:<br>
  * <pre>{
