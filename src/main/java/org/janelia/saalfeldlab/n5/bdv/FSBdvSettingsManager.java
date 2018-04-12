@@ -60,7 +60,7 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 		synchronized ( lockedFiles )
 		{
 			result = loadSettings();
-			if ( result == InitBdvSettingsResult.LOADED )
+			if ( result == InitBdvSettingsResult.LOADED || result == InitBdvSettingsResult.NOT_LOADED )
 				lockedFiles.put( bdvSettingsFilepath, fileChannel );
 		}
 
