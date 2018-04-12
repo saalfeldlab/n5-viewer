@@ -172,6 +172,9 @@ public class N5Viewer implements PlugIn
 			}
 
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
+
+			if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED )
+				bdvSettingsManager.saveSettingsOnTimer();
 		}
 
 		InitializeViewerState.initTransform( bdv.getViewer() );
