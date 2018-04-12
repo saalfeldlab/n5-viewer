@@ -170,10 +170,10 @@ public class N5Viewer implements PlugIn
 				minMaxGroup.getMinBoundedValue().setCurrentValue( defaultDisplayRange.getA() );
 				minMaxGroup.getMaxBoundedValue().setCurrentValue( defaultDisplayRange.getB() );
 			}
-			bdv.getViewer().requestRepaint();
+
+			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 		}
 
-		bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 		InitializeViewerState.initTransform( bdv.getViewer() );
 		bdv.getViewerFrame().setVisible( true );
 
