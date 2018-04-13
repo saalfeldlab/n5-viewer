@@ -67,7 +67,7 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 		if ( result == InitBdvSettingsResult.CANCELED )
 			return result;
 
-		if ( fileLock != null )
+		if ( result == InitBdvSettingsResult.LOADED || result == InitBdvSettingsResult.NOT_LOADED )
 			setUpSettingsSaving();
 
 		return result;
