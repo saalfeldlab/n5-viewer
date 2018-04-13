@@ -9,7 +9,14 @@ mvn -Dimagej.app.directory=<path to Fiji> clean install
 Then, it will be available in *Fiji* under *Plugins* -> *BigDataViewer* -> *N5 Viewer*.
 
 ### Usage
-The application expects a path to a directory structured as follows:
+The plugin supports multiple storage options:
+* Filesystem (local/network drives)
+* Amazon Web Services S3
+* Google Cloud Storage
+
+Datasets stored on the filesystem are represented by the root N5 directory. For cloud storages, every N5 container is a bucket. You will be prompted to select an appropriate storage type and an N5 container as an input for the plugin.
+
+The plugin specifies the following N5 container structure:
 
 ```
 /attributes.json
@@ -30,7 +37,7 @@ The application expects a path to a directory structured as follows:
 ```
 
 Root attributes are used as defaults for all channels. They can be overridden by setting channel-specific attributes.<br/>
-`s0`, `s1`, `s2` are standard N5 datasets that represent scale levels for each channel. `s0` corresponds to full resolution.
+`s0`, `s1`, `s2` are standard N5 datasets representing scale levels. `s0` corresponds to full resolution.
 
 Example of the `attributes.json` file:
 ```json
@@ -46,7 +53,7 @@ Alternatively, scales and pixel resolution can be stored and queried as attribut
 
 ### Viewer state
 
-The changes made to the viewer state are saved automatically to `bdv-settings.xml` file in the root N5 directory:
+The changes made to the viewer state are saved automatically to `bdv-settings.xml` file in the root N5 container:
 * brightness & contrast
 * color scheme
 * display mode (fused/single, interpolation)
