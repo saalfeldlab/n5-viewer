@@ -51,7 +51,7 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 	}
 
 	@Override
-	public synchronized InitBdvSettingsResult initBdvSettings()
+	public synchronized InitBdvSettingsResult initBdvSettings( final boolean readonly )
 	{
 		if ( saveSettingsTimer != null )
 			throw new RuntimeException( "Settings have already been initialized" );
@@ -59,7 +59,7 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 		final InitBdvSettingsResult result;
 		synchronized ( lockedFiles )
 		{
-			result = loadSettings();
+			result = loadSettings( readonly );
 			if ( result == InitBdvSettingsResult.LOADED || result == InitBdvSettingsResult.NOT_LOADED )
 				lockedFiles.put( bdvSettingsFilepath, fileChannel );
 		}
@@ -115,8 +115,11 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 		}
 	}
 
-	private InitBdvSettingsResult loadSettings()
+	private InitBdvSettingsResult loadSettings( final boolean readonly )
 	{
+		if ( readonly )
+			return loadSettingsNonLocking() ? InitBdvSettingsResult.LOADED_READ_ONLY : InitBdvSettingsResult.NOT_LOADED_READ_ONLY;
+
 		try
 		{
 			return loadSettingsLocking() ? InitBdvSettingsResult.LOADED : InitBdvSettingsResult.NOT_LOADED;

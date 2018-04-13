@@ -82,7 +82,7 @@ public class N5Viewer implements PlugIn
 
 		try
 		{
-			exec( selection.n5Path, selection.storageType );
+			exec( selection.n5Path, selection.storageType, selection.readonly );
 		}
 		catch ( final IOException e )
 		{
@@ -92,7 +92,8 @@ public class N5Viewer implements PlugIn
 
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
 			final String n5Path,
-			final DataAccessType storageType ) throws IOException
+			final DataAccessType storageType,
+			final boolean readonly ) throws IOException
 	{
 		final DataAccessFactory dataAccessFactory;
 		try
@@ -142,7 +143,7 @@ public class N5Viewer implements PlugIn
 
 		final String bdvSettingsPath = dataAccessFactory.combinePaths( n5Path, "bdv-settings.xml" );
 		final BdvSettingsManager bdvSettingsManager = dataAccessFactory.createBdvSettingsManager( bdv, bdvSettingsPath );
-		final InitBdvSettingsResult settingsLoadResult = bdvSettingsManager.initBdvSettings();
+		final InitBdvSettingsResult settingsLoadResult = bdvSettingsManager.initBdvSettings( readonly );
 
 		if ( settingsLoadResult == InitBdvSettingsResult.CANCELED )
 		{

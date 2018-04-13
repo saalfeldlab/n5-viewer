@@ -64,7 +64,7 @@ public abstract class BdvSettingsManager
 		this.bdv = bdv;
 	}
 
-	public abstract InitBdvSettingsResult initBdvSettings();
+	public abstract InitBdvSettingsResult initBdvSettings( final boolean readonly );
 
 	protected abstract void saveSettingsOnTimer();
 	protected abstract void saveSettingsOnWindowClosing();

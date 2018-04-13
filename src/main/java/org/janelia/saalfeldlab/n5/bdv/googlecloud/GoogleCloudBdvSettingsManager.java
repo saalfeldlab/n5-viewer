@@ -52,12 +52,12 @@ public class GoogleCloudBdvSettingsManager extends BdvSettingsManager
 	}
 
 	@Override
-	public synchronized InitBdvSettingsResult initBdvSettings()
+	public synchronized InitBdvSettingsResult initBdvSettings( final boolean readonly )
 	{
 		if ( saveSettingsTimer != null )
 			throw new RuntimeException( "Settings have already been initialized" );
 
-		final InitBdvSettingsResult result = loadSettings();
+		final InitBdvSettingsResult result = loadSettings( readonly );
 		if ( result == InitBdvSettingsResult.LOADED || result == InitBdvSettingsResult.NOT_LOADED )
 			setUpSettingsSaving();
 		return result;
@@ -80,7 +80,7 @@ public class GoogleCloudBdvSettingsManager extends BdvSettingsManager
 		}
 	}
 
-	private InitBdvSettingsResult loadSettings()
+	private InitBdvSettingsResult loadSettings( final boolean readonly )
 	{
 		final Blob blob = storage.get( bdvSettingsBlobId );
 		final boolean loadedBdvSettings = blob != null && blob.exists();
@@ -106,26 +106,29 @@ public class GoogleCloudBdvSettingsManager extends BdvSettingsManager
 
 		}
 
-		// check if can write by trying to save bdv-settings.xml file
-		// querying permissions is trickier because it requires its own permission and may be disabled
-		boolean canWrite;
-		try
+		boolean canWrite = false;
+		if ( !readonly )
 		{
-			saveSettings();
-			canWrite = true;
-		}
-		catch ( final StorageException e )
-		{
-			if ( e.getCode() != FORBIDDEN_RESPONSE_CODE )
-				throw e;
+			// check if can write by trying to save bdv-settings.xml file
+			// querying permissions is trickier because it requires its own permission and may be disabled
+			try
+			{
+				saveSettings();
+				canWrite = true;
+			}
+			catch ( final StorageException e )
+			{
+				if ( e.getCode() != FORBIDDEN_RESPONSE_CODE )
+					throw e;
 
-			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
-			gd.addMessage( "You do not have write permissions for saving the viewer settings such as bookmarks, contrast, etc." + System.lineSeparator() + "Would you like to open the dataset anyway (read-only)?" );
-			gd.showDialog();
-			if ( gd.wasCanceled() )
-				return InitBdvSettingsResult.CANCELED;
+				final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+				gd.addMessage( "You do not have write permissions for saving the viewer settings such as bookmarks, contrast, etc." + System.lineSeparator() + "Would you like to open the dataset anyway (read-only)?" );
+				gd.showDialog();
+				if ( gd.wasCanceled() )
+					return InitBdvSettingsResult.CANCELED;
 
-			canWrite = false;
+				canWrite = false;
+			}
 		}
 
 		if ( loadedBdvSettings )

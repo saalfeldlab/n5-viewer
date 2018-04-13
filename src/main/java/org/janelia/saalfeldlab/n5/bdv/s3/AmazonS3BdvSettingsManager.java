@@ -55,12 +55,12 @@ public class AmazonS3BdvSettingsManager extends BdvSettingsManager
 	}
 
 	@Override
-	public synchronized InitBdvSettingsResult initBdvSettings()
+	public synchronized InitBdvSettingsResult initBdvSettings( final boolean readonly )
 	{
 		if ( saveSettingsTimer != null )
 			throw new RuntimeException( "Settings have already been initialized" );
 
-		final InitBdvSettingsResult result = loadSettings();
+		final InitBdvSettingsResult result = loadSettings( readonly );
 		if ( result == InitBdvSettingsResult.LOADED || result == InitBdvSettingsResult.NOT_LOADED )
 			setUpSettingsSaving();
 		return result;
@@ -83,21 +83,24 @@ public class AmazonS3BdvSettingsManager extends BdvSettingsManager
 		}
 	}
 
-	private InitBdvSettingsResult loadSettings()
+	private InitBdvSettingsResult loadSettings( final boolean readonly )
 	{
 		boolean canWrite = false;
-		final AccessControlList permissions = s3.getBucketAcl( bdvSettingsS3Uri.getBucket() );
-		for ( final Grant grant : permissions.getGrantsAsList() )
-			if ( grant.getPermission().equals( Permission.FullControl ) || grant.getPermission().equals( Permission.Write ) )
-				canWrite = true;
-
-		if ( !canWrite )
+		if ( !readonly )
 		{
-			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
-			gd.addMessage( "You do not have write permissions for saving the viewer settings such as bookmarks, contrast, etc." + System.lineSeparator() + "Would you like to open the dataset anyway (read-only)?" );
-			gd.showDialog();
-			if ( gd.wasCanceled() )
-				return InitBdvSettingsResult.CANCELED;
+			final AccessControlList permissions = s3.getBucketAcl( bdvSettingsS3Uri.getBucket() );
+			for ( final Grant grant : permissions.getGrantsAsList() )
+				if ( grant.getPermission().equals( Permission.FullControl ) || grant.getPermission().equals( Permission.Write ) )
+					canWrite = true;
+
+			if ( !canWrite )
+			{
+				final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
+				gd.addMessage( "You do not have write permissions for saving the viewer settings such as bookmarks, contrast, etc." + System.lineSeparator() + "Would you like to open the dataset anyway (read-only)?" );
+				gd.showDialog();
+				if ( gd.wasCanceled() )
+					return InitBdvSettingsResult.CANCELED;
+			}
 		}
 
 		if ( s3.doesObjectExist( bdvSettingsS3Uri.getBucket(), bdvSettingsS3Uri.getKey() ) )
