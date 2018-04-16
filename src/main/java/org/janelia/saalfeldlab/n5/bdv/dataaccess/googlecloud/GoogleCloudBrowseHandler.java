@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.n5.bdv.googlecloud;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud;
 
 import java.awt.Button;
 import java.awt.Panel;
@@ -13,8 +13,8 @@ import java.util.List;
 
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
 import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
 
 import com.google.cloud.resourcemanager.Project;
 import com.google.cloud.resourcemanager.ResourceManager;

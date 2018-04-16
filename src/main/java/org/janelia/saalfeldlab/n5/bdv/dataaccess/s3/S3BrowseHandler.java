@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.n5.bdv.s3;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess.s3;
 
 import java.awt.Button;
 import java.awt.event.ItemEvent;
@@ -8,9 +8,9 @@ import java.awt.event.WindowEvent;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessException;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessFactory;
-import org.janelia.saalfeldlab.n5.bdv.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.Bucket;

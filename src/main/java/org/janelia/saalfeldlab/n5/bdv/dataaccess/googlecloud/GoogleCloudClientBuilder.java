@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.n5.bdv.googlecloud;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud;
 
 import java.io.IOException;
 import java.util.Arrays;
