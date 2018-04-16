@@ -4,7 +4,7 @@ BigDataViewer-based tool for browsing multichannel multiscale [N5](https://githu
 ### Installation
 To install the application as a *Fiji/ImageJ* plugin, run the following:
 ```bash
-mvn -Dimagej.app.directory=<path to Fiji> clean install
+python install.py <path to Fiji.app>
 ```
 Then, it will be available in *Fiji* under *Plugins* -> *BigDataViewer* -> *N5 Viewer*.
 
