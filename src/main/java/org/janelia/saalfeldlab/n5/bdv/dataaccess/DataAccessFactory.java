@@ -21,6 +21,9 @@ import java.net.URI;
 import java.nio.file.Paths;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudClientSecretsPrompt;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -28,7 +31,7 @@ import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.fs.FSBdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudBdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientBuilder;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientSecretsDialogPrompt;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3ClientBuilderWithProfileCredentials;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
@@ -100,7 +103,9 @@ public class DataAccessFactory
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			googleCloudStorage = GoogleCloudClientBuilder.createStorage();
+			final GoogleCloudClientSecretsPrompt clientSecretsPrompt = new GoogleCloudClientSecretsDialogPrompt();
+			final GoogleCloudOAuth oauth = new GoogleCloudOAuth( clientSecretsPrompt );
+			googleCloudStorage = new GoogleCloudStorageClient( oauth.getCredentials() ).create();
 			break;
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
