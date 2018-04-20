@@ -105,6 +105,8 @@ public class DataAccessFactory
 			s3 = null;
 			final GoogleCloudClientSecretsPrompt clientSecretsPrompt = new GoogleCloudClientSecretsDialogPrompt();
 			final GoogleCloudOAuth oauth = new GoogleCloudOAuth( clientSecretsPrompt );
+			if ( oauth.getCredentials() == null )
+				throw new DataAccessException();
 			googleCloudStorage = new GoogleCloudStorageClient( oauth.getCredentials() ).create();
 			break;
 		default:

@@ -49,6 +49,9 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 			IJ.handleException( e );
 		}
 
+		if ( oauth.getCredentials() == null )
+			return null;
+
 		// query a list of user's projects first
 		final ResourceManager resourceManager = new GoogleCloudResourceManagerClient( oauth.getCredentials() ).create();
 		projects = new ArrayList<>();
