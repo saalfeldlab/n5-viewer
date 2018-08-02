@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.n5.bdv;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess.fs;
 
 import java.awt.Choice;
 import java.awt.Component;
@@ -6,12 +6,14 @@ import java.io.File;
 
 import javax.swing.JFileChooser;
 
-public class FilesystemBrowseHandler implements BrowseHandler
+import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
+
+public class FSBrowseHandler implements BrowseHandler
 {
 	private final Component parent;
 	private final Choice choice;
 
-	public FilesystemBrowseHandler( final Component parent, final Choice choice )
+	public FSBrowseHandler( final Component parent, final Choice choice )
 	{
 		this.parent = parent;
 		this.choice = choice;

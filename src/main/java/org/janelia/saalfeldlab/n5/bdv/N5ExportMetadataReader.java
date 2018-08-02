@@ -17,6 +17,7 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 
@@ -28,6 +29,7 @@ public class N5ExportMetadataReader
 {
 	protected static final String nameKey = "name";
 	protected static final String scalesKey = "scales";
+	protected static final String downsamplingFactorsKey = "downsamplingFactors";
 	protected static final String pixelResolutionKey = "pixelResolution";
 	protected static final String affineTransformKey = "affineTransform";
 
@@ -40,18 +42,85 @@ public class N5ExportMetadataReader
 
 	public int getNumChannels() throws IOException
 	{
-		return n5Reader.list( "" ).length;
+		return n5Reader.list( "/" ).length;
 	}
 
-	public String getName() throws IOException { return getAttribute( nameKey, String.class ); }
+	public String getName() throws IOException
+	{
+		return getAttribute( nameKey, String.class );
+	}
 
-	public double[][] getScales( final int channel ) throws IOException { return getAttribute( channel, scalesKey, double[][].class ); }
-	public VoxelDimensions getPixelResolution( final int channel ) throws IOException { return getAttribute( channel, pixelResolutionKey, FinalVoxelDimensions.class ); }
-	public AffineTransform3D getAffineTransform( final int channel ) throws IOException { return getAttribute( channel, affineTransformKey, AffineTransform3D.class ); }
+	public double[][] getScales( final int channel ) throws IOException
+	{
+		// check the root scales attribute
+		// if it is not there, try the downsamplingFactors attribute for every dataset under the channel group
+		double[][] scales = getAttribute( channel, scalesKey, double[][].class );
+
+		if ( scales == null )
+		{
+			final int numScales = n5Reader.list( N5ExportMetadata.getChannelGroupPath( channel ) ).length;
+			scales = new double[ numScales ][];
+			for ( int scale = 0; scale < numScales; ++scale )
+			{
+				double[] downsamplingFactors = n5Reader.getAttribute( N5ExportMetadata.getScaleLevelDatasetPath( channel, scale ), downsamplingFactorsKey, double[].class );
+				if ( downsamplingFactors == null )
+				{
+					if ( scale == 0 )
+					{
+						downsamplingFactors = new double[ n5Reader.getDatasetAttributes( N5ExportMetadata.getScaleLevelDatasetPath( channel, scale ) ).getNumDimensions() ];
+						Arrays.fill( downsamplingFactors, 1 );
+					}
+					else
+					{
+						throw new IllegalArgumentException( "downsamplingFactors are not specified for some datasets" );
+					}
+				}
+				scales[ scale ] = downsamplingFactors;
+			}
+		}
+
+		return scales;
+	}
+
+	public VoxelDimensions getPixelResolution( final int channel ) throws IOException
+	{
+		// check the root pixelResolution attribute
+		// if it is not there, try the pixelResolution attribute for every dataset under the channel group
+		VoxelDimensions pixelResolution = getAttribute( channel, pixelResolutionKey, FinalVoxelDimensions.class );
+
+		if ( pixelResolution == null )
+		{
+			final int numScales = n5Reader.list( N5ExportMetadata.getChannelGroupPath( channel ) ).length;
+			double[] pixelResolutionArr = null;
+			for ( int scale = 0; scale < numScales; ++scale )
+			{
+				final double[] pixelResolutionDatasetArr = n5Reader.getAttribute( N5ExportMetadata.getScaleLevelDatasetPath( channel, scale ), pixelResolutionKey, double[].class );
+				if ( pixelResolutionDatasetArr == null )
+					continue;
+
+				if ( pixelResolutionArr == null )
+				{
+					pixelResolutionArr = pixelResolutionDatasetArr;
+				}
+				else if ( !Arrays.equals( pixelResolutionArr, pixelResolutionDatasetArr ) )
+				{
+					throw new IllegalArgumentException( "pixelResolution is not the same for scale level datasets" );
+				}
+			}
+			pixelResolution = new FinalVoxelDimensions( "um", pixelResolutionArr );
+		}
+
+		return pixelResolution;
+	}
+
+	public AffineTransform3D getAffineTransform( final int channel ) throws IOException
+	{
+		return getAttribute( channel, affineTransformKey, AffineTransform3D.class );
+	}
 
 	private < T > T getAttribute( final String key, final Class< T > clazz ) throws IOException
 	{
-		return n5Reader.getAttribute( "", key, clazz );
+		return n5Reader.getAttribute( "/", key, clazz );
 	}
 
 	private < T > T getAttribute( final int channel, final String key, final Class< T > clazz ) throws IOException

@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.n5.bdv;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess;
 
 public enum DataAccessType
 {

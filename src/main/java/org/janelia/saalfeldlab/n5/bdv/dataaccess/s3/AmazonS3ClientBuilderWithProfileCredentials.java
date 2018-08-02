@@ -1,6 +1,6 @@
-package org.janelia.saalfeldlab.n5.bdv.s3;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess.s3;
 
-import org.janelia.saalfeldlab.n5.bdv.DataAccessException;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;

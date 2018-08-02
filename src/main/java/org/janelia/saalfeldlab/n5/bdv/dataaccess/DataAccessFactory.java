@@ -14,20 +14,26 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package org.janelia.saalfeldlab.n5.bdv;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudClientSecretsPrompt;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudClientBuilder;
-import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3BdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.s3.AmazonS3ClientBuilderWithProfileCredentials;
+import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
+import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.fs.FSBdvSettingsManager;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudBdvSettingsManager;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientSecretsDialogPrompt;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3BdvSettingsManager;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3ClientBuilderWithProfileCredentials;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader;
 
@@ -97,7 +103,11 @@ public class DataAccessFactory
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			googleCloudStorage = GoogleCloudClientBuilder.createStorage();
+			final GoogleCloudClientSecretsPrompt clientSecretsPrompt = new GoogleCloudClientSecretsDialogPrompt();
+			final GoogleCloudOAuth oauth = new GoogleCloudOAuth( clientSecretsPrompt );
+			if ( oauth.getCredentials() == null )
+				throw new DataAccessException();
+			googleCloudStorage = new GoogleCloudStorageClient( oauth.getCredentials() ).create();
 			break;
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );

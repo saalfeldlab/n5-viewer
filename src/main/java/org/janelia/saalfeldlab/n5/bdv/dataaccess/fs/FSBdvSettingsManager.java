@@ -14,7 +14,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package org.janelia.saalfeldlab.n5.bdv;
+package org.janelia.saalfeldlab.n5.bdv.dataaccess.fs;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
 import org.jdom2.JDOMException;
 
 import bdv.BigDataViewer;
@@ -51,7 +52,7 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 	}
 
 	@Override
-	public synchronized InitBdvSettingsResult initBdvSettings()
+	public synchronized InitBdvSettingsResult initBdvSettings( final boolean readonly )
 	{
 		if ( saveSettingsTimer != null )
 			throw new RuntimeException( "Settings have already been initialized" );
@@ -59,15 +60,15 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 		final InitBdvSettingsResult result;
 		synchronized ( lockedFiles )
 		{
-			result = loadSettings();
-			if ( result == InitBdvSettingsResult.LOADED )
+			result = loadSettings( readonly );
+			if ( result == InitBdvSettingsResult.LOADED || result == InitBdvSettingsResult.NOT_LOADED )
 				lockedFiles.put( bdvSettingsFilepath, fileChannel );
 		}
 
 		if ( result == InitBdvSettingsResult.CANCELED )
 			return result;
 
-		if ( fileLock != null )
+		if ( result == InitBdvSettingsResult.LOADED || result == InitBdvSettingsResult.NOT_LOADED )
 			setUpSettingsSaving();
 
 		return result;
@@ -115,8 +116,11 @@ public class FSBdvSettingsManager extends BdvSettingsManager
 		}
 	}
 
-	private InitBdvSettingsResult loadSettings()
+	private InitBdvSettingsResult loadSettings( final boolean readonly )
 	{
+		if ( readonly )
+			return loadSettingsNonLocking() ? InitBdvSettingsResult.LOADED_READ_ONLY : InitBdvSettingsResult.NOT_LOADED_READ_ONLY;
+
 		try
 		{
 			return loadSettingsLocking() ? InitBdvSettingsResult.LOADED : InitBdvSettingsResult.NOT_LOADED;

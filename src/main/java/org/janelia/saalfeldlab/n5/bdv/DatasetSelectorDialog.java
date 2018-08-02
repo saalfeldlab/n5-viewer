@@ -40,8 +40,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
-import org.janelia.saalfeldlab.n5.bdv.googlecloud.GoogleCloudBrowseHandler;
-import org.janelia.saalfeldlab.n5.bdv.s3.S3BrowseHandler;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.fs.FSBrowseHandler;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudBrowseHandler;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.S3BrowseHandler;
 
 import com.amazonaws.services.s3.AmazonS3URI;
 
@@ -55,11 +58,13 @@ public class DatasetSelectorDialog
 	{
 		public final String n5Path;
 		public final DataAccessType storageType;
+		public final boolean readonly;
 
-		private Selection( final String n5Path, final DataAccessType storageType )
+		private Selection( final String n5Path, final DataAccessType storageType, final boolean readonly )
 		{
 			this.n5Path = n5Path;
 			this.storageType = storageType;
+			this.readonly = readonly;
 		}
 	}
 
@@ -163,7 +168,7 @@ public class DatasetSelectorDialog
 
 		// create browse handlers
 		storageBrowseHandlers = new HashMap<>();
-		storageBrowseHandlers.put( DataAccessType.FILESYSTEM, new FilesystemBrowseHandler( gd, choice ) );
+		storageBrowseHandlers.put( DataAccessType.FILESYSTEM, new FSBrowseHandler( gd, choice ) );
 		storageBrowseHandlers.put( DataAccessType.AMAZON_S3, new S3BrowseHandler() );
 		storageBrowseHandlers.put( DataAccessType.GOOGLE_CLOUD, new GoogleCloudBrowseHandler() );
 
@@ -181,6 +186,8 @@ public class DatasetSelectorDialog
 		browseButtonConstraints.insets = new Insets( 0, 5, 0, 0 );
 		gd.add( browseButton, browseButtonConstraints );
 
+		final Checkbox readonlyCheckbox = new Checkbox( "Read-only", false );
+
 		// add handler to toggle OK button state at startup
 		gd.addWindowListener(
 				new WindowAdapter()
@@ -190,6 +197,13 @@ public class DatasetSelectorDialog
 					{
 						final Button okButton = gd.getButtons()[ 0 ];
 						browseListener.setOkButton( okButton );
+
+						// add read-only checkbox
+						final GridBagConstraints readonlyCheckboxConstraints = new GridBagConstraints();
+						readonlyCheckboxConstraints.gridx = 2;
+						readonlyCheckboxConstraints.gridy = 2;
+						readonlyCheckboxConstraints.insets = new Insets( 15, 5, 0, 5 );
+						gd.add( readonlyCheckbox, readonlyCheckboxConstraints );
 					}
 				}
 			);
@@ -206,7 +220,7 @@ public class DatasetSelectorDialog
 		final String n5Path = gd.getNextChoice();
 		storageSelectionHistory.get( selectedStorageType ).addToHistory( n5Path );
 
-		return new Selection( n5Path, selectedStorageType );
+		return new Selection( n5Path, selectedStorageType, readonlyCheckbox.getState() );
 	}
 
 	private void updateSelectedStorageType()
@@ -220,7 +234,6 @@ public class DatasetSelectorDialog
 		choice.removeAll();
 		for ( final String choiceItem : choiceItems )
 			choice.add( choiceItem );
-		updateBrowseListener();
 	}
 
 	private List< String > getChoiceItems()
@@ -240,6 +253,7 @@ public class DatasetSelectorDialog
 		{
 			selectedStorageType = getAccessTypeByLabel( ( String ) event.getItem() );
 			updateSelectionHistory();
+			updateBrowseListener();
 		}
 	}
 
@@ -353,6 +367,7 @@ public class DatasetSelectorDialog
 			selectedStorageType = storageType;
 			updateSelectedStorageType();
 			updateSelectionHistory();
+			updateBrowseListener();
 			browseListener.setSelectedItem( correctedLink );
 		}
 

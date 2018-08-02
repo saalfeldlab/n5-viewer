@@ -33,19 +33,44 @@ public class N5ExportMetadataWriter extends N5ExportMetadataReader
 		this.n5Writer = n5Writer;
 	}
 
-	public void setName( final String name ) throws IOException { setAttribute( nameKey, name ); }
+	public void setName( final String name ) throws IOException
+	{
+		setAttribute( nameKey, name );
+	}
 
-	public void setDefaultScales( final double[][] scales ) throws IOException { setAttribute( scalesKey, scales ); }
-	public void setDefaultPixelResolution( final VoxelDimensions pixelResolution ) throws IOException { setAttribute( pixelResolutionKey, pixelResolution ); }
-	public void setDefaultAffineTransform( final AffineTransform3D affineTransform ) throws IOException { setAttribute( affineTransformKey, affineTransform ); }
+	public void setDefaultScales( final double[][] scales ) throws IOException
+	{
+		setAttribute( scalesKey, scales );
+	}
 
-	public void setScales( final int channel, final double[][] scales ) throws IOException { setAttribute( channel, scalesKey, scales ); }
-	public void setPixelResolution( final int channel, final VoxelDimensions pixelResolution ) throws IOException { setAttribute( channel, pixelResolutionKey, pixelResolution ); }
-	public void setAffineTransform( final int channel, final AffineTransform3D affineTransform ) throws IOException { setAttribute( channel, affineTransformKey, affineTransform ); }
+	public void setDefaultPixelResolution( final VoxelDimensions pixelResolution ) throws IOException
+	{
+		setAttribute( pixelResolutionKey, pixelResolution );
+	}
+
+	public void setDefaultAffineTransform( final AffineTransform3D affineTransform ) throws IOException
+	{
+		setAttribute( affineTransformKey, affineTransform );
+	}
+
+	public void setScales( final int channel, final double[][] scales ) throws IOException
+	{
+		setAttribute( channel, scalesKey, scales );
+	}
+
+	public void setPixelResolution( final int channel, final VoxelDimensions pixelResolution ) throws IOException
+	{
+		setAttribute( channel, pixelResolutionKey, pixelResolution );
+	}
+
+	public void setAffineTransform( final int channel, final AffineTransform3D affineTransform ) throws IOException
+	{
+		setAttribute( channel, affineTransformKey, affineTransform );
+	}
 
 	private < T > void setAttribute( final String key, final T value ) throws IOException
 	{
-		n5Writer.setAttribute( "", key, value );
+		n5Writer.setAttribute( "/", key, value );
 	}
 
 	private < T > void setAttribute( final int channel, final String key, final T value ) throws IOException
