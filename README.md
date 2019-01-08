@@ -2,6 +2,10 @@
 BigDataViewer-based tool for browsing multichannel multiscale [N5](https://github.com/saalfeldlab/n5) datasets.
 
 ### Installation
+The following packages are required for installation:
+* Apache Maven - https://maven.apache.org/
+* Oracle JDK / OpenJDK - https://www.oracle.com/technetwork/java/javase/downloads/index.html
+
 To install the application as a *Fiji/ImageJ* plugin, run the following:
 ```bash
 python install.py <path to Fiji.app>
