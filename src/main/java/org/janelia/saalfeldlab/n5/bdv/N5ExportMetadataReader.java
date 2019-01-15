@@ -18,6 +18,7 @@ package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 
@@ -32,6 +33,7 @@ public class N5ExportMetadataReader
 	protected static final String downsamplingFactorsKey = "downsamplingFactors";
 	protected static final String pixelResolutionKey = "pixelResolution";
 	protected static final String affineTransformKey = "affineTransform";
+	protected static final Pattern scaleLevelPattern = Pattern.compile("^s\\d+$");
 
 	private final N5Reader n5Reader;
 
@@ -58,7 +60,8 @@ public class N5ExportMetadataReader
 
 		if ( scales == null )
 		{
-			final int numScales = n5Reader.list( N5ExportMetadata.getChannelGroupPath( channel ) ).length;
+			final int numScales = listScaleLevels( channel ).length;
+
 			scales = new double[ numScales ][];
 			for ( int scale = 0; scale < numScales; ++scale )
 			{
@@ -90,7 +93,8 @@ public class N5ExportMetadataReader
 
 		if ( pixelResolution == null )
 		{
-			final int numScales = n5Reader.list( N5ExportMetadata.getChannelGroupPath( channel ) ).length;
+			final int numScales = listScaleLevels( channel ).length;
+
 			double[] pixelResolutionArr = null;
 			for ( int scale = 0; scale < numScales; ++scale )
 			{
@@ -127,5 +131,12 @@ public class N5ExportMetadataReader
 	{
 		final T overriddenValue = n5Reader.getAttribute( N5ExportMetadata.getChannelGroupPath( channel ), key, clazz );
 		return overriddenValue != null ? overriddenValue : getAttribute( key, clazz );
+	}
+
+	private String[] listScaleLevels( final int channel ) throws IOException
+	{
+		return Arrays.stream( n5Reader.list( N5ExportMetadata.getChannelGroupPath( channel ) ) )
+			.filter( scaleLevelPattern.asPredicate() )
+			.toArray( String[]::new );
 	}
 }
