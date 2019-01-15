@@ -33,6 +33,8 @@ public class N5ExportMetadataReader
 	protected static final String downsamplingFactorsKey = "downsamplingFactors";
 	protected static final String pixelResolutionKey = "pixelResolution";
 	protected static final String affineTransformKey = "affineTransform";
+
+	protected static final Pattern channelPattern = Pattern.compile("^c\\d+$");
 	protected static final Pattern scaleLevelPattern = Pattern.compile("^s\\d+$");
 
 	private final N5Reader n5Reader;
@@ -44,7 +46,7 @@ public class N5ExportMetadataReader
 
 	public int getNumChannels() throws IOException
 	{
-		return n5Reader.list( "/" ).length;
+		return listChannels().length;
 	}
 
 	public String getName() throws IOException
@@ -131,6 +133,13 @@ public class N5ExportMetadataReader
 	{
 		final T overriddenValue = n5Reader.getAttribute( N5ExportMetadata.getChannelGroupPath( channel ), key, clazz );
 		return overriddenValue != null ? overriddenValue : getAttribute( key, clazz );
+	}
+
+	private String[] listChannels() throws IOException
+	{
+		return Arrays.stream( n5Reader.list( "/" ) )
+			.filter( channelPattern.asPredicate() )
+			.toArray( String[]::new );
 	}
 
 	private String[] listScaleLevels( final int channel ) throws IOException
