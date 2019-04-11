@@ -2,19 +2,94 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.janelia.saalfeldlab</groupId>
-	<artifactId>n5-viewer_fiji</artifactId>
-	<version>2.1.1-SNAPSHOT</version>
-	
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
 		<version>25.0.0</version>
 	</parent>
 
+	<groupId>org.janelia.saalfeldlab</groupId>
+	<artifactId>n5-viewer_fiji</artifactId>
+	<version>2.1.1-SNAPSHOT</version>
+	<name>N5 Viewer for Fiji</name>
+	<description>BigDataViewer-based visualization tool for N5 datasets</description>
+
+	<url>https://github.com/saalfeldlab/n5-viewer</url>
+	<inceptionYear>2017</inceptionYear>
+	<organization>
+		<name>Saalfeld Lab</name>
+		<url>http://saalfeldlab.janelia.org/</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>GNU General Public License v3.0</name>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<mailingLists>
+		<mailingList>
+			<name>ImageJ Forum</name>
+			<archive>http://forum.imagej.net/</archive>
+		</mailingList>
+	</mailingLists>
+
+	<scm>
+		<connection>scm:git:git://github.com/saalfeldlab/n5-viewer</connection>
+		<developerConnection>scm:git:git@github.com:saalfeldlab/n5-viewer</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/saalfeldlab/n5-viewer</url>
+	</scm>
+
+	<issueManagement>
+		<system>GitHub</system>
+		<url>https://github.com/saalfeldlab/n5-viewer/issues</url>
+	</issueManagement>
+
+	<ciManagement>
+		<system>Travis CI</system>
+		<url>https://travis-ci.org/saalfeldlab/n5-viewer</url>
+	</ciManagement>
+
 	<properties>
-		<enforcer.skip>true</enforcer.skip>
+		<package-name>org.janelia.saalfeldlab</package-name>
+		<license.licenseName>gpl_v3</license.licenseName>
+		<license.projectName>N5 Viewer</license.projectName>
+		<license.organizationName>Saalfeld Lab</license.organizationName>
+		<license.copyrightOwners>Igor Pisarev, Stephan Saalfeld</license.copyrightOwners>
 	</properties>
+
+	<developers>
+		<developer>
+			<id>igorpisarev</id>
+			<name>Igor Pisarev</name>
+			<url>http://imagej.net/User:Pisarevi</url>
+			<roles>
+				<role>founder</role>
+				<role>lead</role>
+				<role>developer</role>
+				<role>debugger</role>
+				<role>reviewer</role>
+				<role>support</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
+	</developers>
+
+	<contributors>
+		<contributor>
+			<name>Stephan Saalfeld</name>
+			<properties>
+				<id>axtimwalde</id>
+			</properties>
+		</contributor>
+		<contributor>
+			<name>Andrew Champion</name>
+			<properties>
+				<id>aschampion</id>
+			</properties>
+		</contributor>
+	</contributors>
 
 	<dependencies>
 		<dependency>
@@ -106,7 +181,7 @@
 			</plugins>
 		</pluginManagement>
 	</build>
-	
+
 	<distributionManagement>
 		<repository>
 			<id>local-maven-repo</id>
