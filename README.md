@@ -1,4 +1,4 @@
-# N5 Viewer
+# N5 Viewer [![Build Status](https://travis-ci.org/saalfeldlab/n5-viewer.svg?branch=master)](https://travis-ci.org/saalfeldlab/n5-viewer)
 BigDataViewer-based tool for browsing multichannel multiscale [N5](https://github.com/saalfeldlab/n5) datasets.
 
 ### Installation
