@@ -21,6 +21,7 @@ import java.io.IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
+import bdv.export.ProposeMipmaps;
 import bdv.tools.transformation.TransformedSource;
 import bdv.util.RandomAccessibleIntervalMipmapSource;
 import bdv.util.VolatileRandomAccessibleIntervalMipmapSource;
@@ -30,6 +31,7 @@ import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.util.Util;
@@ -96,14 +98,16 @@ public class N5MultiscaleSource
 		final TransformedSource< T > transformedSource = new TransformedSource<>( source );
 
 		// account for the pixel resolution
-		if ( source.getVoxelDimensions() != null )
+		final VoxelDimensions voxelDimensions = source.getVoxelDimensions();
+		final double[] normalizedVoxelSize = new double[] { 1, 1, 1 };
+		if ( voxelDimensions != null )
 		{
-			final AffineTransform3D voxelSizeTransform = new AffineTransform3D();
-			final double[] normalizedVoxelSize = getNormalizedVoxelSize( source.getVoxelDimensions() );
-			for ( int d = 0; d < voxelSizeTransform.numDimensions(); ++d )
-				voxelSizeTransform.set( normalizedVoxelSize[ d ], d, d );
-			transformedSource.setFixedTransform( voxelSizeTransform );
+			voxelDimensions.dimensions( normalizedVoxelSize );
+			ProposeMipmaps.normalizeVoxelSize( normalizedVoxelSize );
 		}
+		final AffineTransform3D voxelSizeTransform = new AffineTransform3D();
+		voxelSizeTransform.preConcatenate( new Scale3D( normalizedVoxelSize ) );
+		transformedSource.setFixedTransform( voxelSizeTransform );
 
 		// prepend with the source transform
 		final AffineTransform3D metadataTransform = metadata.getAffineTransform( channel );
@@ -111,16 +115,5 @@ public class N5MultiscaleSource
 			transformedSource.setIncrementalTransform( metadataTransform );
 
 		return transformedSource;
-	}
-
-	private static double[] getNormalizedVoxelSize( final VoxelDimensions voxelDimensions )
-	{
-		double minVoxelDim = Double.POSITIVE_INFINITY;
-		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
-			minVoxelDim = Math.min( minVoxelDim, voxelDimensions.dimension( d ) );
-		final double[] normalizedVoxelSize = new double[ voxelDimensions.numDimensions() ];
-		for ( int d = 0; d < voxelDimensions.numDimensions(); ++d )
-			normalizedVoxelSize[ d ] = voxelDimensions.dimension( d ) / minVoxelDim;
-		return normalizedVoxelSize;
 	}
 }
