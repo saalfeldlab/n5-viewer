@@ -274,11 +274,7 @@ public class N5Viewer implements PlugIn
 		final T type = Util.getTypeFromInterval( source.getSource( 0, 0 ) );
 		final double typeMin = Math.max( 0, Math.min( type.getMinValue(), 65535 ) );
 		final double typeMax = Math.max( 0, Math.min( type.getMaxValue(), 65535 ) );
-		final RealARGBColorConverter< T > converter ;
-		if ( source.getType() instanceof Volatile )
-			converter = new RealARGBColorConverter.Imp0<>( typeMin, typeMax );
-		else
-			converter = new RealARGBColorConverter.Imp1<>( typeMin, typeMax );
+		final RealARGBColorConverter< T > converter = RealARGBColorConverter.create( source.getType(), typeMin, typeMax );
 		converter.setColor( new ARGBType( 0xffffffff ) );
 
 		final TransformedSource< T > ts = new TransformedSource<>( source );
