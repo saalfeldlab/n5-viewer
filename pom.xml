@@ -52,6 +52,7 @@
 	</ciManagement>
 
 	<properties>
+		<scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
 		<package-name>org.janelia.saalfeldlab.n5.viewer</package-name>
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.projectName>N5 Viewer</license.projectName>
@@ -168,13 +169,6 @@
 	<build>
 		<pluginManagement>
 			<plugins>
-				<plugin>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<configuration>
-						<source>1.8</source>
-						<target>1.8</target>
-					</configuration>
-				</plugin>
 				<plugin>
 					<artifactId>maven-deploy-plugin</artifactId>
 					<configuration>
