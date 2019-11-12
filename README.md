@@ -28,13 +28,11 @@ The plugin specifies the following N5 container structure:
 ```
 /attributes.json
 
-/c0/attributes.json
 /c0/s0/
 /c0/s1/
 /c0/s2/
 /c0/...
 
-/c1/attributes.json
 /c1/s0/
 /c1/s1/
 /c1/s2/
@@ -43,7 +41,7 @@ The plugin specifies the following N5 container structure:
 ...
 ```
 
-Root attributes are used as defaults for all channels. They can be overridden by setting channel-specific attributes.<br/>
+The root `attributes.json` file should contain the `n5` attribute. `c0`, `c1`, etc. are groups representing image channels.<br/>
 `s0`, `s1`, `s2` are standard N5 datasets representing scale levels. `s0` corresponds to full resolution.
 
 Each scale level dataset (except `s0`) should specify its downsampling factors in its `attributes.json` as follows:
