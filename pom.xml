@@ -68,7 +68,7 @@
 		<n5-google-cloud.version>2.3.1</n5-google-cloud.version>
 		<n5-imglib2.version>3.4.1</n5-imglib2.version>
 
-		<jackson-databind.version>2.9.10.3</jackson-databind.version>
+		<jackson-databind.version>2.9.10.4</jackson-databind.version>
 	</properties>
 
 	<developers>
