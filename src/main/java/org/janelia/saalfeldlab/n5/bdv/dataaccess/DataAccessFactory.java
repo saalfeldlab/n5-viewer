@@ -16,14 +16,12 @@
  */
 package org.janelia.saalfeldlab.n5.bdv.dataaccess;
 
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Paths;
-
+import bdv.BigDataViewer;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3URI;
+import com.google.cloud.storage.Storage;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.lang.NotImplementedException;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudClientSecretsPrompt;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -31,18 +29,15 @@ import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.fs.FSBdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudBdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientSecretsDialogPrompt;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientBuilderWithDefaultCredentials;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3BdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3ClientBuilderWithProfileCredentials;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3ClientBuilderWithDefaultCredentials;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3URI;
-import com.google.cloud.storage.Storage;
-import com.google.gson.GsonBuilder;
-
-import bdv.BigDataViewer;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Paths;
 
 public class DataAccessFactory
 {
@@ -88,7 +83,7 @@ public class DataAccessFactory
 		return URI.create( protocol + "://" + bucketName + "/" );
 	}
 
-	public DataAccessFactory( final DataAccessType type ) throws IOException, DataAccessException
+	public DataAccessFactory( final DataAccessType type ) throws DataAccessException
 	{
 		this.type = type;
 		switch ( type )
@@ -98,16 +93,12 @@ public class DataAccessFactory
 			googleCloudStorage = null;
 			break;
 		case AMAZON_S3:
-			s3 = AmazonS3ClientBuilderWithProfileCredentials.create();
+			s3 = AmazonS3ClientBuilderWithDefaultCredentials.create();
 			googleCloudStorage = null;
 			break;
 		case GOOGLE_CLOUD:
 			s3 = null;
-			final GoogleCloudClientSecretsPrompt clientSecretsPrompt = new GoogleCloudClientSecretsDialogPrompt();
-			final GoogleCloudOAuth oauth = new GoogleCloudOAuth( clientSecretsPrompt );
-			if ( oauth.getCredentials() == null )
-				throw new DataAccessException();
-			googleCloudStorage = new GoogleCloudStorageClient( oauth.getCredentials() ).create();
+			googleCloudStorage = GoogleCloudClientBuilderWithDefaultCredentials.createStorage();
 			break;
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );

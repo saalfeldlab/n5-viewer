@@ -28,7 +28,7 @@ public class S3BrowseHandler implements BrowseHandler
 		final AmazonS3 s3;
 		try
 		{
-			s3 = AmazonS3ClientBuilderWithProfileCredentials.create();
+			s3 = AmazonS3ClientBuilderWithDefaultCredentials.create();
 		}
 		catch ( final DataAccessException e )
 		{

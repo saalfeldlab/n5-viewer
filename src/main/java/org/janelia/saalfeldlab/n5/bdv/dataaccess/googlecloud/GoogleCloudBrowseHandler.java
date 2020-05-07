@@ -1,35 +1,28 @@
 package org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud;
 
-import java.awt.Button;
-import java.awt.Panel;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudClientSecretsPrompt;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
-import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
-import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
-
 import com.google.cloud.resourcemanager.Project;
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
-
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
+import org.janelia.saalfeldlab.n5.bdv.BrowseHandler;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
+
+import java.awt.*;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class GoogleCloudBrowseHandler implements BrowseHandler
 {
-	private GoogleCloudOAuth oauth;
 	private List< Project > projects;
 	private List< Bucket > buckets;
 	private java.awt.List projectsList;
@@ -39,21 +32,17 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 	@Override
 	public String select()
 	{
+		final ResourceManager resourceManager;
 		try
 		{
-			final GoogleCloudClientSecretsPrompt clientSecretsPrompt = new GoogleCloudClientSecretsDialogPrompt();
-			oauth = new GoogleCloudOAuth( clientSecretsPrompt );
+			resourceManager = GoogleCloudClientBuilderWithDefaultCredentials.createResourceManager();
 		}
-		catch ( final IOException e )
+		catch ( final DataAccessException e )
 		{
-			IJ.handleException( e );
-		}
-
-		if ( oauth.getCredentials() == null )
 			return null;
+		}
 
 		// query a list of user's projects first
-		final ResourceManager resourceManager = new GoogleCloudResourceManagerClient( oauth.getCredentials() ).create();
 		projects = new ArrayList<>();
 		final Iterator< Project > projectIterator = resourceManager.list().iterateAll().iterator();
 		if ( !projectIterator.hasNext() )
@@ -115,7 +104,7 @@ public class GoogleCloudBrowseHandler implements BrowseHandler
 			}
 
 			final String selectedProjectId = projects.get( selectedProjectIndex ).getProjectId();
-			final Storage storage = new GoogleCloudStorageClient( oauth.getCredentials(), selectedProjectId ).create();
+			final Storage storage = new GoogleCloudStorageClient( selectedProjectId ).create();
 
 			buckets = new ArrayList<>();
 			final Iterator< Bucket > bucketIterator = storage.list().iterateAll().iterator();
