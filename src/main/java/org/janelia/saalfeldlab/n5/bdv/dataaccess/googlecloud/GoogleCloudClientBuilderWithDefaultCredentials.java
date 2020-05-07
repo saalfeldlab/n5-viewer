@@ -1,11 +1,14 @@
 package org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.storage.Storage;
 import ij.IJ;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
+
+import java.io.IOException;
 
 public class GoogleCloudClientBuilderWithDefaultCredentials
 {
@@ -22,6 +25,9 @@ public class GoogleCloudClientBuilderWithDefaultCredentials
     {
         try
         {
+            if ( !verifyCredentials() )
+                throw new Exception();
+
             return new GoogleCloudStorageClient( projectId ).create();
         }
         catch ( final Exception e )
@@ -35,6 +41,9 @@ public class GoogleCloudClientBuilderWithDefaultCredentials
     {
         try
         {
+            if ( !verifyCredentials() )
+                throw new Exception();
+
             return new GoogleCloudResourceManagerClient().create();
         }
         catch ( final Exception e )
@@ -42,6 +51,11 @@ public class GoogleCloudClientBuilderWithDefaultCredentials
             showErrorPrompt();
             throw new DataAccessException();
         }
+    }
+
+    private static boolean verifyCredentials() throws IOException
+    {
+        return GoogleCredentials.getApplicationDefault() != null;
     }
 
     private static void showErrorPrompt()
