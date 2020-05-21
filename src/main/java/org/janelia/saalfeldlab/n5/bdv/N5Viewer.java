@@ -63,7 +63,8 @@ import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 
 /**
- * {@link BigDataViewer}-based application for exploring {@link N5} datasets that conform to the {@link N5ExportMetadata} format (multichannel, multiscale).
+ * {@link BigDataViewer}-based application for browsing N5 datasets.
+ * The datasets are expected to be structured according to the {@link N5ExportMetadata} format (multichannel, multiscale).
  * Takes a root path to an N5 container as a command line argument or via Fiji's Plugins &gt; BigDataViewer &gt; N5 Viewer.
  *
  * @author Igor Pisarev
@@ -85,7 +86,7 @@ public class N5Viewer implements PlugIn
 
 		try
 		{
-			exec( selection.n5Path, selection.storageType, selection.readonly );
+			exec( selection.n5Path, selection.isReadOnly );
 		}
 		catch ( final IOException e )
 		{
@@ -95,9 +96,14 @@ public class N5Viewer implements PlugIn
 
 	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
 			final String n5Path,
-			final DataAccessType storageType,
 			final boolean readonly ) throws IOException
 	{
+		final DataAccessType storageType = DataAccessType.detectType( n5Path );
+		if ( storageType == null )
+		{
+			IJ.error( "Cannot open the link" );
+		}
+
 		final DataAccessFactory dataAccessFactory;
 		try
 		{
