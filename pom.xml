@@ -52,26 +52,25 @@
 	</ciManagement>
 
 	<properties>
-		<scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
 		<package-name>org.janelia.saalfeldlab.n5.viewer</package-name>
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.projectName>N5 Viewer</license.projectName>
 		<license.organizationName>Saalfeld Lab</license.organizationName>
 		<license.copyrightOwners>Igor Pisarev, Stephan Saalfeld</license.copyrightOwners>
-		
+
+		<scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
+
+		<!-- NB: Deploy releases to the SciJava Maven repository. -->
+		<releaseProfiles>deploy-to-scijava</releaseProfiles>
+
 		<bigdataviewer_fiji.version>6.0.0</bigdataviewer_fiji.version>
 		<bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-15</bigdataviewer-vistools.version>
-
 		<n5.version>2.1.1</n5.version>
 		<n5-aws-s3.version>2.1.0</n5-aws-s3.version>
 		<n5-google-cloud.version>2.3.1</n5-google-cloud.version>
 		<n5-imglib2.version>3.4.1</n5-imglib2.version>
-
 		<jackson-databind.version>2.9.10.4</jackson-databind.version>
-
-		<!-- NB: Deploy releases to the SciJava Maven repository. -->
-		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 	</properties>
 
 	<developers>
