@@ -11,9 +11,9 @@
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>n5-viewer_fiji</artifactId>
 	<version>2.2.1-SNAPSHOT</version>
+
 	<name>N5 Viewer for Fiji</name>
 	<description>BigDataViewer-based visualization tool for N5 datasets</description>
-
 	<url>https://github.com/saalfeldlab/n5-viewer</url>
 	<inceptionYear>2017</inceptionYear>
 	<organization>
@@ -26,6 +26,37 @@
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
+
+	<developers>
+		<developer>
+			<id>igorpisarev</id>
+			<name>Igor Pisarev</name>
+			<url>http://imagej.net/User:Pisarevi</url>
+			<roles>
+				<role>founder</role>
+				<role>lead</role>
+				<role>developer</role>
+				<role>debugger</role>
+				<role>reviewer</role>
+				<role>support</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
+	</developers>
+	<contributors>
+		<contributor>
+			<name>Stephan Saalfeld</name>
+			<properties>
+				<id>axtimwalde</id>
+			</properties>
+		</contributor>
+		<contributor>
+			<name>Andrew Champion</name>
+			<properties>
+				<id>aschampion</id>
+			</properties>
+		</contributor>
+	</contributors>
 
 	<mailingLists>
 		<mailingList>
@@ -40,12 +71,10 @@
 		<tag>HEAD</tag>
 		<url>https://github.com/saalfeldlab/n5-viewer</url>
 	</scm>
-
 	<issueManagement>
 		<system>GitHub</system>
 		<url>https://github.com/saalfeldlab/n5-viewer/issues</url>
 	</issueManagement>
-
 	<ciManagement>
 		<system>Travis CI</system>
 		<url>https://travis-ci.org/saalfeldlab/n5-viewer</url>
@@ -72,38 +101,6 @@
 		<n5-imglib2.version>3.4.1</n5-imglib2.version>
 		<jackson-databind.version>2.9.10.4</jackson-databind.version>
 	</properties>
-
-	<developers>
-		<developer>
-			<id>igorpisarev</id>
-			<name>Igor Pisarev</name>
-			<url>http://imagej.net/User:Pisarevi</url>
-			<roles>
-				<role>founder</role>
-				<role>lead</role>
-				<role>developer</role>
-				<role>debugger</role>
-				<role>reviewer</role>
-				<role>support</role>
-				<role>maintainer</role>
-			</roles>
-		</developer>
-	</developers>
-
-	<contributors>
-		<contributor>
-			<name>Stephan Saalfeld</name>
-			<properties>
-				<id>axtimwalde</id>
-			</properties>
-		</contributor>
-		<contributor>
-			<name>Andrew Champion</name>
-			<properties>
-				<id>aschampion</id>
-			</properties>
-		</contributor>
-	</contributors>
 
 	<dependencies>
 		<dependency>
