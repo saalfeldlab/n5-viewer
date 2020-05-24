@@ -81,7 +81,7 @@
 	</ciManagement>
 
 	<properties>
-		<package-name>org.janelia.saalfeldlab.n5.viewer</package-name>
+		<package-name>org.janelia.saalfeldlab.n5.bdv</package-name>
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.projectName>N5 Viewer</license.projectName>
 		<license.organizationName>Saalfeld Lab</license.organizationName>
