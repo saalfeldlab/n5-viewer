@@ -16,7 +16,6 @@
  */
 package org.janelia.saalfeldlab.n5.bdv.dataaccess;
 
-import bdv.BigDataViewer;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3URI;
 import com.google.cloud.storage.Storage;
@@ -25,12 +24,8 @@ import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.fs.FSBdvSettingsManager;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudBdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientBuilderWithDefaultCredentials;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3BdvSettingsManager;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3ClientBuilderWithDefaultCredentials;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader;
@@ -136,21 +131,6 @@ public class DataAccessFactory
 			if ( googleCloudUri.getKey() != null && !googleCloudUri.getKey().isEmpty() )
 				throw new IllegalArgumentException( "Object key is not null. Expected bucket name only (as N5 containers are represented by buckets in Google Cloud implementation)" );
 			return new N5GoogleCloudStorageReader( googleCloudStorage, googleCloudUri.getBucket(), gsonBuilder );
-		default:
-			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
-		}
-	}
-
-	public BdvSettingsManager createBdvSettingsManager( final BigDataViewer bdv, final String bdvSettingsPath )
-	{
-		switch ( type )
-		{
-		case FILESYSTEM:
-			return new FSBdvSettingsManager( bdv, bdvSettingsPath );
-		case AMAZON_S3:
-			return new AmazonS3BdvSettingsManager( s3, bdv, new AmazonS3URI( bdvSettingsPath ) );
-		case GOOGLE_CLOUD:
-			return new GoogleCloudBdvSettingsManager( googleCloudStorage, bdv, new GoogleCloudStorageURI( bdvSettingsPath ) );
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
 		}

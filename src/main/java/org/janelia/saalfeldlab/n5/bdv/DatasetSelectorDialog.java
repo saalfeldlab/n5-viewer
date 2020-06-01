@@ -32,18 +32,6 @@ import java.util.List;
 
 public class DatasetSelectorDialog
 {
-	public static class Selection
-	{
-		public final String n5Path;
-		public final boolean isReadOnly;
-
-		private Selection( final String n5Path, final boolean isReadOnly )
-		{
-			this.n5Path = n5Path;
-			this.isReadOnly = isReadOnly;
-		}
-	}
-
 	private static final String HISTORY_PREF_KEY = "n5-viewer.history";
 
 	private GenericDialogPlus gd;
@@ -53,7 +41,7 @@ public class DatasetSelectorDialog
 	private boolean removeFirstItem;
 	private int lastItemIndex = -1;
 
-	public Selection run()
+	public String run()
 	{
 		gd = new GenericDialogPlus( "N5 Viewer" );
 
@@ -85,14 +73,6 @@ public class DatasetSelectorDialog
 		openLinkButton.addActionListener( new OpenLinkListener() );
 		openLinkButton.addKeyListener( gd );
 
-		// add read-only checkbox
-		final Checkbox readOnlyCheckbox = new Checkbox( "Read-only", false );
-		final GridBagConstraints readonlyCheckboxConstraints = new GridBagConstraints();
-		readonlyCheckboxConstraints.gridx = 2;
-		readonlyCheckboxConstraints.gridy = 1;
-		readonlyCheckboxConstraints.insets = new Insets( 15, 5, 0, 5 );
-		gd.add( readOnlyCheckbox, readonlyCheckboxConstraints );
-
 		// add handler to set OK button state at startup
 		gd.addWindowListener(
 				new WindowAdapter()
@@ -115,7 +95,7 @@ public class DatasetSelectorDialog
 		final String n5Path = gd.getNextChoice();
 		selectionHistory.addToHistory( n5Path );
 
-		return new Selection( n5Path, readOnlyCheckbox.getState() );
+		return n5Path;
 	}
 
 	private void setSelectedItem( final String newSelected )

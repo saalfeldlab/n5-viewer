@@ -23,7 +23,6 @@ import java.util.List;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
-import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
@@ -80,13 +79,13 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
-		final Selection selection = new DatasetSelectorDialog().run();
-		if ( selection == null )
+		final String n5Path = new DatasetSelectorDialog().run();
+		if ( n5Path == null || n5Path.isEmpty() )
 			return;
 
 		try
 		{
-			exec( selection.n5Path, selection.isReadOnly );
+			exec( n5Path );
 		}
 		catch ( final IOException e )
 		{
@@ -94,9 +93,8 @@ public class N5Viewer implements PlugIn
 		}
 	}
 
-	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final String n5Path,
-			final boolean readonly ) throws IOException
+	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
+			final String n5Path ) throws IOException
 	{
 		final DataAccessType storageType = DataAccessType.detectType( n5Path );
 		if ( storageType == null )
@@ -150,43 +148,43 @@ public class N5Viewer implements PlugIn
 				BdvOptions.options().values.getViewerOptions()
 			);
 
-		final String bdvSettingsPath = dataAccessFactory.combinePaths( n5Path, "bdv-settings.xml" );
-		final BdvSettingsManager bdvSettingsManager = dataAccessFactory.createBdvSettingsManager( bdv, bdvSettingsPath );
-		final InitBdvSettingsResult settingsLoadResult = bdvSettingsManager.initBdvSettings( readonly );
-
-		if ( settingsLoadResult == InitBdvSettingsResult.CANCELED )
-		{
-			final ViewerFrame frame = bdv.getViewerFrame();
-			frame.dispatchEvent( new WindowEvent( frame, WindowEvent.WINDOW_CLOSING ) );
-			return;
-		}
-
-		if ( settingsLoadResult == InitBdvSettingsResult.LOADED_READ_ONLY || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
-			bdv.getViewerFrame().setTitle( "N5 Viewer (read-only)" );
-
-		// set default display settings if BDV settings file does not exist or cannot be loaded
-		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
-		{
-			final ARGBType[] colors = ColorGenerator.getColors( numChannels );
-			final Pair< Double, Double > defaultDisplayRange = new ValuePair<>( 50., 150. );
-
-			for ( int i = 0; i < bdv.getSetupAssignments().getConverterSetups().size(); ++i )
-			{
-				final ConverterSetup converterSetup = bdv.getSetupAssignments().getConverterSetups().get( i );
-				converterSetup.setColor( colors[ i ] );
-				converterSetup.setDisplayRange( defaultDisplayRange.getA(), defaultDisplayRange.getB() );
-
-				final MinMaxGroup minMaxGroup = bdv.getSetupAssignments().getMinMaxGroup( converterSetup );
-				minMaxGroup.getMinBoundedValue().setCurrentValue( defaultDisplayRange.getA() );
-				minMaxGroup.getMaxBoundedValue().setCurrentValue( defaultDisplayRange.getB() );
-			}
-
-			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
-			bdv.getViewerFrame().repaint();
-
-			if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED )
-				bdvSettingsManager.saveSettingsOnTimer();
-		}
+//		final String bdvSettingsPath = dataAccessFactory.combinePaths( n5Path, "bdv-settings.xml" );
+//		final BdvSettingsManager bdvSettingsManager = dataAccessFactory.createBdvSettingsManager( bdv, bdvSettingsPath );
+//		final InitBdvSettingsResult settingsLoadResult = bdvSettingsManager.initBdvSettings();
+//
+//		if ( settingsLoadResult == InitBdvSettingsResult.CANCELED )
+//		{
+//			final ViewerFrame frame = bdv.getViewerFrame();
+//			frame.dispatchEvent( new WindowEvent( frame, WindowEvent.WINDOW_CLOSING ) );
+//			return;
+//		}
+//
+//		if ( settingsLoadResult == InitBdvSettingsResult.LOADED_READ_ONLY || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
+//			bdv.getViewerFrame().setTitle( "N5 Viewer (read-only)" );
+//
+//		// set default display settings if BDV settings file does not exist or cannot be loaded
+//		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
+//		{
+//			final ARGBType[] colors = ColorGenerator.getColors( numChannels );
+//			final Pair< Double, Double > defaultDisplayRange = new ValuePair<>( 50., 150. );
+//
+//			for ( int i = 0; i < bdv.getSetupAssignments().getConverterSetups().size(); ++i )
+//			{
+//				final ConverterSetup converterSetup = bdv.getSetupAssignments().getConverterSetups().get( i );
+//				converterSetup.setColor( colors[ i ] );
+//				converterSetup.setDisplayRange( defaultDisplayRange.getA(), defaultDisplayRange.getB() );
+//
+//				final MinMaxGroup minMaxGroup = bdv.getSetupAssignments().getMinMaxGroup( converterSetup );
+//				minMaxGroup.getMinBoundedValue().setCurrentValue( defaultDisplayRange.getA() );
+//				minMaxGroup.getMaxBoundedValue().setCurrentValue( defaultDisplayRange.getB() );
+//			}
+//
+//			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
+//			bdv.getViewerFrame().repaint();
+//
+//			if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED )
+//				bdvSettingsManager.saveSettingsOnTimer();
+//		}
 
 		InitializeViewerState.initTransform( bdv.getViewer() );
 		bdv.getViewerFrame().setVisible( true );
