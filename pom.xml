@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>27.0.1</version>
+		<version>28.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -92,13 +92,15 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<bigdataviewer_fiji.version>6.0.0</bigdataviewer_fiji.version>
-		<bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-15</bigdataviewer-vistools.version>
+		<bigdataviewer_fiji.version>6.2.0</bigdataviewer_fiji.version>
+		<bigdataviewer-core.version>9.0.5</bigdataviewer-core.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-20</bigdataviewer-vistools.version>
+		<ui-behaviour.version>2.0.1</ui-behaviour.version>
+		<spim_data.version>2.2.4</spim_data.version>
 		<n5.version>2.1.1</n5.version>
-		<n5-aws-s3.version>2.1.0</n5-aws-s3.version>
-		<n5-google-cloud.version>2.3.1</n5-google-cloud.version>
-		<n5-imglib2.version>3.4.1</n5-imglib2.version>
+		<n5-aws-s3.version>3.1.1</n5-aws-s3.version>
+		<n5-google-cloud.version>3.2.1</n5-google-cloud.version>
+		<n5-imglib2.version>3.5.0</n5-imglib2.version>
 		<jackson-databind.version>2.9.10.4</jackson-databind.version>
 	</properties>
 
@@ -106,10 +108,12 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer_fiji</artifactId>
+			<version>${bigdataviewer_fiji.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
+			<version>${bigdataviewer-core.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -128,23 +132,11 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-aws-s3</artifactId>
 			<version>${n5-aws-s3.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-google-cloud</artifactId>
 			<version>${n5-google-cloud.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
@@ -154,6 +146,17 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
+			<version>${bigdataviewer-vistools.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sc.fiji</groupId>
+			<artifactId>spim_data</artifactId>
+			<version>${spim_data.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>ui-behaviour</artifactId>
+			<version>${ui-behaviour.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
