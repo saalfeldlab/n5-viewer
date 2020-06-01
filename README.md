@@ -47,16 +47,23 @@ The root `attributes.json` file should contain the `n5` attribute. `c0`, `c1`, e
 Each scale level dataset (except `s0`) should specify its downsampling factors in its `attributes.json` as follows:
 ```json
 {
-  "downsamplingFactors":[2,2,2]
+  "downsamplingFactors": [2,2,2]
 }
 ```
 
 Additionally, scale level dataset attributes can also specify the resolution of the data in the following format:
 ```json
 {
-  "pixelResolution":{"unit":"um","dimensions":[0.097,0.097,0.18]}
+  "pixelResolution": {"unit": "um", "dimensions": [0.097,0.097,0.18]}
 }
 ```
+or
+```json
+{
+  "pixelResolution": [0.097,0.097,0.18]
+}
+```
+Both options are supported. For the second option with a plain array, the application assumes the unit to be "um".
 
 The above attributes format is fully compatible with scale pyramids generated with [N5 Spark](https://github.com/saalfeldlab/n5-spark).
 

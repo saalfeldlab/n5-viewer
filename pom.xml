@@ -11,9 +11,9 @@
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>n5-viewer_fiji</artifactId>
 	<version>2.2.1-SNAPSHOT</version>
+
 	<name>N5 Viewer for Fiji</name>
 	<description>BigDataViewer-based visualization tool for N5 datasets</description>
-
 	<url>https://github.com/saalfeldlab/n5-viewer</url>
 	<inceptionYear>2017</inceptionYear>
 	<organization>
@@ -26,48 +26,6 @@
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
-
-	<mailingLists>
-		<mailingList>
-			<name>Image.sc Forum</name>
-			<archive>http://forum.image.sc/</archive>
-		</mailingList>
-	</mailingLists>
-
-	<scm>
-		<connection>scm:git:git://github.com/saalfeldlab/n5-viewer</connection>
-		<developerConnection>scm:git:git@github.com:saalfeldlab/n5-viewer</developerConnection>
-		<tag>HEAD</tag>
-		<url>https://github.com/saalfeldlab/n5-viewer</url>
-	</scm>
-
-	<issueManagement>
-		<system>GitHub</system>
-		<url>https://github.com/saalfeldlab/n5-viewer/issues</url>
-	</issueManagement>
-
-	<ciManagement>
-		<system>Travis CI</system>
-		<url>https://travis-ci.org/saalfeldlab/n5-viewer</url>
-	</ciManagement>
-
-	<properties>
-		<scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
-		<package-name>org.janelia.saalfeldlab.n5.viewer</package-name>
-		<license.licenseName>gpl_v3</license.licenseName>
-		<license.projectName>N5 Viewer</license.projectName>
-		<license.organizationName>Saalfeld Lab</license.organizationName>
-		<license.copyrightOwners>Igor Pisarev, Stephan Saalfeld</license.copyrightOwners>
-
-		<bigdataviewer_fiji.version>6.0.0</bigdataviewer_fiji.version>
-		<bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-15</bigdataviewer-vistools.version>
-
-		<n5.version>2.2.0</n5.version>
-		<n5-aws-s3.version>3.1.1</n5-aws-s3.version>
-		<n5-google-cloud.version>3.2.1</n5-google-cloud.version>
-		<n5-imglib2.version>3.5.0</n5-imglib2.version>
-	</properties>
 
 	<developers>
 		<developer>
@@ -85,7 +43,6 @@
 			</roles>
 		</developer>
 	</developers>
-
 	<contributors>
 		<contributor>
 			<name>Stephan Saalfeld</name>
@@ -100,6 +57,50 @@
 			</properties>
 		</contributor>
 	</contributors>
+
+	<mailingLists>
+		<mailingList>
+			<name>Image.sc Forum</name>
+			<archive>https://forum.image.sc/tag/n5</archive>
+		</mailingList>
+	</mailingLists>
+
+	<scm>
+		<connection>scm:git:git://github.com/saalfeldlab/n5-viewer</connection>
+		<developerConnection>scm:git:git@github.com:saalfeldlab/n5-viewer</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/saalfeldlab/n5-viewer</url>
+	</scm>
+	<issueManagement>
+		<system>GitHub</system>
+		<url>https://github.com/saalfeldlab/n5-viewer/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>Travis CI</system>
+		<url>https://travis-ci.org/saalfeldlab/n5-viewer</url>
+	</ciManagement>
+
+	<properties>
+		<package-name>org.janelia.saalfeldlab.n5.bdv</package-name>
+		<license.licenseName>gpl_v3</license.licenseName>
+		<license.projectName>N5 Viewer</license.projectName>
+		<license.organizationName>Saalfeld Lab</license.organizationName>
+		<license.copyrightOwners>Igor Pisarev, Stephan Saalfeld</license.copyrightOwners>
+
+		<scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
+
+		<!-- NB: Deploy releases to the SciJava Maven repository. -->
+		<releaseProfiles>deploy-to-scijava</releaseProfiles>
+
+		<bigdataviewer_fiji.version>6.0.0</bigdataviewer_fiji.version>
+		<bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-15</bigdataviewer-vistools.version>
+		<n5.version>2.1.1</n5.version>
+		<n5-aws-s3.version>2.1.0</n5-aws-s3.version>
+		<n5-google-cloud.version>2.3.1</n5-google-cloud.version>
+		<n5-imglib2.version>3.4.1</n5-imglib2.version>
+		<jackson-databind.version>2.9.10.4</jackson-databind.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -127,11 +128,23 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-aws-s3</artifactId>
 			<version>${n5-aws-s3.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-google-cloud</artifactId>
 			<version>${n5-google-cloud.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
@@ -142,6 +155,11 @@
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson-databind.version}</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>
@@ -149,30 +167,5 @@
 			<id>scijava.public</id>
 			<url>https://maven.scijava.org/content/groups/public</url>
 		</repository>
-		<repository>
-			<id>saalfeld-lab-maven-repo</id>
-			<url>https://saalfeldlab.github.io/maven</url>
-		</repository>
 	</repositories>
-
-	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<artifactId>maven-deploy-plugin</artifactId>
-					<configuration>
-						<altDeploymentRepository>internal.repo::default::file://${deploy.path}</altDeploymentRepository>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-	</build>
-
-	<distributionManagement>
-		<repository>
-			<id>local-maven-repo</id>
-			<name>Local Maven Repository</name>
-			<url>file://${deploy.path}</url>
-		</repository>
-	</distributionManagement>
 </project>
