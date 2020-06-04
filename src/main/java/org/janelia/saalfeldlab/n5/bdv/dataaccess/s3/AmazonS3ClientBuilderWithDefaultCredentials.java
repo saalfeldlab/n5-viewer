@@ -8,7 +8,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import ij.IJ;
 
-public class AmazonS3ClientBuilderWithProfileCredentials
+public class AmazonS3ClientBuilderWithDefaultCredentials
 {
 	private static final String credentialsDocsLink = "https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-quick-configuration";
 

@@ -16,36 +16,19 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
-import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.BdvSettingsManager.InitBdvSettingsResult;
-import org.janelia.saalfeldlab.n5.bdv.DatasetSelectorDialog.Selection;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
-
 import bdv.BigDataViewer;
 import bdv.cache.CacheControl;
 import bdv.export.ProgressWriterConsole;
 import bdv.tools.InitializeViewerState;
 import bdv.tools.brightness.ConverterSetup;
-import bdv.tools.brightness.MinMaxGroup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.TransformedSource;
-import bdv.util.BdvOptions;
-import bdv.util.Prefs;
+import bdv.util.*;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerFrame;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
@@ -58,12 +41,21 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
-import net.imglib2.util.ValuePair;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * {@link BigDataViewer}-based application for exploring {@link N5} datasets that conform to the {@link N5ExportMetadata} format (multichannel, multiscale).
+ * {@link BigDataViewer}-based application for browsing N5 datasets.
+ * The datasets are expected to be structured according to the {@link N5ExportMetadata} format (multichannel, multiscale).
  * Takes a root path to an N5 container as a command line argument or via Fiji's Plugins &gt; BigDataViewer &gt; N5 Viewer.
  *
  * @author Igor Pisarev
@@ -79,13 +71,13 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
-		final Selection selection = new DatasetSelectorDialog().run();
-		if ( selection == null )
+		final String n5Path = new DatasetSelectorDialog().run();
+		if ( n5Path == null || n5Path.isEmpty() )
 			return;
 
 		try
 		{
-			exec( selection.n5Path, selection.storageType, selection.readonly );
+			exec( n5Path );
 		}
 		catch ( final IOException e )
 		{
@@ -93,11 +85,15 @@ public class N5Viewer implements PlugIn
 		}
 	}
 
-	final public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final String n5Path,
-			final DataAccessType storageType,
-			final boolean readonly ) throws IOException
+	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
+			final String n5Path ) throws IOException
 	{
+		final DataAccessType storageType = DataAccessType.detectType( n5Path );
+		if ( storageType == null )
+		{
+			IJ.error( "Cannot open the link" );
+		}
+
 		final DataAccessFactory dataAccessFactory;
 		try
 		{
@@ -133,6 +129,18 @@ public class N5Viewer implements PlugIn
 			addSourceToListsGenericType( volatileSource, c + 1, numTimepoints, volatileType, converterSetups, sourcesAndConverters );
 		}
 
+		final List< Source< T > > nonVolatileSources = new ArrayList<>();
+		for ( int c = 0; c < numChannels; ++c )
+			nonVolatileSources.add( N5MultiscaleSource.getSource( n5, c, displayName ) );
+
+		final ARGBType[] colors = ColorGenerator.getColors( numChannels );
+		for ( int i = 0; i < numChannels; ++i )
+		{
+			Bounds range = InitializeViewerState.estimateSourceRange( nonVolatileSources.get( i ),0, 0.05, 0.999 );
+			converterSetups.get( i ).setDisplayRange( range.getMinBound(), range.getMaxBound() );
+			converterSetups.get( i ).setColor( colors[ i ] );
+		}
+
 		final BigDataViewer bdv = new BigDataViewer(
 				converterSetups,
 				sourcesAndConverters,
@@ -144,51 +152,12 @@ public class N5Viewer implements PlugIn
 				BdvOptions.options().values.getViewerOptions()
 			);
 
-		final String bdvSettingsPath = dataAccessFactory.combinePaths( n5Path, "bdv-settings.xml" );
-		final BdvSettingsManager bdvSettingsManager = dataAccessFactory.createBdvSettingsManager( bdv, bdvSettingsPath );
-		final InitBdvSettingsResult settingsLoadResult = bdvSettingsManager.initBdvSettings( readonly );
-
-		if ( settingsLoadResult == InitBdvSettingsResult.CANCELED )
-		{
-			final ViewerFrame frame = bdv.getViewerFrame();
-			frame.dispatchEvent( new WindowEvent( frame, WindowEvent.WINDOW_CLOSING ) );
-			return;
-		}
-
-		if ( settingsLoadResult == InitBdvSettingsResult.LOADED_READ_ONLY || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
-			bdv.getViewerFrame().setTitle( "N5 Viewer (read-only)" );
-
-		// set default display settings if BDV settings file does not exist or cannot be loaded
-		if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED || settingsLoadResult == InitBdvSettingsResult.NOT_LOADED_READ_ONLY )
-		{
-			final ARGBType[] colors = ColorGenerator.getColors( numChannels );
-			final Pair< Double, Double > defaultDisplayRange = new ValuePair<>( 50., 150. );
-
-			for ( int i = 0; i < bdv.getSetupAssignments().getConverterSetups().size(); ++i )
-			{
-				final ConverterSetup converterSetup = bdv.getSetupAssignments().getConverterSetups().get( i );
-				converterSetup.setColor( colors[ i ] );
-				converterSetup.setDisplayRange( defaultDisplayRange.getA(), defaultDisplayRange.getB() );
-
-				final MinMaxGroup minMaxGroup = bdv.getSetupAssignments().getMinMaxGroup( converterSetup );
-				minMaxGroup.getMinBoundedValue().setCurrentValue( defaultDisplayRange.getA() );
-				minMaxGroup.getMaxBoundedValue().setCurrentValue( defaultDisplayRange.getB() );
-			}
-
-			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
-			bdv.getViewerFrame().repaint();
-
-			if ( settingsLoadResult == InitBdvSettingsResult.NOT_LOADED )
-				bdvSettingsManager.saveSettingsOnTimer();
-		}
-
 		InitializeViewerState.initTransform( bdv.getViewer() );
+
+		bdv.getViewer().state().setDisplayMode( DisplayMode.FUSED );
 		bdv.getViewerFrame().setVisible( true );
 
-		final List< Source< T > > sources = new ArrayList<>();
-		for ( int c = 0; c < numChannels; ++c )
-			sources.add( N5MultiscaleSource.getSource( n5, c, displayName ) );
-		initCropController( bdv, sources );
+		initCropController( bdv, nonVolatileSources );
 	}
 
 	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BigDataViewer bdv, final List< Source< T > > sources )
