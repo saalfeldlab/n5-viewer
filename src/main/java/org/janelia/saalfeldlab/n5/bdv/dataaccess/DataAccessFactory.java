@@ -31,52 +31,12 @@ import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Paths;
 
 public class DataAccessFactory
 {
-	private static final String localFileProtocol = "file";
-	private static final String s3Protocol = "s3";
-	private static final String googleCloudProtocol = "gs";
-
 	private final DataAccessType type;
 	private final AmazonS3 s3;
 	private final Storage googleCloudStorage;
-
-	public static DataAccessType getTypeByUri( final URI uri )
-	{
-		switch ( uri.getScheme().toLowerCase() )
-		{
-		case localFileProtocol:
-			return DataAccessType.FILESYSTEM;
-		case s3Protocol:
-			return DataAccessType.AMAZON_S3;
-		case googleCloudProtocol:
-			return DataAccessType.GOOGLE_CLOUD;
-		default:
-			throw new NotImplementedException( "Factory for protocol " + uri.getScheme() + " is not implemented" );
-		}
-	}
-
-	public static URI createBucketUri( final DataAccessType type, final String bucketName )
-	{
-		final String protocol;
-		switch ( type )
-		{
-		case AMAZON_S3:
-			protocol = s3Protocol;
-			break;
-		case GOOGLE_CLOUD:
-			protocol = googleCloudProtocol;
-			break;
-		case FILESYSTEM:
-			throw new IllegalArgumentException( "Not supported for filesystem storage" );
-		default:
-			throw new NotImplementedException( "Not implemented for type " + type );
-		}
-		return URI.create( protocol + "://" + bucketName + "/" );
-	}
 
 	public DataAccessFactory( final DataAccessType type ) throws DataAccessException
 	{
@@ -95,20 +55,6 @@ public class DataAccessFactory
 			s3 = null;
 			googleCloudStorage = GoogleCloudClientBuilderWithDefaultCredentials.createStorage();
 			break;
-		default:
-			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
-		}
-	}
-
-	public String combinePaths( final String basePath, final String relativePath )
-	{
-		switch ( type )
-		{
-		case FILESYSTEM:
-			return Paths.get( basePath, relativePath ).toString();
-		case AMAZON_S3:
-		case GOOGLE_CLOUD:
-			return URI.create( basePath.endsWith( "/" ) || relativePath.startsWith( "/" ) ? basePath : basePath + "/" ).resolve( relativePath ).toString();
 		default:
 			throw new NotImplementedException( "Factory for type " + type + " is not implemented" );
 		}
