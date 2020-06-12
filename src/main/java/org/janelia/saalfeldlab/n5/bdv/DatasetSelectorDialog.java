@@ -16,159 +16,275 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
-import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
+import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
 
 import javax.swing.*;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class DatasetSelectorDialog
 {
-	private static final String HISTORY_PREF_KEY = "n5-viewer.history";
+    public static class SourceSelection {
 
-	private GenericDialogPlus gd;
-	private Choice choice;
+        public final String sourcePath;
+        public final boolean isMultiscale;
 
-	private Button okButton;
-	private boolean removeFirstItem;
-	private int lastItemIndex = -1;
+        public SourceSelection(final String sourcePath, final boolean isMultiscale) {
+            this.sourcePath = sourcePath;
+            this.isMultiscale = isMultiscale;
+        }
 
-	public String run()
-	{
-		gd = new GenericDialogPlus( "N5 Viewer" );
+        @Override
+        public String toString() {
+            return sourcePath;
+        }
+    }
 
-		// load selection history
-		final SelectionHistory selectionHistory = new SelectionHistory( HISTORY_PREF_KEY );
+    public static class Selection {
 
-		// add selection history component
-		gd.addChoice( "N5_dataset_path: ", selectionHistory.getHistory().toArray( new String[ 0 ] ), "" );
-		choice = ( Choice ) gd.getChoices().get( 0 );
+        public final String n5Path;
+        public final List<SourceSelection> sourcePaths;
 
-		// hack to stretch the choice component horizontally
-		gd.remove( choice );
-		final GridBagConstraints choiceConstraints = new GridBagConstraints();
-		choiceConstraints.fill = GridBagConstraints.HORIZONTAL;
-		choiceConstraints.gridx = 1;
-		choiceConstraints.gridy = 0;
-		choiceConstraints.insets = new Insets( 5, 0, 5, 0 );
-		gd.add( choice, choiceConstraints);
+        public Selection(final String n5Path, final List<SourceSelection> sourcePaths)
+        {
+            this.n5Path = n5Path;
+            this.sourcePaths = sourcePaths;
+        }
+    }
 
-		// add browse button & listener
-		final Button browseButton = new Button( "Browse..." );
-		gd.add( browseButton );
-		browseButton.addActionListener( new BrowseListener() );
-		browseButton.addKeyListener( gd );
+    private Consumer<Selection> okCallback;
 
-		// add browse button & listener
-		final Button openLinkButton = new Button( "Open link..." );
-		gd.add( openLinkButton );
-		openLinkButton.addActionListener( new OpenLinkListener() );
-		openLinkButton.addKeyListener( gd );
+    private JFrame dialog;
+    private JTextField containerPathTxt;
 
-		// add handler to set OK button state at startup
-		gd.addWindowListener(
-				new WindowAdapter()
-				{
-					@Override
-					public void windowOpened( final WindowEvent e )
-					{
-						okButton = gd.getButtons()[ 0 ];
-						okButton.setEnabled( choice.getItemCount() > 0 );
-					}
-				}
-			);
+    private JTree containerTree;
+    private JList datasetsList;
 
-		gd.showDialog();
+    private JButton addSourceBtn;
+    private JButton removeSourceBtn;
 
-		if ( gd.wasCanceled() )
-			return null;
+    private JButton okBtn;
 
-		// update selection history
-		final String n5Path = gd.getNextChoice();
-		selectionHistory.addToHistory( n5Path );
+    private DefaultTreeModel treeModel;
+    private DefaultListModel listModel;
 
-		return n5Path;
-	}
+    private String n5Path;
+    private N5Reader n5;
+    private N5TreeNode n5RootNode;
 
-	private void setSelectedItem( final String newSelected )
-	{
-		final List< String > choiceItems = new ArrayList<>();
-		for ( int i = 0; i < choice.getItemCount(); ++i )
-			choiceItems.add( choice.getItem( i ) );
+    public void run(final Consumer<Selection> okCallback)
+    {
+        this.okCallback = okCallback;
 
-		// put old selected item back on its position, or just remove it if was not present in the history
-		if ( removeFirstItem )
-		{
-			final String oldSelected = choiceItems.remove( 0 );
-			if ( lastItemIndex != -1 )
-				choiceItems.add( lastItemIndex, oldSelected );
-		}
+        dialog = new JFrame("N5 Viewer");
+        dialog.setLayout(new BoxLayout(dialog.getContentPane(), BoxLayout.PAGE_AXIS));
+        dialog.setMinimumSize(new Dimension(750, 500));
+        dialog.setPreferredSize(dialog.getMinimumSize());
 
-		// move new selected item to the top, or just add it if was not present if the history
-		final int newSelectedIndex = choiceItems.indexOf( newSelected );
-		if ( newSelectedIndex != -1 )
-			choiceItems.remove( newSelectedIndex );
-		choiceItems.add( 0, newSelected );
+        final JPanel containerPanel = new JPanel();
+        containerPanel.add(new JLabel("N5 container:"));
 
-		okButton.setEnabled( true );
-		removeFirstItem = true;
-		lastItemIndex = newSelectedIndex;
+        containerPathTxt = new JTextField();
+        containerPathTxt.setPreferredSize(new Dimension(400, containerPathTxt.getPreferredSize().height));
+        containerPanel.add(containerPathTxt);
 
-		choice.removeAll();
-		for ( final String item : choiceItems )
-			choice.add( item );
-		choice.select( 0 );
-	}
+        final JButton browseBtn = new JButton("Browse...");
+        browseBtn.addActionListener(e -> openContainer(this::openBrowseDialog));
+        containerPanel.add(browseBtn);
 
-	private class BrowseListener implements ActionListener
-	{
-		@Override
-		public void actionPerformed( final ActionEvent event )
-		{
-			File directory = choice.getSelectedItem() != null ? new File( choice.getSelectedItem() ) : null;
-			while ( directory != null && !directory.exists() )
-				directory = directory.getParentFile();
+        final JButton linkBtn = new JButton("Open link...");
+        linkBtn.addActionListener(e -> openContainer(this::openLinkDialog));
+        containerPanel.add(linkBtn);
 
-			final JFileChooser directoryChooser = new JFileChooser( directory );
-			directoryChooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+        dialog.getContentPane().add(containerPanel);
 
-			final int result = directoryChooser.showOpenDialog( gd );
-			if ( result != JFileChooser.APPROVE_OPTION )
-				return;
+        final JPanel datasetsPanel = new JPanel();
 
-			setSelectedItem( directoryChooser.getSelectedFile().getAbsolutePath() );
-		}
-	}
+        treeModel = new DefaultTreeModel(null, true);
+        containerTree = new JTree(treeModel);
+        containerTree.setEnabled(false);
+        containerTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        final JScrollPane containerTreeScroller = new JScrollPane(containerTree);
+        containerTreeScroller.setMaximumSize(new Dimension(280, 350));
+        containerTreeScroller.setPreferredSize(containerTreeScroller.getMaximumSize());
+        datasetsPanel.add(containerTreeScroller);
 
-	private class OpenLinkListener implements ActionListener
-	{
-		@Override
-		public void actionPerformed( final ActionEvent event )
-		{
-			final GenericDialogPlus gd = new GenericDialogPlus( "N5 Viewer" );
-			gd.addStringField( "Paste_link_here:", "", 50 );
-			gd.showDialog();
-			if ( gd.wasCanceled() )
-				return;
+        final JPanel sourceButtonsPanel = new JPanel();
+        sourceButtonsPanel.setLayout( new BoxLayout( sourceButtonsPanel, BoxLayout.Y_AXIS ) );
+        addSourceBtn = new JButton("Add source");
+        addSourceBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        addSourceBtn.setEnabled(false);
+        //addSourceBtn.addActionListener(e -> addSource());
+        sourceButtonsPanel.add(addSourceBtn);
 
-			final String linkStr = gd.getNextString().trim();
+        removeSourceBtn = new JButton("Remove source");
+        removeSourceBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        removeSourceBtn.setEnabled(false);
+        removeSourceBtn.addActionListener(e -> removeSource());
+        sourceButtonsPanel.add(removeSourceBtn);
 
-			if ( DataAccessType.detectType( linkStr ) == null )
-			{
-				IJ.error( "The link cannot be parsed or is not supported." + System.lineSeparator() +
-						"It should be either a file path, an Amazon Web Services S3 link, or a Google Cloud Storage link." );
-				return;
-			}
+        datasetsPanel.add(sourceButtonsPanel);
 
-			setSelectedItem( linkStr );
-		}
-	}
+        listModel = new DefaultListModel();
+        datasetsList = new JList(listModel);
+        datasetsList.setEnabled(false);
+        datasetsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        final JScrollPane datasetsListScroller = new JScrollPane(datasetsList);
+        datasetsListScroller.setMaximumSize(new Dimension(280, 350));
+        datasetsListScroller.setPreferredSize(datasetsListScroller.getMaximumSize());
+        datasetsPanel.add(datasetsListScroller);
+
+        dialog.getContentPane().add(datasetsPanel);
+
+        final JPanel okButtonPanel = new JPanel();
+        okBtn = new JButton("OK");
+        okBtn.setEnabled(false);
+        okBtn.addActionListener(e -> ok());
+        okButtonPanel.add(okBtn);
+
+        dialog.getContentPane().add(okButtonPanel);
+
+        //dialog.add(Box.createVerticalGlue());
+//        final Box.Filler dialogGlue = (Box.Filler)Box.createVerticalGlue();
+//        dialogGlue.changeShape(dialogGlue.getMinimumSize(),
+//                new Dimension(0, Short.MAX_VALUE), // make glue greedy
+//                dialogGlue.getMaximumSize());
+//        dialog.getContentPane().add(dialogGlue);
+
+        dialog.pack();
+        dialog.setVisible(true);
+    }
+
+    private String openBrowseDialog()
+    {
+        final JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        int ret = fileChooser.showOpenDialog(dialog);
+        if (ret != JFileChooser.APPROVE_OPTION)
+            return null;
+        return fileChooser.getSelectedFile().getAbsolutePath();
+    }
+
+    private String openLinkDialog()
+    {
+        return JOptionPane.showInputDialog(dialog, "Link: ", "N5 Viewer", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    private void openContainer(final Supplier<String> opener)
+    {
+        final String n5Path = opener.get();
+        if (n5Path == null || n5Path.isEmpty())
+            return;
+
+        final DataAccessType type = DataAccessType.detectType(n5Path);
+        if (type == null) {
+            JOptionPane.showMessageDialog(dialog, "Not a valid path or link to an N5 container.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        n5 = null;
+        try {
+            n5 = new DataAccessFactory(type).createN5Reader(n5Path);
+
+            if (!n5.exists("/") || n5.getVersion().equals(new N5Reader.Version(null))) {
+                JOptionPane.showMessageDialog(dialog, "Not a valid path or link to an N5 container.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        } catch (final DataAccessException | IOException e) {
+            IJ.handleException(e);
+            return;
+        }
+
+        this.n5Path = n5Path;
+        containerPathTxt.setText(n5Path);
+        addSourceBtn.setEnabled(true);
+
+        try {
+            n5RootNode = N5DatasetDiscoverer.run(n5);
+        } catch (final IOException e) {
+            IJ.handleException(e);
+            return;
+        }
+
+        treeModel.setRoot(N5DatasetDiscoverer.toJTreeNode(n5RootNode));
+
+        containerTree.setEnabled(true);
+        datasetsList.setEnabled(true);
+
+
+//        tree.addTreeSelectionListener(e -> {
+//            final DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
+//            selectedNode = (node == null ? null : (N5TreeNode) node.getUserObject());
+//
+//            try {
+//                if (selectedNode == null || (!selectedNode.isMultiscale && !n5.datasetExists(selectedNode.path))) {
+//                    selectedNode = null;
+//                    okBtn.setEnabled(false);
+//                    return;
+//                }
+//            } catch (final IOException e1) {
+//                IJ.handleException(e1);
+//                return;
+//            }
+//
+//            okBtn.setEnabled(true);
+//            okBtn.setText(selectedNode.isMultiscale ? "Add multiscale dataset" : "Add dataset");
+//        });
+    }
+
+    private void onSourceSelected(final SourceSelection selectedSource)
+    {
+        listModel.addElement(selectedSource);
+        removeSourceBtn.setEnabled(true);
+        okBtn.setEnabled(true);
+    }
+
+    private void removeSource()
+    {
+        if (datasetsList.isSelectionEmpty())
+            return;
+
+        listModel.removeElementAt(datasetsList.getSelectedIndex());
+        removeSourceBtn.setEnabled(!listModel.isEmpty());
+        okBtn.setEnabled(!listModel.isEmpty());
+    }
+
+    private void ok()
+    {
+        final List<SourceSelection> sourcePaths = new ArrayList<>();
+        for (final Enumeration enumeration = listModel.elements(); enumeration.hasMoreElements();)
+            sourcePaths.add((SourceSelection) enumeration.nextElement());
+        okCallback.accept(new Selection(n5Path, sourcePaths));
+    }
+
+
+//    private void select()
+//    {
+//        if (selectedNode == null)
+//            return;
+//
+//        try {
+//            if (!selectedNode.isMultiscale && !n5.datasetExists(selectedNode.path)) {
+//                JOptionPane.showMessageDialog(dialog, "Selected group is not a dataset", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
+//                return;
+//            }
+//        } catch (final IOException e) {
+//            IJ.handleException(e);
+//            return;
+//        }
+//
+//        dialog.setVisible(false);
+//        callback.accept(new DatasetSelectorDialog.SourceSelection(selectedNode.path, selectedNode.isMultiscale));
+//    }
 }

@@ -52,6 +52,7 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * {@link BigDataViewer}-based application for browsing N5 datasets.
@@ -71,24 +72,20 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
-		final String n5Path = new DatasetSelectorDialog().run();
-		if ( n5Path == null || n5Path.isEmpty() )
-			return;
-
-		try
-		{
-			exec( n5Path );
-		}
-		catch ( final IOException e )
-		{
-			IJ.handleException( e );
-		}
+		final DatasetSelectorDialog dialog = new DatasetSelectorDialog();
+		dialog.run(selection -> {
+			try {
+				exec(selection);
+			} catch (final IOException e) {
+				IJ.handleException(e);
+			}
+		});
 	}
 
 	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final String n5Path ) throws IOException
+			final DatasetSelectorDialog.Selection selection ) throws IOException
 	{
-		final DataAccessType storageType = DataAccessType.detectType( n5Path );
+		final DataAccessType storageType = DataAccessType.detectType( selection.n5Path );
 		if ( storageType == null )
 		{
 			IJ.error( "Cannot open the link" );
@@ -104,17 +101,9 @@ public class N5Viewer implements PlugIn
 			return;
 		}
 
-		final N5Reader n5 = dataAccessFactory.createN5Reader( n5Path );
-		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
+		final N5Reader n5 = dataAccessFactory.createN5Reader( selection.n5Path );
 
-		final int numChannels = metadata.getNumChannels();
-		if ( numChannels <= 0 )
-		{
-			IJ.error( "No channels found" );
-			return;
-		}
-
-		final String displayName = metadata.getName() != null ? metadata.getName() : "";
+		final int numSources = selection.sourcePaths.size();
 		final int numTimepoints = 1;
 		Prefs.showScaleBar( true );
 
@@ -122,24 +111,24 @@ public class N5Viewer implements PlugIn
 
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
 		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
-		for ( int c = 0; c < numChannels; ++c )
+		for ( int c = 0; c < numSources; ++c )
 		{
-			final Source< V > volatileSource = N5MultiscaleSource.getVolatileSource( n5, c, displayName, sharedQueue );
+			final Source< V > volatileSource = N5MultiscaleSource.getVolatileSource( n5, c, "source " + (c + 1), sharedQueue );
 			final V volatileType = volatileSource.getType();
 			addSourceToListsGenericType( volatileSource, c + 1, numTimepoints, volatileType, converterSetups, sourcesAndConverters );
 		}
 
-		final List< Source< T > > nonVolatileSources = new ArrayList<>();
-		for ( int c = 0; c < numChannels; ++c )
-			nonVolatileSources.add( N5MultiscaleSource.getSource( n5, c, displayName ) );
-
-		final ARGBType[] colors = ColorGenerator.getColors( numChannels );
-		for ( int i = 0; i < numChannels; ++i )
-		{
-			Bounds range = InitializeViewerState.estimateSourceRange( nonVolatileSources.get( i ),0, 0.05, 0.999 );
-			converterSetups.get( i ).setDisplayRange( range.getMinBound(), range.getMaxBound() );
-			converterSetups.get( i ).setColor( colors[ i ] );
-		}
+//		final List< Source< T > > nonVolatileSources = new ArrayList<>();
+//		for ( int c = 0; c < numChannels; ++c )
+//			nonVolatileSources.add( N5MultiscaleSource.getSource( n5, c, displayName ) );
+//
+//		final ARGBType[] colors = ColorGenerator.getColors( numChannels );
+//		for ( int i = 0; i < numChannels; ++i )
+//		{
+//			Bounds range = InitializeViewerState.estimateSourceRange( nonVolatileSources.get( i ),0, 0.05, 0.999 );
+//			converterSetups.get( i ).setDisplayRange( range.getMinBound(), range.getMaxBound() );
+//			converterSetups.get( i ).setColor( colors[ i ] );
+//		}
 
 		final BigDataViewer bdv = new BigDataViewer(
 				converterSetups,
@@ -157,7 +146,7 @@ public class N5Viewer implements PlugIn
 		bdv.getViewer().state().setDisplayMode( DisplayMode.FUSED );
 		bdv.getViewerFrame().setVisible( true );
 
-		initCropController( bdv, nonVolatileSources );
+//		initCropController( bdv, nonVolatileSources );
 	}
 
 	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BigDataViewer bdv, final List< Source< T > > sources )
