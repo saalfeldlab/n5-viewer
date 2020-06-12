@@ -1,21 +1,25 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
+import se.sawano.java.text.AlphanumericComparator;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.HashSet;
+import java.text.Collator;
+import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Set;
 
 public class N5DatasetDiscoverer {
+
+    private static final AlphanumericComparator alphanumericComparator = new AlphanumericComparator(Collator.getInstance());
 
     public static N5TreeNode run(final N5Reader n5) throws IOException
     {
         final N5TreeNode root = new N5TreeNode("/", "/");
         discover(n5, root);
         trim(root);
+        sort(root);
         return root;
     }
 
@@ -29,7 +33,6 @@ public class N5DatasetDiscoverer {
                 final N5TreeNode childNode = new N5TreeNode(childPath, childGroup);
                 node.children.add(childNode);
                 discover(n5, childNode);
-                node.isMultiscale = isMultiscale(node);
             }
         }
     }
@@ -58,6 +61,13 @@ public class N5DatasetDiscoverer {
         return ret;
     }
 
+    private static void sort(final N5TreeNode node)
+    {
+        node.children.sort(Comparator.comparing(N5TreeNode::toString, alphanumericComparator));
+        for (final N5TreeNode childNode : node.children)
+            sort(childNode);
+    }
+
     public static DefaultMutableTreeNode toJTreeNode(final N5TreeNode n5Node)
     {
         final DefaultMutableTreeNode node = new DefaultMutableTreeNode(n5Node);
@@ -66,20 +76,20 @@ public class N5DatasetDiscoverer {
         return node;
     }
 
-    private static boolean isMultiscale(final N5TreeNode node)
-    {
-        final Set<String> childrenSet = new HashSet<>();
-        for (final N5TreeNode childNode : node.children)
-        {
-            if (!childNode.isDataset)
-                return false;
-            childrenSet.add(childNode.groupName);
-        }
-
-        for (int i = 0; i < childrenSet.size(); ++i)
-            if (!childrenSet.contains("s" + i))
-                return false;
-
-        return true;
-    }
+//    private static boolean isMultiscale(final N5TreeNode node)
+//    {
+//        final Set<String> childrenSet = new HashSet<>();
+//        for (final N5TreeNode childNode : node.children)
+//        {
+//            if (!childNode.isDataset)
+//                return false;
+//            childrenSet.add(childNode.groupName);
+//        }
+//
+//        for (int i = 0; i < childrenSet.size(); ++i)
+//            if (!childrenSet.contains("s" + i))
+//                return false;
+//
+//        return true;
+//    }
 }
