@@ -6,6 +6,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 public class N5DatasetDiscoverer {
@@ -14,6 +15,7 @@ public class N5DatasetDiscoverer {
     {
         final N5TreeNode root = new N5TreeNode("/", "/");
         discover(n5, root);
+        trim(root);
         return root;
     }
 
@@ -30,6 +32,30 @@ public class N5DatasetDiscoverer {
                 node.isMultiscale = isMultiscale(node);
             }
         }
+    }
+
+    /**
+     * Removes branches of the N5 container tree that do not contain datasets.
+     *
+     * @param node
+     * @return
+     *      {@code true} if the branch contains a dataset, {@code false} otherwise
+     */
+    private static boolean trim(final N5TreeNode node)
+    {
+        if (node.children.isEmpty())
+            return node.isDataset;
+
+        boolean ret = false;
+        for (final Iterator<N5TreeNode> it = node.children.iterator(); it.hasNext();)
+        {
+            final N5TreeNode childNode = it.next();
+            if (!trim(childNode))
+                it.remove();
+            else
+                ret = true;
+        }
+        return ret;
     }
 
     public static DefaultMutableTreeNode toJTreeNode(final N5TreeNode n5Node)
