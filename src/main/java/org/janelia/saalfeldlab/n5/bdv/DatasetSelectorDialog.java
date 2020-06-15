@@ -55,6 +55,8 @@ public class DatasetSelectorDialog
         }
     }
 
+    private final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer();
+
     private Consumer<N5ViewerDataSeleciton> okCallback;
 
     private JFrame dialog;
@@ -198,7 +200,7 @@ public class DatasetSelectorDialog
 
         final N5TreeNode n5RootNode;
         try {
-            n5RootNode = N5DatasetDiscoverer.run(n5);
+            n5RootNode = datasetDiscoverer.discover(n5);
         } catch (final IOException e) {
             IJ.handleException(e);
             return;
@@ -253,7 +255,7 @@ public class DatasetSelectorDialog
         {
             if (!childNode.isDataset)
                 return null;
-            childrenSet.add(childNode.groupName);
+            childrenSet.add(childNode.getNodeName());
         }
         for (int i = 0; i < childrenSet.size(); ++i)
             if (!childrenSet.contains("s" + i))
