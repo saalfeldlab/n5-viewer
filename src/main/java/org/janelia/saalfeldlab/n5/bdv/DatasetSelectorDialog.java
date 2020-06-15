@@ -26,9 +26,10 @@ import javax.swing.*;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Enumeration;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -79,6 +80,7 @@ public class DatasetSelectorDialog
     private DefaultTreeModel treeModel;
     private DefaultListModel listModel;
 
+    private String lastBrowsePath;
     private String n5Path;
     private N5Reader n5;
     private N5TreeNode n5RootNode;
@@ -170,6 +172,8 @@ public class DatasetSelectorDialog
     {
         final JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        if (lastBrowsePath != null && !lastBrowsePath.isEmpty())
+            fileChooser.setCurrentDirectory(new File(lastBrowsePath));
         int ret = fileChooser.showOpenDialog(dialog);
         if (ret != JFileChooser.APPROVE_OPTION)
             return null;
@@ -183,11 +187,13 @@ public class DatasetSelectorDialog
 
     private void openContainer(final Supplier<String> opener)
     {
-        final String n5Path = opener.get();
-        if (n5Path == null || n5Path.isEmpty())
+        final String selectedN5Path = opener.get();
+        if (selectedN5Path == null || selectedN5Path.isEmpty())
             return;
 
-        final DataAccessType type = DataAccessType.detectType(n5Path);
+        lastBrowsePath = Paths.get(selectedN5Path).getParent().toString();
+
+        final DataAccessType type = DataAccessType.detectType(selectedN5Path);
         if (type == null) {
             JOptionPane.showMessageDialog(dialog, "Not a valid path or link to an N5 container.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
             return;
@@ -195,7 +201,7 @@ public class DatasetSelectorDialog
 
         n5 = null;
         try {
-            n5 = new DataAccessFactory(type).createN5Reader(n5Path);
+            n5 = new DataAccessFactory(type).createN5Reader(selectedN5Path);
 
             if (!n5.exists("/") || n5.getVersion().equals(new N5Reader.Version(null))) {
                 JOptionPane.showMessageDialog(dialog, "Not a valid path or link to an N5 container.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
@@ -206,7 +212,7 @@ public class DatasetSelectorDialog
             return;
         }
 
-        this.n5Path = n5Path;
+        this.n5Path = selectedN5Path;
         containerPathTxt.setText(n5Path);
         addSourceBtn.setEnabled(true);
 
