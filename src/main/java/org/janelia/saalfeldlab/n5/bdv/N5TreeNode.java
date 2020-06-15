@@ -23,7 +23,8 @@ public class N5TreeNode {
     @Override
     public String toString() {
 
-        return getNodeName();
+        final String nodeName = getNodeName();
+        return !nodeName.isEmpty() ? nodeName : "/";
     }
 
     /**
