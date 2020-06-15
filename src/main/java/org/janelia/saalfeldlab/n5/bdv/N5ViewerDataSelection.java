@@ -1,12 +1,18 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.n5.N5Reader;
 
-import java.util.Collections;
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
 
-public class N5ViewerDataSeleciton
+public class N5ViewerDataSelection
 {
+    public interface DatasetSelector {
+
+        SelectedDataset selectDataset(N5Reader n5, N5TreeNode datasetNode) throws DatasetParsingException, IOException;
+    }
+
     public interface SelectedDataset
     {
         // marker interface
@@ -36,10 +42,31 @@ public class N5ViewerDataSeleciton
         }
     }
 
+
+    public static class DatasetParsingException extends Exception
+    {
+        public DatasetParsingException() {
+            super();
+        }
+
+        public DatasetParsingException(String message) {
+            super(message);
+        }
+
+        public DatasetParsingException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public DatasetParsingException(Throwable cause) {
+            super(cause);
+        }
+    }
+
+
     public final String n5Path;
     public final List<SelectedDataset> datasets;
 
-    public N5ViewerDataSeleciton(final String n5Path, final List<SelectedDataset> datasets)
+    public N5ViewerDataSelection(final String n5Path, final List<SelectedDataset> datasets)
     {
         this.n5Path = n5Path;
         this.datasets = Collections.unmodifiableList(datasets);

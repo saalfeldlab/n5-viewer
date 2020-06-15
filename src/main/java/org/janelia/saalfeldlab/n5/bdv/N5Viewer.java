@@ -82,7 +82,7 @@ public class N5Viewer implements PlugIn
 	}
 
 	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final N5ViewerDataSeleciton selection ) throws IOException
+			final N5ViewerDataSelection selection ) throws IOException
 	{
 		final DataAccessType storageType = DataAccessType.detectType( selection.n5Path );
 		if ( storageType == null )

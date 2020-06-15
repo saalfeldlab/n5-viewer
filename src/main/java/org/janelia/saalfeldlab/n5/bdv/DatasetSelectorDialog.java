@@ -40,9 +40,9 @@ public class DatasetSelectorDialog
     private static class SelectedListElement
     {
         private final String path;
-        private final N5ViewerDataSeleciton.SelectedDataset selectedDataset;
+        private final N5ViewerDataSelection.SelectedDataset selectedDataset;
 
-        SelectedListElement(final String path, final N5ViewerDataSeleciton.SelectedDataset selectedDataset)
+        SelectedListElement(final String path, final N5ViewerDataSelection.SelectedDataset selectedDataset)
         {
             this.path = path;
             this.selectedDataset = selectedDataset;
@@ -51,13 +51,14 @@ public class DatasetSelectorDialog
         @Override
         public String toString()
         {
-            return path + (selectedDataset instanceof N5ViewerDataSeleciton.MultiScaleDataset ? " (multiscale)" : "");
+            return path + (selectedDataset instanceof N5ViewerDataSelection.MultiScaleDataset ? " (multiscale)" : "");
         }
     }
 
     private final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer();
+    private final N5ViewerDataSelection.DatasetSelector datasetSelector = new N5ViewerDatasetSelector();
 
-    private Consumer<N5ViewerDataSeleciton> okCallback;
+    private Consumer<N5ViewerDataSelection> okCallback;
 
     private JFrame dialog;
     private JTextField containerPathTxt;
@@ -78,7 +79,7 @@ public class DatasetSelectorDialog
     private N5Reader n5;
     private N5TreeNode selectedNode;
 
-    public void run(final Consumer<N5ViewerDataSeleciton> okCallback)
+    public void run(final Consumer<N5ViewerDataSelection> okCallback)
     {
         this.okCallback = okCallback;
 
@@ -228,11 +229,15 @@ public class DatasetSelectorDialog
     {
         if (selectedNode != null)
         {
-            final N5ViewerDataSeleciton.SelectedDataset selectedDataset = determineDataset(selectedNode);
-            if (selectedDataset == null)
-            {
+            final N5ViewerDataSelection.SelectedDataset selectedDataset;
+            try {
+                selectedDataset = datasetSelector.selectDataset(n5, selectedNode);
+            } catch (final N5ViewerDataSelection.DatasetParsingException e) {
                 JOptionPane.showMessageDialog(dialog, "Selected N5 node is not a valid source." + System.lineSeparator() +
                         "A valid source can be either a dataset or a multiscale group.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
+                return;
+            } catch (final IOException e) {
+                IJ.handleException(e);
                 return;
             }
 
@@ -243,29 +248,6 @@ public class DatasetSelectorDialog
             removeSourceBtn.setEnabled(true);
             okBtn.setEnabled(true);
         }
-    }
-
-    private N5ViewerDataSeleciton.SelectedDataset determineDataset(final N5TreeNode node)
-    {
-        if (node.isDataset)
-            return new N5ViewerDataSeleciton.SingleScaleDataset(node.path, null);
-
-        final Set<String> childrenSet = new HashSet<>();
-        for (final N5TreeNode childNode : node.children)
-        {
-            if (!childNode.isDataset)
-                return null;
-            childrenSet.add(childNode.getNodeName());
-        }
-        for (int i = 0; i < childrenSet.size(); ++i)
-            if (!childrenSet.contains("s" + i))
-                return null;
-
-        final List<String> scaleLevelPaths = new ArrayList<>();
-        for (int i = 0; i < childrenSet.size(); ++i)
-            scaleLevelPaths.add(Paths.get(node.path, "s" + i).toString());
-
-        return new N5ViewerDataSeleciton.MultiScaleDataset(scaleLevelPaths.toArray(new String[0]), null);
     }
 
     private void removeSource()
@@ -280,9 +262,9 @@ public class DatasetSelectorDialog
 
     private void ok()
     {
-        final List<N5ViewerDataSeleciton.SelectedDataset> selectedDatasets = new ArrayList<>();
+        final List<N5ViewerDataSelection.SelectedDataset> selectedDatasets = new ArrayList<>();
         for (final Enumeration enumeration = listModel.elements(); enumeration.hasMoreElements();)
-            selectedDatasets.add((N5ViewerDataSeleciton.SelectedDataset) enumeration.nextElement());
-        okCallback.accept(new N5ViewerDataSeleciton(n5Path, selectedDatasets));
+            selectedDatasets.add(((SelectedListElement) enumeration.nextElement()).selectedDataset);
+        okCallback.accept(new N5ViewerDataSelection(n5Path, selectedDatasets));
     }
 }
