@@ -20,6 +20,12 @@ public class N5TreeNode {
         return Paths.get(removeLeadingSlash(path)).getFileName().toString();
     }
 
+    @Override
+    public String toString() {
+
+        return getNodeName();
+    }
+
     /**
      * Removes the leading slash from a given path and returns the corrected path.
      * It ensures correctness on both Unix and Windows, otherwise {@code pathName} is treated
