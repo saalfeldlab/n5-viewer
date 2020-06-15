@@ -52,7 +52,6 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * {@link BigDataViewer}-based application for browsing N5 datasets.
@@ -83,7 +82,7 @@ public class N5Viewer implements PlugIn
 	}
 
 	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final DatasetSelectorDialog.Selection selection ) throws IOException
+			final N5ViewerDataSeleciton selection ) throws IOException
 	{
 		final DataAccessType storageType = DataAccessType.detectType( selection.n5Path );
 		if ( storageType == null )
@@ -103,7 +102,7 @@ public class N5Viewer implements PlugIn
 
 		final N5Reader n5 = dataAccessFactory.createN5Reader( selection.n5Path );
 
-		final int numSources = selection.sourcePaths.size();
+		final int numSources = selection.datasets.size();
 		final int numTimepoints = 1;
 		Prefs.showScaleBar( true );
 

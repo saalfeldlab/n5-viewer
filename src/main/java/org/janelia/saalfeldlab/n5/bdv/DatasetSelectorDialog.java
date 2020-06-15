@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
 
 import javax.swing.*;
+import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
@@ -36,35 +37,25 @@ import java.util.function.Supplier;
 
 public class DatasetSelectorDialog
 {
-    public static class SourceSelection {
+    private static class SelectedListElement
+    {
+        private final String path;
+        private final N5ViewerDataSeleciton.SelectedDataset selectedDataset;
 
-        public final String sourcePath;
-        public final boolean isMultiscale;
-
-        public SourceSelection(final String sourcePath, final boolean isMultiscale) {
-            this.sourcePath = sourcePath;
-            this.isMultiscale = isMultiscale;
+        SelectedListElement(final String path, final N5ViewerDataSeleciton.SelectedDataset selectedDataset)
+        {
+            this.path = path;
+            this.selectedDataset = selectedDataset;
         }
 
         @Override
-        public String toString() {
-            return sourcePath;
-        }
-    }
-
-    public static class Selection {
-
-        public final String n5Path;
-        public final List<SourceSelection> sourcePaths;
-
-        public Selection(final String n5Path, final List<SourceSelection> sourcePaths)
+        public String toString()
         {
-            this.n5Path = n5Path;
-            this.sourcePaths = sourcePaths;
+            return path + (selectedDataset instanceof N5ViewerDataSeleciton.MultiScaleDataset ? " (multiscale)" : "");
         }
     }
 
-    private Consumer<Selection> okCallback;
+    private Consumer<N5ViewerDataSeleciton> okCallback;
 
     private JFrame dialog;
     private JTextField containerPathTxt;
@@ -83,9 +74,9 @@ public class DatasetSelectorDialog
     private String lastBrowsePath;
     private String n5Path;
     private N5Reader n5;
-    private N5TreeNode n5RootNode;
+    private N5TreeNode selectedNode;
 
-    public void run(final Consumer<Selection> okCallback)
+    public void run(final Consumer<N5ViewerDataSeleciton> okCallback)
     {
         this.okCallback = okCallback;
 
@@ -127,7 +118,7 @@ public class DatasetSelectorDialog
         addSourceBtn = new JButton("Add source");
         addSourceBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         addSourceBtn.setEnabled(false);
-        //addSourceBtn.addActionListener(e -> addSource());
+        addSourceBtn.addActionListener(e -> addSource());
         sourceButtonsPanel.add(addSourceBtn);
 
         removeSourceBtn = new JButton("Remove source");
@@ -156,13 +147,6 @@ public class DatasetSelectorDialog
         okButtonPanel.add(okBtn);
 
         dialog.getContentPane().add(okButtonPanel);
-
-        //dialog.add(Box.createVerticalGlue());
-//        final Box.Filler dialogGlue = (Box.Filler)Box.createVerticalGlue();
-//        dialogGlue.changeShape(dialogGlue.getMinimumSize(),
-//                new Dimension(0, Short.MAX_VALUE), // make glue greedy
-//                dialogGlue.getMaximumSize());
-//        dialog.getContentPane().add(dialogGlue);
 
         dialog.pack();
         dialog.setVisible(true);
@@ -216,6 +200,7 @@ public class DatasetSelectorDialog
         containerPathTxt.setText(n5Path);
         addSourceBtn.setEnabled(true);
 
+        final N5TreeNode n5RootNode;
         try {
             n5RootNode = N5DatasetDiscoverer.run(n5);
         } catch (final IOException e) {
@@ -228,32 +213,54 @@ public class DatasetSelectorDialog
         containerTree.setEnabled(true);
         datasetsList.setEnabled(true);
 
-
-//        tree.addTreeSelectionListener(e -> {
-//            final DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
-//            selectedNode = (node == null ? null : (N5TreeNode) node.getUserObject());
-//
-//            try {
-//                if (selectedNode == null || (!selectedNode.isMultiscale && !n5.datasetExists(selectedNode.path))) {
-//                    selectedNode = null;
-//                    okBtn.setEnabled(false);
-//                    return;
-//                }
-//            } catch (final IOException e1) {
-//                IJ.handleException(e1);
-//                return;
-//            }
-//
-//            okBtn.setEnabled(true);
-//            okBtn.setText(selectedNode.isMultiscale ? "Add multiscale dataset" : "Add dataset");
-//        });
+        containerTree.addTreeSelectionListener(e -> {
+            final DefaultMutableTreeNode node = (DefaultMutableTreeNode) containerTree.getLastSelectedPathComponent();
+            selectedNode = (node == null ? null : (N5TreeNode) node.getUserObject());
+        });
     }
 
-    private void onSourceSelected(final SourceSelection selectedSource)
+    private void addSource()
     {
-        listModel.addElement(selectedSource);
-        removeSourceBtn.setEnabled(true);
-        okBtn.setEnabled(true);
+        if (selectedNode != null)
+        {
+            final N5ViewerDataSeleciton.SelectedDataset selectedDataset = determineDataset(selectedNode);
+            if (selectedDataset == null)
+            {
+                JOptionPane.showMessageDialog(dialog, "Selected N5 node is not a valid source." + System.lineSeparator() +
+                        "A valid source can be either a dataset or a multiscale group.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            listModel.addElement(new SelectedListElement(selectedNode.path, selectedDataset));
+            selectedNode = null;
+            containerTree.clearSelection();
+
+            removeSourceBtn.setEnabled(true);
+            okBtn.setEnabled(true);
+        }
+    }
+
+    private N5ViewerDataSeleciton.SelectedDataset determineDataset(final N5TreeNode node)
+    {
+        if (node.isDataset)
+            return new N5ViewerDataSeleciton.SingleScaleDataset(node.path, null);
+
+        final Set<String> childrenSet = new HashSet<>();
+        for (final N5TreeNode childNode : node.children)
+        {
+            if (!childNode.isDataset)
+                return null;
+            childrenSet.add(childNode.groupName);
+        }
+        for (int i = 0; i < childrenSet.size(); ++i)
+            if (!childrenSet.contains("s" + i))
+                return null;
+
+        final List<String> scaleLevelPaths = new ArrayList<>();
+        for (int i = 0; i < childrenSet.size(); ++i)
+            scaleLevelPaths.add(Paths.get(node.path, "s" + i).toString());
+
+        return new N5ViewerDataSeleciton.MultiScaleDataset(scaleLevelPaths.toArray(new String[0]), null);
     }
 
     private void removeSource()
@@ -268,29 +275,9 @@ public class DatasetSelectorDialog
 
     private void ok()
     {
-        final List<SourceSelection> sourcePaths = new ArrayList<>();
+        final List<N5ViewerDataSeleciton.SelectedDataset> selectedDatasets = new ArrayList<>();
         for (final Enumeration enumeration = listModel.elements(); enumeration.hasMoreElements();)
-            sourcePaths.add((SourceSelection) enumeration.nextElement());
-        okCallback.accept(new Selection(n5Path, sourcePaths));
+            selectedDatasets.add((N5ViewerDataSeleciton.SelectedDataset) enumeration.nextElement());
+        okCallback.accept(new N5ViewerDataSeleciton(n5Path, selectedDatasets));
     }
-
-
-//    private void select()
-//    {
-//        if (selectedNode == null)
-//            return;
-//
-//        try {
-//            if (!selectedNode.isMultiscale && !n5.datasetExists(selectedNode.path)) {
-//                JOptionPane.showMessageDialog(dialog, "Selected group is not a dataset", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
-//                return;
-//            }
-//        } catch (final IOException e) {
-//            IJ.handleException(e);
-//            return;
-//        }
-//
-//        dialog.setVisible(false);
-//        callback.accept(new DatasetSelectorDialog.SourceSelection(selectedNode.path, selectedNode.isMultiscale));
-//    }
 }
