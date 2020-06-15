@@ -196,10 +196,6 @@ public class DatasetSelectorDialog
             return;
         }
 
-        this.n5Path = selectedN5Path;
-        containerPathTxt.setText(n5Path);
-        addSourceBtn.setEnabled(true);
-
         final N5TreeNode n5RootNode;
         try {
             n5RootNode = N5DatasetDiscoverer.run(n5);
@@ -208,10 +204,17 @@ public class DatasetSelectorDialog
             return;
         }
 
+        this.n5Path = selectedN5Path;
+        containerPathTxt.setText(n5Path);
+
         treeModel.setRoot(N5DatasetDiscoverer.toJTreeNode(n5RootNode));
+        listModel.clear();
 
         containerTree.setEnabled(true);
         datasetsList.setEnabled(true);
+        addSourceBtn.setEnabled(true);
+        removeSourceBtn.setEnabled(false);
+        okBtn.setEnabled(false);
 
         containerTree.addTreeSelectionListener(e -> {
             final DefaultMutableTreeNode node = (DefaultMutableTreeNode) containerTree.getLastSelectedPathComponent();
