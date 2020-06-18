@@ -141,7 +141,7 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
         if (downsamplingFactors == null)
             downsamplingFactors = new long[] {1, 1, 1};
 
-        if (pixelResolution != null)
+        if (pixelResolution == null)
             pixelResolution = new double[] {1, 1, 1};
 
         final AffineTransform3D mipmapTransform = new AffineTransform3D();
