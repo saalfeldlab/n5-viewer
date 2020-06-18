@@ -21,6 +21,9 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5ViewerMetadataParser;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -40,23 +43,23 @@ public class DatasetSelectorDialog
     private static class SelectedListElement
     {
         private final String path;
-        private final N5ViewerDataSelection.SelectedDataset selectedDataset;
+        private final N5Metadata metadata;
 
-        SelectedListElement(final String path, final N5ViewerDataSelection.SelectedDataset selectedDataset)
+        SelectedListElement(final String path, final N5Metadata metadata)
         {
             this.path = path;
-            this.selectedDataset = selectedDataset;
+            this.metadata = metadata;
         }
 
         @Override
         public String toString()
         {
-            return path + (selectedDataset instanceof N5ViewerDataSelection.MultiScaleDataset ? " (multiscale)" : "");
+            return path + (metadata instanceof N5MultiScaleMetadata ? " (multiscale)" : "");
         }
     }
 
-    private final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer();
-    private final N5ViewerDataSelection.DatasetSelector datasetSelector = new N5ViewerDatasetSelector();
+    private final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(
+            new N5ViewerMetadataParser());
 
     private Consumer<N5ViewerDataSelection> okCallback;
 
@@ -64,7 +67,7 @@ public class DatasetSelectorDialog
     private JTextField containerPathTxt;
 
     private JTree containerTree;
-    private JList datasetsList;
+    private JList selectedList;
 
     private JButton addSourceBtn;
     private JButton removeSourceBtn;
@@ -75,7 +78,6 @@ public class DatasetSelectorDialog
     private DefaultListModel listModel;
 
     private String lastBrowsePath;
-    private String n5Path;
     private N5Reader n5;
     private N5TreeNode selectedNode;
 
@@ -107,39 +109,52 @@ public class DatasetSelectorDialog
 
         final JPanel datasetsPanel = new JPanel();
 
+        final JPanel containerTreePanel = new JPanel();
+        containerTreePanel.setLayout(new BoxLayout(containerTreePanel, BoxLayout.Y_AXIS));
+        final JLabel containerLabel = new JLabel("Available:");
+        containerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        containerTreePanel.add(containerLabel);
         treeModel = new DefaultTreeModel(null, true);
         containerTree = new JTree(treeModel);
         containerTree.setEnabled(false);
         containerTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         final JScrollPane containerTreeScroller = new JScrollPane(containerTree);
-        containerTreeScroller.setMaximumSize(new Dimension(280, 350));
-        containerTreeScroller.setPreferredSize(containerTreeScroller.getMaximumSize());
-        datasetsPanel.add(containerTreeScroller);
+        containerTreeScroller.setPreferredSize(new Dimension(280, 350));
+        containerTreeScroller.setMinimumSize(containerTreeScroller.getPreferredSize());
+        containerTreeScroller.setMaximumSize(containerTreeScroller.getPreferredSize());
+        containerTreePanel.add(containerTreeScroller);
+        datasetsPanel.add(containerTreePanel);
 
         final JPanel sourceButtonsPanel = new JPanel();
         sourceButtonsPanel.setLayout( new BoxLayout( sourceButtonsPanel, BoxLayout.Y_AXIS ) );
-        addSourceBtn = new JButton("Add source");
+        addSourceBtn = new JButton(">");
         addSourceBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         addSourceBtn.setEnabled(false);
         addSourceBtn.addActionListener(e -> addSource());
         sourceButtonsPanel.add(addSourceBtn);
 
-        removeSourceBtn = new JButton("Remove source");
+        removeSourceBtn = new JButton("<");
         removeSourceBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         removeSourceBtn.setEnabled(false);
         removeSourceBtn.addActionListener(e -> removeSource());
         sourceButtonsPanel.add(removeSourceBtn);
-
         datasetsPanel.add(sourceButtonsPanel);
 
+        final JPanel selectedListPanel = new JPanel();
+        selectedListPanel.setLayout(new BoxLayout(selectedListPanel, BoxLayout.Y_AXIS));
+        final JLabel selectedLabel = new JLabel("Selected:");
+        selectedLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        selectedListPanel.add(selectedLabel);
         listModel = new DefaultListModel();
-        datasetsList = new JList(listModel);
-        datasetsList.setEnabled(false);
-        datasetsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        final JScrollPane datasetsListScroller = new JScrollPane(datasetsList);
-        datasetsListScroller.setMaximumSize(new Dimension(280, 350));
-        datasetsListScroller.setPreferredSize(datasetsListScroller.getMaximumSize());
-        datasetsPanel.add(datasetsListScroller);
+        selectedList = new JList(listModel);
+        selectedList.setEnabled(false);
+        selectedList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        final JScrollPane selectedListScroller = new JScrollPane(selectedList);
+        selectedListScroller.setPreferredSize(new Dimension(280, 350));
+        selectedListScroller.setMinimumSize(selectedListScroller.getPreferredSize());
+        selectedListScroller.setMaximumSize(selectedListScroller.getPreferredSize());
+        selectedListPanel.add(selectedListScroller);
+        datasetsPanel.add(selectedListPanel);
 
         dialog.getContentPane().add(datasetsPanel);
 
@@ -153,6 +168,12 @@ public class DatasetSelectorDialog
 
         dialog.pack();
         dialog.setVisible(true);
+
+        containerTree.addTreeSelectionListener(e -> {
+            final DefaultMutableTreeNode node = (DefaultMutableTreeNode) containerTree.getLastSelectedPathComponent();
+            selectedNode = (node == null ? null : (N5TreeNode) node.getUserObject());
+            addSourceBtn.setEnabled(selectedNode != null && selectedNode.metadata != null);
+        });
     }
 
     private String openBrowseDialog()
@@ -174,13 +195,13 @@ public class DatasetSelectorDialog
 
     private void openContainer(final Supplier<String> opener)
     {
-        final String selectedN5Path = opener.get();
-        if (selectedN5Path == null || selectedN5Path.isEmpty())
+        final String n5Path = opener.get();
+        if (n5Path == null || n5Path.isEmpty())
             return;
 
-        lastBrowsePath = Paths.get(selectedN5Path).getParent().toString();
+        lastBrowsePath = Paths.get(n5Path).getParent().toString();
 
-        final DataAccessType type = DataAccessType.detectType(selectedN5Path);
+        final DataAccessType type = DataAccessType.detectType(n5Path);
         if (type == null) {
             JOptionPane.showMessageDialog(dialog, "Not a valid path or link to an N5 container.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
             return;
@@ -188,7 +209,7 @@ public class DatasetSelectorDialog
 
         n5 = null;
         try {
-            n5 = new DataAccessFactory(type).createN5Reader(selectedN5Path);
+            n5 = new DataAccessFactory(type).createN5Reader(n5Path);
 
             if (!n5.exists("/") || n5.getVersion().equals(new N5Reader.Version(null))) {
                 JOptionPane.showMessageDialog(dialog, "Not a valid path or link to an N5 container.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
@@ -207,15 +228,12 @@ public class DatasetSelectorDialog
             return;
         }
 
-        this.n5Path = selectedN5Path;
         containerPathTxt.setText(n5Path);
-
         treeModel.setRoot(N5DatasetDiscoverer.toJTreeNode(n5RootNode));
         listModel.clear();
 
         containerTree.setEnabled(true);
-        datasetsList.setEnabled(true);
-        addSourceBtn.setEnabled(true);
+        selectedList.setEnabled(true);
         removeSourceBtn.setEnabled(false);
         okBtn.setEnabled(false);
 
@@ -229,19 +247,7 @@ public class DatasetSelectorDialog
     {
         if (selectedNode != null)
         {
-            final N5ViewerDataSelection.SelectedDataset selectedDataset;
-            try {
-                selectedDataset = datasetSelector.selectDataset(n5, selectedNode);
-            } catch (final N5ViewerDataSelection.DatasetParsingException e) {
-                JOptionPane.showMessageDialog(dialog, "Selected N5 node is not a valid source." + System.lineSeparator() +
-                        "A valid source can be either a dataset or a multiscale group.", "N5 Viewer", JOptionPane.ERROR_MESSAGE);
-                return;
-            } catch (final IOException e) {
-                IJ.handleException(e);
-                return;
-            }
-
-            listModel.addElement(new SelectedListElement(selectedNode.path, selectedDataset));
+            listModel.addElement(new SelectedListElement(selectedNode.path, selectedNode.metadata));
             selectedNode = null;
             containerTree.clearSelection();
 
@@ -252,19 +258,19 @@ public class DatasetSelectorDialog
 
     private void removeSource()
     {
-        if (datasetsList.isSelectionEmpty())
+        if (selectedList.isSelectionEmpty())
             return;
 
-        listModel.removeElementAt(datasetsList.getSelectedIndex());
+        listModel.removeElementAt(selectedList.getSelectedIndex());
         removeSourceBtn.setEnabled(!listModel.isEmpty());
         okBtn.setEnabled(!listModel.isEmpty());
     }
 
     private void ok()
     {
-        final List<N5ViewerDataSelection.SelectedDataset> selectedDatasets = new ArrayList<>();
+        final List<N5Metadata> selectedMetadata = new ArrayList<>();
         for (final Enumeration enumeration = listModel.elements(); enumeration.hasMoreElements();)
-            selectedDatasets.add(((SelectedListElement) enumeration.nextElement()).selectedDataset);
-        okCallback.accept(new N5ViewerDataSelection(n5Path, selectedDatasets));
+            selectedMetadata.add(((SelectedListElement) enumeration.nextElement()).metadata);
+        okCallback.accept(new N5ViewerDataSelection(n5, selectedMetadata));
     }
 }
