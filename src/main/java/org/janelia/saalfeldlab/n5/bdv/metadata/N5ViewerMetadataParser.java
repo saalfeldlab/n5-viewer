@@ -37,6 +37,9 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
             if (scaleLevelPredicate.test(childNode.getNodeName()))
                 scaleLevelNodes.put(childNode.getNodeName(), childNode);
 
+        if (scaleLevelNodes.isEmpty())
+            return null;
+
         for (final N5TreeNode scaleLevelNode : scaleLevelNodes.values())
             if (!scaleLevelNode.isDataset)
                 return null;
