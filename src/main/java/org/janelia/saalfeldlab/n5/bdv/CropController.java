@@ -62,7 +62,7 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 	final protected ViewerPanel viewer;
 
 	private RealPoint lastClick = new RealPoint( 3 );
-	private List< Source< T > > sources;
+	private List< ? extends Source< T > > sources;
 
 	static private int width = 1024;
 	static private int height = 1024;
@@ -81,7 +81,7 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 
 	public CropController(
 			final ViewerPanel viewer,
-			final List< Source< T > > sources,
+			final List< ? extends Source< T > > sources,
 			final InputTriggerConfig config,
 			final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties )
