@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
+
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +10,9 @@ public class N5TreeNode {
 
     public final String path;
     public final List<N5TreeNode> children = new ArrayList<>();
+
     public boolean isDataset;
+    public N5Metadata metadata;
 
     public N5TreeNode(final String path) {
 
