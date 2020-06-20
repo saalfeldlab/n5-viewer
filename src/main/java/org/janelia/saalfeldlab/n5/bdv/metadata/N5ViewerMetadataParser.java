@@ -21,6 +21,7 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
     private static final String DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors";
     private static final String PIXEL_RESOLUTION_KEY = "pixelResolution";
     private static final String SCALES_KEY = "scales";
+    private static final String AFFINE_TRANSFORM_KEY = "affineTransform";
 
     private static final Predicate<String> scaleLevelPredicate = Pattern.compile("^s\\d+$").asPredicate();
 
@@ -30,7 +31,8 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
         if (node.isDataset) {
             final long[] downsamplingFactors = n5.getAttribute(node.path, DOWNSAMPLING_FACTORS_KEY, long[].class);
             final double[] pixelResolution = getPixelResolution(n5, node);
-            final AffineTransform3D transform = buildTransform(downsamplingFactors, pixelResolution);
+            final AffineTransform3D extraTransform = n5.getAttribute(node.path, AFFINE_TRANSFORM_KEY, AffineTransform3D.class);
+            final AffineTransform3D transform = buildTransform(downsamplingFactors, pixelResolution, extraTransform);
             return new N5SingleScaleMetadata(node.path, transform);
         }
 
@@ -59,11 +61,12 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
         if (deprecatedScales != null) {
             // this is a multiscale group in deprecated format
             final double[] pixelResolution = getPixelResolution(n5, node);
+            final AffineTransform3D extraTransform = n5.getAttribute(node.path, AFFINE_TRANSFORM_KEY, AffineTransform3D.class);
             for (int i = 0; i < Math.min(deprecatedScales.length, scaleLevelNodes.size()); ++i) {
                 final long[] downsamplingFactors = new long[deprecatedScales[i].length];
                 for (int d = 0; d < downsamplingFactors.length; ++d)
                     downsamplingFactors[d] = Math.round(deprecatedScales[i][d]);
-                scaleLevelTransforms.add(buildTransform(downsamplingFactors, pixelResolution));
+                scaleLevelTransforms.add(buildTransform(downsamplingFactors, pixelResolution, extraTransform));
             }
         } else {
             // this is a multiscale group, where scale level transforms are available through dataset metadata
@@ -89,7 +92,8 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
 
     private static AffineTransform3D buildTransform(
             long[] downsamplingFactors,
-            double[] pixelResolution)
+            double[] pixelResolution,
+            final AffineTransform3D extraTransform)
     {
         if (downsamplingFactors == null)
             downsamplingFactors = new long[] {1, 1, 1};
@@ -105,6 +109,8 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
 
         final AffineTransform3D transform = new AffineTransform3D();
         transform.preConcatenate(mipmapTransform).preConcatenate(new Scale3D(pixelResolution));
+        if (extraTransform != null)
+            transform.preConcatenate(extraTransform);
         return transform;
     }
 

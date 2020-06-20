@@ -24,9 +24,9 @@ import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageURI;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.N5ExportMetadata;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientBuilderWithDefaultCredentials;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3ClientBuilderWithDefaultCredentials;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader;
 
@@ -62,7 +62,7 @@ public class DataAccessFactory
 
 	public N5Reader createN5Reader( final String basePath ) throws IOException
 	{
-		final GsonBuilder gsonBuilder = N5ExportMetadata.getGsonBuilder();
+		final GsonBuilder gsonBuilder = N5Metadata.getGsonBuilder();
 		switch ( type )
 		{
 		case FILESYSTEM:
