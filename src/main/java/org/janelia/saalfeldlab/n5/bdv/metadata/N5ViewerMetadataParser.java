@@ -1,5 +1,8 @@
 package org.janelia.saalfeldlab.n5.bdv.metadata;
 
+import com.google.gson.JsonSyntaxException;
+import mpicbg.spim.data.sequence.FinalVoxelDimensions;
+import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -26,7 +29,7 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
 
         if (node.isDataset) {
             final long[] downsamplingFactors = n5.getAttribute(node.path, DOWNSAMPLING_FACTORS_KEY, long[].class);
-            final double[] pixelResolution = n5.getAttribute(node.path, PIXEL_RESOLUTION_KEY, double[].class);
+            final double[] pixelResolution = getPixelResolution(n5, node);
             final AffineTransform3D transform = buildTransform(downsamplingFactors, pixelResolution);
             return new N5SingleScaleMetadata(node.path, transform);
         }
@@ -55,7 +58,7 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
         final double[][] deprecatedScales = n5.getAttribute(node.path, SCALES_KEY, double[][].class);
         if (deprecatedScales != null) {
             // this is a multiscale group in deprecated format
-            final double[] pixelResolution = n5.getAttribute(node.path, PIXEL_RESOLUTION_KEY, double[].class);
+            final double[] pixelResolution = getPixelResolution(n5, node);
             for (int i = 0; i < Math.min(deprecatedScales.length, scaleLevelNodes.size()); ++i) {
                 final long[] downsamplingFactors = new long[deprecatedScales[i].length];
                 for (int d = 0; d < downsamplingFactors.length; ++d)
@@ -103,5 +106,23 @@ public class N5ViewerMetadataParser implements N5MetadataParser {
         final AffineTransform3D transform = new AffineTransform3D();
         transform.preConcatenate(mipmapTransform).preConcatenate(new Scale3D(pixelResolution));
         return transform;
+    }
+
+    private static double[] getPixelResolution(final N5Reader n5, final N5TreeNode node) throws IOException
+    {
+        // try to read the pixel resolution attribute as VoxelDimensions (resolution and unit)
+        try {
+            final VoxelDimensions voxelDimensions = n5.getAttribute(node.path, PIXEL_RESOLUTION_KEY, FinalVoxelDimensions.class);
+            if (voxelDimensions != null) {
+                final double[] pixelResolution = new double[voxelDimensions.numDimensions()];
+                voxelDimensions.dimensions(pixelResolution);
+                return pixelResolution;
+            }
+        } catch (final JsonSyntaxException e) {
+            // the attribute exists but its value is structured differently, try parsing as an array
+        }
+
+        // try to read the pixel resolution attribute as a plain array
+        return n5.getAttribute(node.path, PIXEL_RESOLUTION_KEY, double[].class);
     }
 }
