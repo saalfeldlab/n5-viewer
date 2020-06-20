@@ -61,7 +61,7 @@ public class DatasetSelectorDialog
     private final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(
             new N5ViewerMetadataParser());
 
-    private Consumer<N5ViewerDataSelection> okCallback;
+    private Consumer<N5Viewer.DataSelection> okCallback;
 
     private JFrame dialog;
     private JTextField containerPathTxt;
@@ -81,7 +81,7 @@ public class DatasetSelectorDialog
     private N5Reader n5;
     private N5TreeNode selectedNode;
 
-    public void run(final Consumer<N5ViewerDataSelection> okCallback)
+    public void run(final Consumer<N5Viewer.DataSelection> okCallback)
     {
         this.okCallback = okCallback;
 
@@ -271,6 +271,6 @@ public class DatasetSelectorDialog
         final List<N5Metadata> selectedMetadata = new ArrayList<>();
         for (final Enumeration enumeration = listModel.elements(); enumeration.hasMoreElements();)
             selectedMetadata.add(((SelectedListElement) enumeration.nextElement()).metadata);
-        okCallback.accept(new N5ViewerDataSelection(n5, selectedMetadata));
+        okCallback.accept(new N5Viewer.DataSelection(n5, selectedMetadata));
     }
 }

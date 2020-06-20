@@ -44,6 +44,7 @@ import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.bdv.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.bdv.metadata.N5SingleScaleMetadata;
@@ -53,18 +54,29 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * {@link BigDataViewer}-based application for browsing N5 datasets.
- * The datasets are expected to be structured according to the {@link N5ExportMetadata} format (multichannel, multiscale).
- * Takes a root path to an N5 container as a command line argument or via Fiji's Plugins &gt; BigDataViewer &gt; N5 Viewer.
+ * {@link BigDataViewer}-based application for viewing N5 datasets.
  *
  * @author Igor Pisarev
  */
 public class N5Viewer implements PlugIn
 {
-	final public static void main( final String... args ) throws IOException
+	public static class DataSelection
+	{
+		public final N5Reader n5;
+		public final List<N5Metadata> metadata;
+
+		public DataSelection(final N5Reader n5, final List<N5Metadata> metadata)
+		{
+			this.n5 = n5;
+			this.metadata = Collections.unmodifiableList(metadata);
+		}
+	}
+
+	final public static void main( final String... args )
 	{
 		new ImageJ();
 		new N5Viewer().run( "" );
@@ -84,7 +96,7 @@ public class N5Viewer implements PlugIn
 	}
 
 	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final N5ViewerDataSelection selection ) throws IOException
+			final DataSelection selection ) throws IOException
 	{
 		final int numSources = selection.metadata.size();
 		final int numTimepoints = 1;
