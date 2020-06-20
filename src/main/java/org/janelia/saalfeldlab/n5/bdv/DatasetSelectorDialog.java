@@ -272,5 +272,8 @@ public class DatasetSelectorDialog
         for (final Enumeration enumeration = listModel.elements(); enumeration.hasMoreElements();)
             selectedMetadata.add(((SelectedListElement) enumeration.nextElement()).metadata);
         okCallback.accept(new N5Viewer.DataSelection(n5, selectedMetadata));
+
+        dialog.setVisible(false);
+        dialog.dispose();
     }
 }
