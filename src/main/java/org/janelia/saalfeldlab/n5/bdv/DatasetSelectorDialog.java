@@ -27,13 +27,15 @@ import org.janelia.saalfeldlab.n5.bdv.metadata.N5ViewerMetadataParser;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -114,10 +116,14 @@ public class DatasetSelectorDialog
         final JLabel containerLabel = new JLabel("Available:");
         containerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         containerTreePanel.add(containerLabel);
-        treeModel = new DefaultTreeModel(null, true);
+        treeModel = new DefaultTreeModel(null);
         containerTree = new JTree(treeModel);
         containerTree.setEnabled(false);
         containerTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        // By default leaf nodes (datasets) are displayed as files. This changes the default behavior to display them as folders
+        final DefaultTreeCellRenderer treeCellRenderer = (DefaultTreeCellRenderer) containerTree.getCellRenderer();
+        treeCellRenderer.setLeafIcon(treeCellRenderer.getOpenIcon());
+
         final JScrollPane containerTreeScroller = new JScrollPane(containerTree);
         containerTreeScroller.setPreferredSize(new Dimension(280, 350));
         containerTreeScroller.setMinimumSize(containerTreeScroller.getPreferredSize());
