@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
 import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.bdv.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.bdv.metadata.N5ViewerMetadataParser;
 
@@ -60,6 +61,14 @@ public class DatasetSelectorDialog
         }
     }
 
+    /**
+     * The dataset/group discoverer that takes a list of metadata parsers.
+     *
+     * Currently, there is only one parser for N5 Viewer-style metadata (that comes from the previous version of this plugin).
+     *
+     * To add more parsers, add a new class that implements {@link N5MetadataParser}
+     * and pass an instance of it to the {@link N5DatasetDiscoverer} constructor here.
+     */
     private final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(
             new N5ViewerMetadataParser());
 
