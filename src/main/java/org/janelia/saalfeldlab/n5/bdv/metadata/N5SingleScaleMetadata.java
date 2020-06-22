@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.n5.bdv.metadata;
 
 import net.imglib2.realtransform.AffineTransform3D;
 
+import java.util.Objects;
+
 public class N5SingleScaleMetadata implements N5Metadata {
 
     public final String path;
@@ -10,6 +12,9 @@ public class N5SingleScaleMetadata implements N5Metadata {
 
     public N5SingleScaleMetadata(final String path, final AffineTransform3D transform)
     {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(transform);
+
         this.path = path;
         this.transform = transform;
     }

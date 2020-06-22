@@ -1,7 +1,9 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
+import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5SingleScaleMetadata;
 import se.sawano.java.text.AlphanumericComparator;
 
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -82,19 +84,26 @@ public class N5DatasetDiscoverer {
 
     private static void parseMetadata(final N5Reader n5, final N5TreeNode node, final N5MetadataParser[] metadataParsers) throws IOException {
 
+        // Recursively parse metadata for children nodes
         for (final N5TreeNode childNode : node.children)
             parseMetadata(n5, childNode, metadataParsers);
 
+        // Go through all parsers to populate metadata
         for (final N5MetadataParser parser : metadataParsers) {
             node.metadata = parser.parseMetadata(n5, node);
             if (node.metadata != null)
                 break;
         }
+
+        // If there is no matching metadata but it is a dataset, we should still be able to open it.
+        // Create a single-scale metadata entry with an identity transform.
+        if (node.metadata == null && node.isDataset)
+            node.metadata = new N5SingleScaleMetadata(node.path, new AffineTransform3D());
     }
 
     /**
      * Removes branches of the N5 container tree that do not contain any nodes that can be opened
-     * (nodes with metadata or datasets).
+     * (nodes with metadata).
      *
      * @param node
      * @return
@@ -103,7 +112,7 @@ public class N5DatasetDiscoverer {
     private static boolean trim(final N5TreeNode node)
     {
         if (node.children.isEmpty())
-            return node.isDataset || node.metadata != null;
+            return node.metadata != null;
 
         boolean ret = false;
         for (final Iterator<N5TreeNode> it = node.children.iterator(); it.hasNext();)
