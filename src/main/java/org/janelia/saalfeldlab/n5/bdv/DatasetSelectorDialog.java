@@ -187,7 +187,7 @@ public class DatasetSelectorDialog
         containerTree.addTreeSelectionListener(e -> {
             final DefaultMutableTreeNode node = (DefaultMutableTreeNode) containerTree.getLastSelectedPathComponent();
             selectedNode = (node == null ? null : (N5TreeNode) node.getUserObject());
-            addSourceBtn.setEnabled(selectedNode != null && selectedNode.metadata != null);
+            addSourceBtn.setEnabled(selectedNode != null);
         });
     }
 
@@ -251,23 +251,29 @@ public class DatasetSelectorDialog
         selectedList.setEnabled(true);
         removeSourceBtn.setEnabled(false);
         okBtn.setEnabled(false);
-
-        containerTree.addTreeSelectionListener(e -> {
-            final DefaultMutableTreeNode node = (DefaultMutableTreeNode) containerTree.getLastSelectedPathComponent();
-            selectedNode = (node == null ? null : (N5TreeNode) node.getUserObject());
-        });
     }
 
     private void addSource()
     {
         if (selectedNode != null)
         {
-            listModel.addElement(new SelectedListElement(selectedNode.path, selectedNode.metadata));
+            addSourceRecursive(selectedNode);
+
             selectedNode = null;
             containerTree.clearSelection();
 
             removeSourceBtn.setEnabled(true);
             okBtn.setEnabled(true);
+        }
+    }
+
+    private void addSourceRecursive(final N5TreeNode node)
+    {
+        if (node.metadata != null) {
+            listModel.addElement(new SelectedListElement(node.path, node.metadata));
+        } else {
+            for (final N5TreeNode childNode : node.children)
+                addSourceRecursive(childNode);
         }
     }
 
