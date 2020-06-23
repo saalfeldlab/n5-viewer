@@ -163,7 +163,6 @@ public class DatasetSelectorDialog
         listModel = new DefaultListModel();
         selectedList = new JList(listModel);
         selectedList.setEnabled(false);
-        selectedList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         final JScrollPane selectedListScroller = new JScrollPane(selectedList);
         selectedListScroller.setPreferredSize(new Dimension(280, 350));
         selectedListScroller.setMinimumSize(selectedListScroller.getPreferredSize());
@@ -279,10 +278,8 @@ public class DatasetSelectorDialog
 
     private void removeSource()
     {
-        if (selectedList.isSelectionEmpty())
-            return;
-
-        listModel.removeElementAt(selectedList.getSelectedIndex());
+        for (final Object selectedObject : selectedList.getSelectedValuesList())
+            listModel.removeElement(selectedObject);
         removeSourceBtn.setEnabled(!listModel.isEmpty());
         okBtn.setEnabled(!listModel.isEmpty());
     }
