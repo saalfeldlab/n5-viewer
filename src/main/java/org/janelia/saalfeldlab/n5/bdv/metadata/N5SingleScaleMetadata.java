@@ -14,9 +14,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package org.janelia.saalfeldlab.n5.bdv.dataaccess;
+package org.janelia.saalfeldlab.n5.bdv.metadata;
 
-public class DataAccessException extends Exception
-{
-	private static final long serialVersionUID = -5034540320996772468L;
+import net.imglib2.realtransform.AffineTransform3D;
+
+import java.util.Objects;
+
+public class N5SingleScaleMetadata implements N5Metadata {
+
+    public final String path;
+
+    public final AffineTransform3D transform;
+
+    public N5SingleScaleMetadata(final String path, final AffineTransform3D transform)
+    {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(transform);
+
+        this.path = path;
+        this.transform = transform;
+    }
 }

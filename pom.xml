@@ -102,6 +102,7 @@
 		<n5-google-cloud.version>3.2.1</n5-google-cloud.version>
 		<n5-imglib2.version>3.5.0</n5-imglib2.version>
 		<jackson-databind.version>2.9.10.4</jackson-databind.version>
+		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 	</properties>
 
 	<dependencies>
@@ -162,6 +163,11 @@
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 			<version>${jackson-databind.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>se.sawano.java</groupId>
+			<artifactId>alphanumeric-comparator</artifactId>
+			<version>${alphanumeric-comparator.version}</version>
 		</dependency>
 	</dependencies>
 

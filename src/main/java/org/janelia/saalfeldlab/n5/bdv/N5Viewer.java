@@ -32,10 +32,12 @@ import bdv.viewer.SourceAndConverter;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.display.RealARGBColorConverter;
 import net.imglib2.display.ScaledARGBConverter;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
@@ -43,26 +45,38 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessException;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessFactory;
-import org.janelia.saalfeldlab.n5.bdv.dataaccess.DataAccessType;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.bdv.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * {@link BigDataViewer}-based application for browsing N5 datasets.
- * The datasets are expected to be structured according to the {@link N5ExportMetadata} format (multichannel, multiscale).
- * Takes a root path to an N5 container as a command line argument or via Fiji's Plugins &gt; BigDataViewer &gt; N5 Viewer.
+ * {@link BigDataViewer}-based application for viewing N5 datasets.
  *
  * @author Igor Pisarev
  */
 public class N5Viewer implements PlugIn
 {
-	final public static void main( final String... args ) throws IOException
+	public static class DataSelection
+	{
+		public final N5Reader n5;
+		public final List<N5Metadata> metadata;
+
+		public DataSelection(final N5Reader n5, final List<N5Metadata> metadata)
+		{
+			this.n5 = n5;
+			this.metadata = Collections.unmodifiableList(metadata);
+		}
+	}
+
+	final public static void main( final String... args )
 	{
 		new ImageJ();
 		new N5Viewer().run( "" );
@@ -71,50 +85,20 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
-		final String n5Path = new DatasetSelectorDialog().run();
-		if ( n5Path == null || n5Path.isEmpty() )
-			return;
-
-		try
-		{
-			exec( n5Path );
-		}
-		catch ( final IOException e )
-		{
-			IJ.handleException( e );
-		}
+		final DatasetSelectorDialog dialog = new DatasetSelectorDialog();
+		dialog.run(selection -> {
+			try {
+				exec(selection);
+			} catch (final IOException e) {
+				IJ.handleException(e);
+			}
+		});
 	}
 
 	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final String n5Path ) throws IOException
+			final DataSelection selection ) throws IOException
 	{
-		final DataAccessType storageType = DataAccessType.detectType( n5Path );
-		if ( storageType == null )
-		{
-			IJ.error( "Cannot open the link" );
-		}
-
-		final DataAccessFactory dataAccessFactory;
-		try
-		{
-			dataAccessFactory = new DataAccessFactory( storageType );
-		}
-		catch ( final DataAccessException e )
-		{
-			return;
-		}
-
-		final N5Reader n5 = dataAccessFactory.createN5Reader( n5Path );
-		final N5ExportMetadataReader metadata = N5ExportMetadata.openForReading( n5 );
-
-		final int numChannels = metadata.getNumChannels();
-		if ( numChannels <= 0 )
-		{
-			IJ.error( "No channels found" );
-			return;
-		}
-
-		final String displayName = metadata.getName() != null ? metadata.getName() : "";
+		final int numSources = selection.metadata.size();
 		final int numTimepoints = 1;
 		Prefs.showScaleBar( true );
 
@@ -122,21 +106,55 @@ public class N5Viewer implements PlugIn
 
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
 		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
-		for ( int c = 0; c < numChannels; ++c )
+
+		final List<N5Source<T>> sources = new ArrayList<>();
+		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
+
+		for ( int i = 0; i < numSources; ++i )
 		{
-			final Source< V > volatileSource = N5MultiscaleSource.getVolatileSource( n5, c, displayName, sharedQueue );
-			final V volatileType = volatileSource.getType();
-			addSourceToListsGenericType( volatileSource, c + 1, numTimepoints, volatileType, converterSetups, sourcesAndConverters );
+			final String[] datasetsToOpen;
+			final AffineTransform3D[] transforms;
+
+			final N5Metadata metadata = selection.metadata.get(i);
+			if (metadata instanceof N5SingleScaleMetadata) {
+				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata) metadata;
+				datasetsToOpen = new String[] {singleScaleDataset.path};
+				transforms = new AffineTransform3D[] {singleScaleDataset.transform};
+			} else if (metadata instanceof N5MultiScaleMetadata) {
+				final N5MultiScaleMetadata multiScaleDataset = (N5MultiScaleMetadata) metadata;
+				datasetsToOpen = multiScaleDataset.paths;
+				transforms = multiScaleDataset.transforms;
+			} else if (metadata == null) {
+				IJ.error("N5 Viewer", "Cannot open dataset where metadata is null");
+				return;
+			} else {
+				IJ.error("N5 Viewer", "Unknown metadata type: " + metadata);
+				return;
+			}
+
+			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
+			for ( int s = 0; s < images.length; ++s )
+				images[ s ] = N5Utils.openVolatile( selection.n5, datasetsToOpen[s] );
+
+			final N5Source<T> source = new N5Source<>(
+					(T) Util.getTypeFromInterval(images[0]),
+					"source " + (i + 1),
+					images,
+					transforms);
+
+			final N5VolatileSource<T, V> volatileSource = source.asVolatile(sharedQueue);
+
+			sources.add(source);
+			volatileSources.add(volatileSource);
+
+			addSourceToListsGenericType( volatileSource, i + 1, numTimepoints, volatileSource.getType(), converterSetups, sourcesAndConverters );
 		}
 
-		final List< Source< T > > nonVolatileSources = new ArrayList<>();
-		for ( int c = 0; c < numChannels; ++c )
-			nonVolatileSources.add( N5MultiscaleSource.getSource( n5, c, displayName ) );
-
-		final ARGBType[] colors = ColorGenerator.getColors( numChannels );
-		for ( int i = 0; i < numChannels; ++i )
+		final ARGBType[] colors = ColorGenerator.getColors( numSources );
+		for ( int i = 0; i < numSources; ++i )
 		{
-			Bounds range = InitializeViewerState.estimateSourceRange( nonVolatileSources.get( i ),0, 0.05, 0.999 );
+			//Bounds range = InitializeViewerState.estimateSourceRange( nonVolatileSources.get( i ),0, 0.05, 0.999 );
+			Bounds range = new Bounds(50, 4000);
 			converterSetups.get( i ).setDisplayRange( range.getMinBound(), range.getMaxBound() );
 			converterSetups.get( i ).setColor( colors[ i ] );
 		}
@@ -157,10 +175,10 @@ public class N5Viewer implements PlugIn
 		bdv.getViewer().state().setDisplayMode( DisplayMode.FUSED );
 		bdv.getViewerFrame().setVisible( true );
 
-		initCropController( bdv, nonVolatileSources );
+		initCropController( bdv, sources );
 	}
 
-	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BigDataViewer bdv, final List< Source< T > > sources )
+	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BigDataViewer bdv, final List< ? extends Source< T > > sources )
 	{
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 		final InputTriggerConfig config = new InputTriggerConfig();
