@@ -92,16 +92,11 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<bigdataviewer_fiji.version>6.2.0</bigdataviewer_fiji.version>
-		<bigdataviewer-core.version>9.0.5</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-20</bigdataviewer-vistools.version>
-		<ui-behaviour.version>2.0.1</ui-behaviour.version>
-		<spim_data.version>2.2.4</spim_data.version>
-		<n5.version>2.1.1</n5.version>
-		<n5-aws-s3.version>3.1.1</n5-aws-s3.version>
-		<n5-google-cloud.version>3.2.1</n5-google-cloud.version>
-		<n5-imglib2.version>3.5.0</n5-imglib2.version>
-		<jackson-databind.version>2.9.10.4</jackson-databind.version>
+		<n5.version>2.2.1</n5.version>
+		<n5-aws-s3.version>3.1.2</n5-aws-s3.version>
+		<n5-google-cloud.version>3.2.2</n5-google-cloud.version>
+		<n5-imglib2.version>3.5.1</n5-imglib2.version>
+		<jackson-databind.version>2.6.7.3</jackson-databind.version>
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 	</properties>
 
@@ -109,12 +104,18 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer_fiji</artifactId>
-			<version>${bigdataviewer_fiji.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-			<version>${bigdataviewer-core.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sc.fiji</groupId>
+			<artifactId>bigdataviewer-vistools</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>ui-behaviour</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -143,21 +144,6 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-imglib2</artifactId>
 			<version>${n5-imglib2.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>${bigdataviewer-vistools.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>spim_data</artifactId>
-			<version>${spim_data.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.scijava</groupId>
-			<artifactId>ui-behaviour</artifactId>
-			<version>${ui-behaviour.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>

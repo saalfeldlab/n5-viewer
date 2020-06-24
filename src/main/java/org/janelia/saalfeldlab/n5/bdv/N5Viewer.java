@@ -153,9 +153,7 @@ public class N5Viewer implements PlugIn
 		final ARGBType[] colors = ColorGenerator.getColors( numSources );
 		for ( int i = 0; i < numSources; ++i )
 		{
-			//Bounds range = InitializeViewerState.estimateSourceRange( nonVolatileSources.get( i ),0, 0.05, 0.999 );
-			Bounds range = new Bounds(50, 4000);
-			converterSetups.get( i ).setDisplayRange( range.getMinBound(), range.getMaxBound() );
+			converterSetups.get( i ).setDisplayRange( 500, 4000 );
 			converterSetups.get( i ).setColor( colors[ i ] );
 		}
 
@@ -172,7 +170,7 @@ public class N5Viewer implements PlugIn
 
 		InitializeViewerState.initTransform( bdv.getViewer() );
 
-		bdv.getViewer().state().setDisplayMode( DisplayMode.FUSED );
+		bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 		bdv.getViewerFrame().setVisible( true );
 
 		initCropController( bdv, sources );
