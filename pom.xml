@@ -155,6 +155,11 @@
 			<artifactId>alphanumeric-comparator</artifactId>
 			<version>${alphanumeric-comparator.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-ij</artifactId>
+			<version>0.0.2-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>

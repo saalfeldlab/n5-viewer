@@ -26,7 +26,7 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.googlecloud.GoogleCloudClientBuilderWithDefaultCredentials;
 import org.janelia.saalfeldlab.n5.bdv.dataaccess.s3.AmazonS3ClientBuilderWithDefaultCredentials;
-import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader;
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader;
 
