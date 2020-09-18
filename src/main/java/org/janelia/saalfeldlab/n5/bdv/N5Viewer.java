@@ -22,7 +22,6 @@ import bdv.export.ProgressWriterConsole;
 import bdv.tools.InitializeViewerState;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
-import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.TransformedSource;
 import bdv.util.*;
 import bdv.util.volatiles.SharedQueue;
@@ -45,17 +44,26 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.metadata.N5Metadata;
-import org.janelia.saalfeldlab.n5.bdv.metadata.N5MultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.bdv.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.dataaccess.DataAccessException;
+import org.janelia.saalfeldlab.n5.dataaccess.DataAccessFactory;
+import org.janelia.saalfeldlab.n5.dataaccess.DataAccessType;
+import org.janelia.saalfeldlab.n5.metadata.N5GroupParser;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5ViewerSingleMetadataParser;
+import org.janelia.saalfeldlab.n5.ui.DataSelection;
+import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
+
 
 /**
  * {@link BigDataViewer}-based application for viewing N5 datasets.
@@ -64,39 +72,75 @@ import java.util.List;
  */
 public class N5Viewer implements PlugIn
 {
-	public static class DataSelection
-	{
-		public final N5Reader n5;
-		public final List<N5Metadata> metadata;
-
-		public DataSelection(final N5Reader n5, final List<N5Metadata> metadata)
-		{
-			this.n5 = n5;
-			this.metadata = Collections.unmodifiableList(metadata);
-		}
-	}
 
 	final public static void main( final String... args )
 	{
 		new ImageJ();
 		new N5Viewer().run( "" );
 	}
+	
+	public static class N5ViewerReaderFun implements Function< String, N5Reader >
+	{
+		public String message;
+
+		@Override
+		public N5Reader apply( String n5Path )
+		{
+
+			N5Reader n5;
+			if ( n5Path == null || n5Path.isEmpty() )
+				return null;
+
+			final DataAccessType type = DataAccessType.detectType( n5Path );
+			if ( type == null )
+			{
+				message = "Not a valid path or link to an N5 container.";
+				return null;
+			}
+
+			n5 = null;
+			try
+			{
+				n5 = new DataAccessFactory( type ).createN5Reader( n5Path );
+				if ( !n5.exists( "/" ) || n5.getVersion().equals( new N5Reader.Version( null ) ) )
+				{
+					IJ.showMessage( "Not a valid path or link to an N5 container." );
+					// JOptionPane.showMessageDialog( dialog, "Not a valid path or link to an N5 container.", "N5 Viewer", JOptionPane.ERROR_MESSAGE );
+					return null;
+				}
+			}
+			catch ( final DataAccessException | IOException e )
+			{
+				IJ.handleException( e );
+				return null;
+			}
+			return n5;
+		}
+	}
 
 	@Override
 	public void run( final String args )
 	{
-		final DatasetSelectorDialog dialog = new DatasetSelectorDialog();
-		dialog.run(selection -> {
-			try {
-				exec(selection);
-			} catch (final IOException e) {
-				IJ.handleException(e);
+		final DatasetSelectorDialog dialog = new DatasetSelectorDialog( 
+				new N5ViewerReaderFun(),
+				new N5GroupParser[]{ new N5ViewerMultiscaleMetadataParser() },
+				new N5ViewerSingleMetadataParser());
+		dialog.run( selection -> {
+			try
+			{
+				exec( selection );
 			}
-		});
+			catch ( final IOException e )
+			{
+				IJ.handleException( e );
+			}
+		} );
 	}
 
-	public static < T extends NumericType< T > & NativeType< T >, V extends Volatile< T > & NumericType< V > > void exec(
-			final DataSelection selection ) throws IOException
+	public static < T extends NumericType< T > & NativeType< T >,
+					V extends Volatile< T > & NumericType< V >,
+					R extends N5Reader > 
+				void exec( final DataSelection selection ) throws IOException
 	{
 		final int numSources = selection.metadata.size();
 		final int numTimepoints = 1;
