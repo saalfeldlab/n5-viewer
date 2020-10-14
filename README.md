@@ -4,10 +4,13 @@ BigDataViewer-based tool for visualizing [N5](https://github.com/saalfeldlab/n5)
 ### Usage
 
 The plugin will be available soon through the [N5 update site](https://imagej.net/N5) in Fiji as *Plugins -> BigDataViewer -> N5 Viewer*.
+See also the [N5 Fiji plugin](https://github.com/saalfeldlab/n5-ij).
 
 #### Storage options
 The plugin supports multiple storage options:
 * Filesystem (local/network drives)
+* Zarr (local drives)
+* HDF5
 * Amazon Web Services S3
 * Google Cloud Storage
 
