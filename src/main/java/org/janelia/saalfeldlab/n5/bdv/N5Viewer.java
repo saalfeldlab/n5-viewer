@@ -84,10 +84,10 @@ public class N5Viewer implements PlugIn
 		final DatasetSelectorDialog dialog = new DatasetSelectorDialog( 
 				new N5Importer.N5ViewerReaderFun(),
 				new N5GroupParser[]{ 
-						new N5ViewerMultiscaleMetadataParser(),
-						new N5CosemMultiScaleMetadata() },
-				new N5SingleScaleMetadata(), 
-				new N5CosemMetadata());
+						new N5CosemMultiScaleMetadata(),
+						new N5ViewerMultiscaleMetadataParser() },
+				new N5CosemMetadata(),
+				new N5SingleScaleMetadata());
 		dialog.run( selection -> {
 			try
 			{
@@ -129,6 +129,14 @@ public class N5Viewer implements PlugIn
 				transforms = new AffineTransform3D[] {singleScaleDataset.transform};
 			} else if (metadata instanceof N5MultiScaleMetadata) {
 				final N5MultiScaleMetadata multiScaleDataset = (N5MultiScaleMetadata) metadata;
+				datasetsToOpen = multiScaleDataset.paths;
+				transforms = multiScaleDataset.transforms;
+			} else if (metadata instanceof N5CosemMetadata ) {
+				final N5CosemMetadata singleScaleCosemDataset = (N5CosemMetadata) metadata;
+				datasetsToOpen = new String[]{ singleScaleCosemDataset.getPath() };
+				transforms = new AffineTransform3D[]{ singleScaleCosemDataset.getTransform().toAffineTransform3d() };
+			} else if (metadata instanceof N5CosemMultiScaleMetadata ) {
+				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata) metadata;
 				datasetsToOpen = multiScaleDataset.paths;
 				transforms = multiScaleDataset.transforms;
 			} else if (metadata == null) {
