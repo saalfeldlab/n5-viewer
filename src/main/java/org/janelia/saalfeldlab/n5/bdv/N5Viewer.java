@@ -71,6 +71,7 @@ import java.util.List;
  */
 public class N5Viewer implements PlugIn
 {
+	private static String lastOpenedContainer = "";
 
 	final public static void main( final String... args )
 	{
@@ -83,11 +84,16 @@ public class N5Viewer implements PlugIn
 	{
 		final DatasetSelectorDialog dialog = new DatasetSelectorDialog( 
 				new N5Importer.N5ViewerReaderFun(),
+				x -> "",
+				lastOpenedContainer,
 				new N5GroupParser[]{ 
 						new N5CosemMultiScaleMetadata(),
 						new N5ViewerMultiscaleMetadataParser() },
 				new N5CosemMetadata(),
 				new N5SingleScaleMetadata());
+
+		dialog.setContainerPathUpdateCallback( x -> lastOpenedContainer = x );
+
 		dialog.run( selection -> {
 			try
 			{
