@@ -179,13 +179,6 @@ public class N5Viewer implements PlugIn
 			addSourceToListsGenericType( volatileSource, i + 1, numTimepoints, volatileSource.getType(), converterSetups, sourcesAndConverters );
 		}
 
-		final ARGBType[] colors = ColorGenerator.getColors( numSources );
-		for ( int i = 0; i < numSources; ++i )
-		{
-			converterSetups.get( i ).setDisplayRange( 500, 4000 );
-			converterSetups.get( i ).setColor( colors[ i ] );
-		}
-
 		final BigDataViewer bdv = new BigDataViewer(
 				converterSetups,
 				sourcesAndConverters,
