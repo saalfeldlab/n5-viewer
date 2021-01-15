@@ -45,12 +45,14 @@ import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
+import org.janelia.saalfeldlab.n5.metadata.DefaultMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5GroupParser;
 import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5ViewerDatasetFilter;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
@@ -90,8 +92,10 @@ public class N5Viewer implements PlugIn
 						new N5CosemMultiScaleMetadata(),
 						new N5ViewerMultiscaleMetadataParser() },
 				new N5CosemMetadata(),
-				new N5SingleScaleMetadata());
+				new N5SingleScaleMetadata(),
+				new DefaultMetadata( "", -1 ));
 
+		dialog.setRecursiveFilterCallback( new N5ViewerDatasetFilter() );
 		dialog.setContainerPathUpdateCallback( x -> lastOpenedContainer = x );
 
 		dialog.run( selection -> {
@@ -151,6 +155,9 @@ public class N5Viewer implements PlugIn
 				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.paths, multiScaleDataset.transforms );
 				datasetsToOpen = msd.paths;
 				transforms = msd.transforms;
+			} else if (metadata != null) {
+				datasetsToOpen = new String[]{ metadata.getPath() };
+				transforms = new AffineTransform3D[] { new AffineTransform3D() };
 			} else if (metadata == null) {
 				IJ.error("N5 Viewer", "Cannot open dataset where metadata is null");
 				return;
