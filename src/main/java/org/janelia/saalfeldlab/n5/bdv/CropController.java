@@ -215,6 +215,7 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 				lastClick.setPosition( centerPoint );
 
 			final int timepoint = 1;
+			AffineTransform3D firstTransform = null;
 			for ( int channel = 0; channel < sources.size(); ++channel )
 			{
 				final Source< T > source = sources.get( channel );
@@ -231,6 +232,9 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 				source.getSourceTransform( timepoint, s, transform );
 				transform.applyInverse( center, lastClick );
 
+				if( firstTransform == null )
+					firstTransform = transform;
+
 				min = new long[] {
 						Math.round( center.getDoublePosition( 0 ) - 0.5 * w ),
 						Math.round( center.getDoublePosition( 1 ) - 0.5 * h ),
@@ -246,16 +250,44 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 				channelsImages.add( crop );
 
 				if ( !single4DStack )
-					show( crop, "channel " + channel + " " + centerPosStr );
+				{
+					final ImagePlus imp = show( crop, "channel " + channel + " " + centerPosStr );
+					setMetadata( imp, min, transform );
+				}
 			}
 
 			if ( single4DStack )
 			{
 				// FIXME: need to permute slices/channels. Swapping them in the resulting ImagePlus produces wrong output
-				ImageJFunctions.show( Views.permute( Views.stack( channelsImages ), 2, 3 ), centerPosStr );
+				final ImagePlus imp = ImageJFunctions.show( Views.permute( Views.stack( channelsImages ), 2, 3 ), centerPosStr );
+				if( firstTransform != null )
+					setMetadata( imp, min, firstTransform );
 			}
 
 			viewer.requestRepaint();
+		}
+
+		/**
+		 * Set image metadata after cropping.
+		 * The sourceTransform must be scaling only.
+		 *
+		 * @param imp the imageplus
+		 * @param minPixels the minimum pixel coordinate for cropping
+		 * @param sourceTransform the transformation from pixel to physical coordinates
+		 */
+		private void setMetadata( final ImagePlus imp, final long[] minPixels, final AffineTransform3D sourceTransform )
+		{
+			final double sx = sourceTransform.get( 0, 0 );
+			final double sy = sourceTransform.get( 1, 1 );
+			final double sz = sourceTransform.get( 2, 2 );
+
+			imp.getCalibration().pixelWidth = sx;
+			imp.getCalibration().pixelHeight = sy;
+			imp.getCalibration().pixelDepth = sz;
+
+			imp.getCalibration().xOrigin = sx * minPixels[ 0 ];
+			imp.getCalibration().yOrigin = sy * minPixels[ 1 ];
+			imp.getCalibration().zOrigin = sz * minPixels[ 2 ];
 		}
 
 		// Taken from ImageJFunctions. Modified to swap slices/channels for 3D image (by default they mistakenly are nSlices=1 and nChannels=depth)
