@@ -1,19 +1,37 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
+import java.io.IOException;
 import java.util.Arrays;
 
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+
+import bdv.util.RandomAccessibleIntervalMipmapSource;
+import bdv.viewer.Source;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Util;
 
 public class MultiscaleDatasets
 {
-	public final String[] paths;
+	private final String[] paths;
 
-	public final AffineTransform3D[] transforms;
+	private final AffineTransform3D[] transforms;
 
-	public MultiscaleDatasets( String[] paths, AffineTransform3D[] transforms )
+	private AffineTransform3D sourceTransform;
+
+	private String unit;
+
+	public MultiscaleDatasets( String[] paths, AffineTransform3D[] transforms, final String unit )
 	{
 		this.paths = paths;
 		this.transforms = transforms;
+		this.unit = unit;
+	}
+
+	public MultiscaleDatasets( String[] paths, AffineTransform3D[] transforms )
+	{
+		this( paths, transforms, "pixel" );
 	}
 
 	public MultiscaleDatasets( ScaleLevel[] scales )
@@ -26,6 +44,57 @@ public class MultiscaleDatasets
 			paths[ i ] = scales[ i ].path;
 			transforms[ i ] = scales[ i ].transform;
 		}
+	}
+
+	public void setTransform( final AffineTransform3D transform )
+	{
+		sourceTransform = transform;
+	}
+
+	public String[] getPaths()
+	{
+		return paths;
+	}
+
+	public AffineTransform3D[] getTransforms()
+	{
+		return transforms;
+	}
+
+	public Source<?> openAsSource( final N5Reader n5, final boolean isVolatile, final String name )
+	{
+		@SuppressWarnings( "rawtypes" )
+		final RandomAccessibleInterval[] images = new RandomAccessibleInterval[paths.length];
+		final double[][] mipmapScales = new double[ images.length ][ 3 ];
+		for ( int s = 0; s < images.length; ++s )
+		{
+			try
+			{
+				if( isVolatile )
+					images[ s ] = N5Utils.openVolatile( n5, paths[s] );
+				else
+					images[ s ] = N5Utils.open( n5, paths[s] );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+
+			mipmapScales[ s ][ 0 ] = transforms[ s ].get( 0, 0 );
+			mipmapScales[ s ][ 1 ] = transforms[ s ].get( 1, 1 );
+			mipmapScales[ s ][ 2 ] = transforms[ s ].get( 2, 2 );
+		}
+
+		@SuppressWarnings( { "unchecked", "rawtypes" } )
+		final RandomAccessibleIntervalMipmapSource<?> source = new RandomAccessibleIntervalMipmapSource( 
+				images,
+				Util.getTypeFromInterval(images[0]),
+				mipmapScales,
+				new mpicbg.spim.data.sequence.FinalVoxelDimensions( unit, mipmapScales[0]),
+				sourceTransform == null ? new AffineTransform3D() : sourceTransform,
+				name );
+
+		return source;
 	}
 
 	public static MultiscaleDatasets sort( final String[] paths, AffineTransform3D[] transforms )

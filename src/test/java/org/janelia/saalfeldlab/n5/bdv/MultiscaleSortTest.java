@@ -24,7 +24,7 @@ public class MultiscaleSortTest
 		AffineTransform3D[] xfms = new AffineTransform3D[]{ d, b, a, c };
 
 		MultiscaleDatasets datasets = MultiscaleDatasets.sort( paths, xfms );
-		assertArrayEquals( "check order", datasets.paths, new String[] {"a", "b", "c", "d" });
+		assertArrayEquals( "check order", datasets.getPaths(), new String[] {"a", "b", "c", "d" });
 	}
 
 }
