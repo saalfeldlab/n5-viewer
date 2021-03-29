@@ -10,6 +10,7 @@ import bdv.util.RandomAccessibleIntervalMipmapSource;
 import bdv.viewer.Source;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.NumericType;
 import net.imglib2.util.Util;
 
 public class MultiscaleDatasets
@@ -61,7 +62,7 @@ public class MultiscaleDatasets
 		return transforms;
 	}
 
-	public Source<?> openAsSource( final N5Reader n5, final boolean isVolatile, final String name )
+	public <T extends NumericType<T>> Source<T> openAsSource( final N5Reader n5, final boolean isVolatile, final String name )
 	{
 		@SuppressWarnings( "rawtypes" )
 		final RandomAccessibleInterval[] images = new RandomAccessibleInterval[paths.length];
@@ -85,10 +86,10 @@ public class MultiscaleDatasets
 			mipmapScales[ s ][ 2 ] = transforms[ s ].get( 2, 2 );
 		}
 
-		@SuppressWarnings( { "unchecked", "rawtypes" } )
-		final RandomAccessibleIntervalMipmapSource<?> source = new RandomAccessibleIntervalMipmapSource( 
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleIntervalMipmapSource<T> source = new RandomAccessibleIntervalMipmapSource<T>( 
 				images,
-				Util.getTypeFromInterval(images[0]),
+				(T)Util.getTypeFromInterval(images[0]),
 				mipmapScales,
 				new mpicbg.spim.data.sequence.FinalVoxelDimensions( unit, mipmapScales[0]),
 				sourceTransform == null ? new AffineTransform3D() : sourceTransform,
