@@ -45,7 +45,7 @@ import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
-import org.janelia.saalfeldlab.n5.metadata.DefaultDatasetMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
@@ -77,6 +78,17 @@ public class N5Viewer implements PlugIn
 {
 	private static String lastOpenedContainer = "";
 
+	public static final N5MetadataParser[] n5vGroupParsers = new N5MetadataParser[]{ 
+			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
+			new N5ViewerMultiscaleMetadataParser(),
+			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser() 
+			};
+
+	public static final N5MetadataParser[] n5vParsers = new N5MetadataParser[] {
+		new N5CosemMetadataParser(),
+		new N5SingleScaleMetadataParser(),
+	};
+
 	final public static void main( final String... args )
 	{
 		new ImageJ();
@@ -86,21 +98,12 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
-		N5MetadataParser[] parsers = new N5MetadataParser[]{
-				new N5CosemMetadataParser(),
-				new N5SingleScaleMetadataParser(),
-				new DefaultDatasetMetadataParser() };
-
-		N5MetadataParser[] grpParsers = new N5MetadataParser[]{
-				new N5CosemMultiScaleMetadata(),
-				new N5ViewerMultiscaleMetadataParser() };
-
 		final DatasetSelectorDialog dialog = new DatasetSelectorDialog( 
 				new N5Importer.N5ViewerReaderFun(),
 				x -> "",
 				lastOpenedContainer,
-				grpParsers,
-				parsers);
+				n5vGroupParsers,
+				n5vParsers);
 
 		dialog.setTreeRenderer( new N5DatasetTreeCellRenderer( true ) );
 
@@ -126,7 +129,6 @@ public class N5Viewer implements PlugIn
 					R extends N5Reader > 
 				void exec( final DataSelection selection ) throws IOException
 	{
-		final int numSources = selection.metadata.size();
 		final int numTimepoints = 1;
 		Prefs.showScaleBar( true );
 
@@ -135,19 +137,32 @@ public class N5Viewer implements PlugIn
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
 		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
 
+		final List<N5Metadata> selected = new ArrayList<>();
+		for( N5Metadata meta : selection.metadata )
+		{
+			if( meta instanceof N5ViewerMultichannelMetadata )
+			{
+				N5ViewerMultichannelMetadata mc = (N5ViewerMultichannelMetadata)meta;
+				for( MultiscaleMetadata<?> m : mc.getChildrenMetadata() )
+					selected.add( m );
+			}
+			else
+				selected.add( meta );
+		}
+
 		final List<N5Source<T>> sources = new ArrayList<>();
 		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
 
-		for ( int i = 0; i < numSources; ++i )
+		for ( int i = 0; i < selected.size(); ++i )
 		{
 			final String[] datasetsToOpen;
 			final AffineTransform3D[] transforms;
 
-			final N5Metadata metadata = selection.metadata.get(i);
+			final N5Metadata metadata = selected.get( i );
 			if (metadata instanceof N5SingleScaleMetadata) {
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata) metadata;
 				String[] tmpDatasets= new String[]{ singleScaleDataset.getPath() };
-				AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{ singleScaleDataset.transform };
+				AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{ singleScaleDataset.spatialTransform3d() };
 
 				MultiscaleDatasets msd = MultiscaleDatasets.sort( tmpDatasets, tmpTransforms );
 				datasetsToOpen = msd.getPaths();
@@ -155,15 +170,15 @@ public class N5Viewer implements PlugIn
 			} else if (metadata instanceof N5MultiScaleMetadata) {
 				final N5MultiScaleMetadata multiScaleDataset = (N5MultiScaleMetadata) metadata;
 				datasetsToOpen = multiScaleDataset.getPaths();
-				transforms = multiScaleDataset.getTransforms();
+				transforms = multiScaleDataset.spatialTransforms3d();
 			} else if (metadata instanceof N5CosemMetadata ) {
 				final N5CosemMetadata singleScaleCosemDataset = (N5CosemMetadata) metadata;
 				datasetsToOpen = new String[]{ singleScaleCosemDataset.getPath() };
-				transforms = new AffineTransform3D[]{ singleScaleCosemDataset.getTransform() };
+				transforms = new AffineTransform3D[]{ singleScaleCosemDataset.spatialTransform3d() };
 			} else if (metadata instanceof N5CosemMultiScaleMetadata ) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata) metadata;
 
-				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.getTransforms() );
+				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
 			} else if (metadata != null) {

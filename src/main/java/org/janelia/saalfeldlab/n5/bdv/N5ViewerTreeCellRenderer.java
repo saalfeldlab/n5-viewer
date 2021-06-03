@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5TreeNode.JTreeNodeWrapper;
 import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.imagej.N5ImagePlusMetadata;
 
 import ij.ImagePlus;
@@ -101,10 +102,13 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 
 	public String getParameterString( final N5TreeNode node )
 	{
-		if( node.getMetadata() != null && node instanceof N5DatasetMetadata )
+		if ( node.getMetadata() != null && node.getMetadata() instanceof N5ViewerMultichannelMetadata )
 		{
-			final N5DatasetMetadata meta = ((N5DatasetMetadata)node.getMetadata());
-			final DatasetAttributes attributes = meta.getAttributes();
+			return  "multichannel";
+		}
+		else if ( node.getMetadata() != null && node.getMetadata() instanceof N5DatasetMetadata )
+		{
+			final DatasetAttributes attributes = ((N5DatasetMetadata)node.getMetadata()).getAttributes();
 			final String dimString = String.join( dimDelimeter,
 					Arrays.stream(attributes.getDimensions())
 						.mapToObj( d -> Long.toString( d ))
