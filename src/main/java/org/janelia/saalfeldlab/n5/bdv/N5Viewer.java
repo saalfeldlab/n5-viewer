@@ -56,9 +56,10 @@ import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
-import org.janelia.saalfeldlab.n5.ui.N5DatasetTreeCellRenderer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
@@ -105,8 +106,7 @@ public class N5Viewer implements PlugIn
 				n5vGroupParsers,
 				n5vParsers);
 
-		dialog.setTreeRenderer( new N5DatasetTreeCellRenderer( true ) );
-
+//		dialog.setTreeRenderer( new N5DatasetTreeCellRenderer( true ) );
 //		dialog.setRecursiveFilterCallback( new N5ViewerDatasetFilter() );
 
 		dialog.setContainerPathUpdateCallback( x -> lastOpenedContainer = x );
@@ -146,6 +146,12 @@ public class N5Viewer implements PlugIn
 				for( MultiscaleMetadata<?> m : mc.getChildrenMetadata() )
 					selected.add( m );
 			}
+			else if ( meta instanceof CanonicalMultichannelMetadata )
+			{
+				CanonicalMultichannelMetadata mc = (CanonicalMultichannelMetadata)meta;
+				for( N5Metadata m : mc.getChildrenMetadata() )
+					selected.add( m );
+			}
 			else
 				selected.add( meta );
 		}
@@ -181,6 +187,12 @@ public class N5Viewer implements PlugIn
 				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
+			} else if (metadata instanceof CanonicalMultiscaleMetadata ) {
+				final CanonicalMultiscaleMetadata multiScaleDataset = (CanonicalMultiscaleMetadata) metadata;
+
+				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
+				datasetsToOpen = msd.getPaths();
+				transforms = msd.getTransforms();
 			} else if (metadata != null) {
 				datasetsToOpen = new String[]{ metadata.getPath() };
 				transforms = new AffineTransform3D[] { new AffineTransform3D() };
@@ -190,6 +202,11 @@ public class N5Viewer implements PlugIn
 			} else{
 				IJ.error("N5 Viewer", "Unknown metadata type: " + metadata); return;
 			}
+
+			System.out.println( "opening with " + datasetsToOpen.length + " levels");
+			System.out.println( "  scales:" );
+			for ( int s = 0; s < datasetsToOpen.length; ++s )
+				System.out.println( "  " + transforms[s] );
 
 			@SuppressWarnings( "rawtypes" )
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
