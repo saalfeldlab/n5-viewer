@@ -56,6 +56,7 @@ import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
@@ -181,6 +182,10 @@ public class N5Viewer implements PlugIn
 				final N5CosemMetadata singleScaleCosemDataset = (N5CosemMetadata) metadata;
 				datasetsToOpen = new String[]{ singleScaleCosemDataset.getPath() };
 				transforms = new AffineTransform3D[]{ singleScaleCosemDataset.spatialTransform3d() };
+			} else if (metadata instanceof CanonicalMetadata ) {
+				final CanonicalMetadata canonicalDataset = (CanonicalMetadata) metadata;
+				datasetsToOpen = new String[]{ canonicalDataset.getPath() };
+				transforms = new AffineTransform3D[]{ canonicalDataset.getSpatialTransform().spatialTransform3d() };
 			} else if (metadata instanceof N5CosemMultiScaleMetadata ) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata) metadata;
 
