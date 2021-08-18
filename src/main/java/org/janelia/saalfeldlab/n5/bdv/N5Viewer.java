@@ -66,6 +66,8 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 /**
@@ -98,6 +100,7 @@ public class N5Viewer implements PlugIn
 	@Override
 	public void run( final String args )
 	{
+		ExecutorService exec = Executors.newFixedThreadPool( ij.Prefs.getThreads() );
 		final DatasetSelectorDialog dialog = new DatasetSelectorDialog( 
 				new N5Importer.N5ViewerReaderFun(),
 				x -> "",
@@ -105,6 +108,7 @@ public class N5Viewer implements PlugIn
 				n5vGroupParsers,
 				n5vParsers);
 
+		dialog.setLoaderExecutor( exec );
 		dialog.setTreeRenderer( new N5DatasetTreeCellRenderer( true ) );
 
 //		dialog.setRecursiveFilterCallback( new N5ViewerDatasetFilter() );
@@ -211,6 +215,9 @@ public class N5Viewer implements PlugIn
 			addSourceToListsGenericType( volatileSource, i + 1, numTimepoints, volatileSource.getType(), converterSetups, sourcesAndConverters );
 		}
 
+		final BdvOptions opts = BdvOptions.options()
+				.numRenderingThreads( ij.Prefs.getThreads() );
+
 		final BigDataViewer bdv = new BigDataViewer(
 				converterSetups,
 				sourcesAndConverters,
@@ -219,7 +226,7 @@ public class N5Viewer implements PlugIn
 				new CacheControl.CacheControls(),
 				"N5 Viewer",
 				new ProgressWriterConsole(),
-				BdvOptions.options().values.getViewerOptions()
+				opts.values.getViewerOptions()
 			);
 
 		InitializeViewerState.initTransform( bdv.getViewer() );
