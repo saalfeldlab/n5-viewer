@@ -82,8 +82,8 @@
 		<url>https://github.com/saalfeldlab/n5-viewer/issues</url>
 	</issueManagement>
 	<ciManagement>
-		<system>Travis CI</system>
-		<url>https://travis-ci.org/saalfeldlab/n5-viewer</url>
+		<system>GitHub Actions</system>
+		<url>https://github.com/saalfeldlab/n5-viewer/actions</url>
 	</ciManagement>
 
 	<properties>
