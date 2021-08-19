@@ -1,4 +1,4 @@
-# N5 Viewer [![Build Status](https://travis-ci.org/saalfeldlab/n5-viewer.svg?branch=master)](https://travis-ci.org/saalfeldlab/n5-viewer)
+# N5 Viewer [![Build Status](https://github.com/saalfeldlab/n5-viewer/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/n5-viewer/actions/workflows/build-main.yml)
 BigDataViewer-based tool for visualizing [N5](https://github.com/saalfeldlab/n5) datasets.
 
 ### Usage
