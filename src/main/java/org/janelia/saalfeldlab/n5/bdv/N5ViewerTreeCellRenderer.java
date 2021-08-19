@@ -10,9 +10,11 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
-import org.janelia.saalfeldlab.n5.N5TreeNode.JTreeNodeWrapper;
 import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5ImagePlusMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.metadata.imagej.N5ImagePlusMetadata;
+import org.janelia.saalfeldlab.n5.ui.N5TreeNodeWrapper;
 
 import ij.ImagePlus;
 
@@ -38,9 +40,9 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 		super.getTreeCellRendererComponent( tree, value, sel, exp, leaf, row, hasFocus );
 
 		N5TreeNode node;
-		if ( value instanceof JTreeNodeWrapper )
+		if ( value instanceof N5TreeNodeWrapper )
 		{
-			node = ( ( JTreeNodeWrapper ) value ).getNode();
+			node = ( ( N5TreeNodeWrapper ) value ).getNode();
 			if ( node.getMetadata() != null )
 			{
 				final String multiscaleString;
@@ -69,8 +71,8 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 	public static String conversionSuffix( final N5TreeNode node )
 	{
 		DataType type;
-		if ( node.getMetadata() != null )
-			type = node.getMetadata().getAttributes().getDataType();
+		if ( node.getMetadata() != null  && node.getMetadata() instanceof N5DatasetMetadata )
+			type = ((N5DatasetMetadata)node.getMetadata()).getAttributes().getDataType();
 		else
 			return "";
 
@@ -100,9 +102,13 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 
 	public String getParameterString( final N5TreeNode node )
 	{
-		if( node.getMetadata() != null && node.isDataset() )
+		if ( node.getMetadata() != null && node.getMetadata() instanceof N5ViewerMultichannelMetadata )
 		{
-			final DatasetAttributes attributes = node.getMetadata().getAttributes();
+			return  "multichannel";
+		}
+		else if ( node.getMetadata() != null && node.getMetadata() instanceof N5DatasetMetadata )
+		{
+			final DatasetAttributes attributes = ((N5DatasetMetadata)node.getMetadata()).getAttributes();
 			final String dimString = String.join( dimDelimeter,
 					Arrays.stream(attributes.getDimensions())
 						.mapToObj( d -> Long.toString( d ))
