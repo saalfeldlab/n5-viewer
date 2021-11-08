@@ -10,15 +10,13 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
-import org.janelia.saalfeldlab.n5.N5TreeNode.JTreeNodeWrapper;
 import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.MultiChannelMetadataCanonical;
 import org.janelia.saalfeldlab.n5.metadata.imagej.N5ImagePlusMetadata;
+import org.janelia.saalfeldlab.n5.ui.N5TreeNodeWrapper;
 
 import ij.ImagePlus;
 
@@ -44,9 +42,9 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 		super.getTreeCellRendererComponent( tree, value, sel, exp, leaf, row, hasFocus );
 
 		N5TreeNode node;
-		if ( value instanceof JTreeNodeWrapper )
+		if ( value instanceof N5TreeNodeWrapper )
 		{
-			node = ( ( JTreeNodeWrapper ) value ).getNode();
+			node = ( ( N5TreeNodeWrapper ) value ).getNode();
 			N5Metadata meta = node.getMetadata();
 			if ( meta != null )
 			{

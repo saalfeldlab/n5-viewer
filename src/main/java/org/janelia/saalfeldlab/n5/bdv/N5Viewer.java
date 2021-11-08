@@ -56,9 +56,9 @@ import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalSpatialMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -80,13 +80,13 @@ public class N5Viewer implements PlugIn
 {
 	private static String lastOpenedContainer = "";
 
-	public static final N5MetadataParser[] n5vGroupParsers = new N5MetadataParser[]{ 
+	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{ 
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),
 			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser() 
 			};
 
-	public static final N5MetadataParser[] n5vParsers = new N5MetadataParser[] {
+	public static final N5MetadataParser<?>[] n5vParsers = new N5MetadataParser[] {
 		new N5CosemMetadataParser(),
 		new N5SingleScaleMetadataParser(),
 	};
@@ -182,8 +182,8 @@ public class N5Viewer implements PlugIn
 				final N5CosemMetadata singleScaleCosemDataset = (N5CosemMetadata) metadata;
 				datasetsToOpen = new String[]{ singleScaleCosemDataset.getPath() };
 				transforms = new AffineTransform3D[]{ singleScaleCosemDataset.spatialTransform3d() };
-			} else if (metadata instanceof CanonicalMetadata ) {
-				final CanonicalMetadata canonicalDataset = (CanonicalMetadata) metadata;
+			} else if (metadata instanceof CanonicalSpatialMetadata ) {
+				final CanonicalSpatialMetadata canonicalDataset = (CanonicalSpatialMetadata) metadata;
 				datasetsToOpen = new String[]{ canonicalDataset.getPath() };
 				transforms = new AffineTransform3D[]{ canonicalDataset.getSpatialTransform().spatialTransform3d() };
 			} else if (metadata instanceof N5CosemMultiScaleMetadata ) {
