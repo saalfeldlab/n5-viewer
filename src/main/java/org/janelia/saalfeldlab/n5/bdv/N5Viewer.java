@@ -45,10 +45,12 @@ import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
+import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
 import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
@@ -56,6 +58,7 @@ import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalSpatialMetadata;
@@ -83,13 +86,17 @@ public class N5Viewer implements PlugIn
 	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{ 
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),
+			new CanonicalMetadataParser(),
 			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser() 
 			};
 
 	public static final N5MetadataParser<?>[] n5vParsers = new N5MetadataParser[] {
 		new N5CosemMetadataParser(),
+		new CanonicalMetadataParser(),
 		new N5SingleScaleMetadataParser(),
 	};
+
+	private int numTimepoints;
 
 	final public static void main( final String... args )
 	{
@@ -125,12 +132,12 @@ public class N5Viewer implements PlugIn
 		} );
 	}
 
-	public static < T extends NumericType< T > & NativeType< T >,
+	public < T extends NumericType< T > & NativeType< T >,
 					V extends Volatile< T > & NumericType< V >,
 					R extends N5Reader > 
 				void exec( final DataSelection selection ) throws IOException
 	{
-		final int numTimepoints = 1;
+		numTimepoints = 1;
 		Prefs.showScaleBar( true );
 
 		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
@@ -160,12 +167,46 @@ public class N5Viewer implements PlugIn
 		final List<N5Source<T>> sources = new ArrayList<>();
 		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
 
-		for ( int i = 0; i < selected.size(); ++i )
-		{
-			final String[] datasetsToOpen;
-			final AffineTransform3D[] transforms;
+		buildN5Sources(selection, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
 
-			final N5Metadata metadata = selected.get( i );
+		final BigDataViewer bdv = new BigDataViewer(
+				converterSetups,
+				sourcesAndConverters,
+				null,
+				numTimepoints,
+				new CacheControl.CacheControls(),
+				"N5 Viewer",
+				new ProgressWriterConsole(),
+				BdvOptions.options().values.getViewerOptions()
+			);
+
+		InitializeViewerState.initTransform( bdv.getViewer() );
+
+		bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
+		bdv.getViewerFrame().setVisible( true );
+
+		initCropController( bdv, sources );
+	}
+
+	public < T extends NumericType< T > & NativeType< T >,
+					V extends Volatile< T > & NumericType< V >>  void buildN5Sources(
+		final DataSelection selection,
+		final SharedQueue sharedQueue,
+		final ArrayList< ConverterSetup > converterSetups,
+		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters,
+		final List<N5Source<T>> sources,
+		final List<N5VolatileSource<T, V>> volatileSources) throws IOException
+	{
+		ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
+
+		List<N5Metadata> selectedMetadata = selection.metadata;
+		int i = 0;
+		for ( i = 0; i < selectedMetadata.size(); ++i )
+		{
+			String[] datasetsToOpen = null;
+			AffineTransform3D[] transforms = null;
+
+			final N5Metadata metadata = selectedMetadata.get( i );
 			if (metadata instanceof N5SingleScaleMetadata) {
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata) metadata;
 				String[] tmpDatasets= new String[]{ singleScaleDataset.getPath() };
@@ -182,10 +223,10 @@ public class N5Viewer implements PlugIn
 				final N5CosemMetadata singleScaleCosemDataset = (N5CosemMetadata) metadata;
 				datasetsToOpen = new String[]{ singleScaleCosemDataset.getPath() };
 				transforms = new AffineTransform3D[]{ singleScaleCosemDataset.spatialTransform3d() };
-			} else if (metadata instanceof CanonicalSpatialMetadata ) {
-				final CanonicalSpatialMetadata canonicalDataset = (CanonicalSpatialMetadata) metadata;
-				datasetsToOpen = new String[]{ canonicalDataset.getPath() };
-				transforms = new AffineTransform3D[]{ canonicalDataset.getSpatialTransform().spatialTransform3d() };
+//			} else if (metadata instanceof CanonicalSpatialMetadata ) {
+//				final CanonicalSpatialMetadata canonicalDataset = (CanonicalSpatialMetadata) metadata;
+//				datasetsToOpen = new String[]{ canonicalDataset.getPath() };
+//				transforms = new AffineTransform3D[]{ canonicalDataset.getSpatialTransform().spatialTransform3d() };
 			} else if (metadata instanceof N5CosemMultiScaleMetadata ) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata) metadata;
 
@@ -198,18 +239,20 @@ public class N5Viewer implements PlugIn
 				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
-			} else if (metadata != null) {
+			}
+			else if( metadata instanceof N5DatasetMetadata ) {
+				final List<MetadataSource<?>> addTheseSources = MetadataSource.buildMetadataSources(selection.n5, (N5DatasetMetadata)metadata);
+				if( addTheseSources != null )
+					additionalSources.addAll(addTheseSources);
+			}
+			else {
 				datasetsToOpen = new String[]{ metadata.getPath() };
-				transforms = new AffineTransform3D[] { new AffineTransform3D() };
-			} else if (metadata == null) {
-				IJ.error("N5 Viewer", "Cannot open dataset where metadata is null");
-				return;
-			} else{
-				IJ.error("N5 Viewer", "Unknown metadata type: " + metadata); return;
+				transforms = new AffineTransform3D[] { new AffineTransform3D() };	
 			}
 
-			System.out.println( "opening with " + datasetsToOpen.length + " levels");
-			System.out.println( "  scales:" );
+			if( datasetsToOpen == null )
+				continue;
+
 			for ( int s = 0; s < datasetsToOpen.length; ++s )
 				System.out.println( "  " + transforms[s] );
 
@@ -233,23 +276,15 @@ public class N5Viewer implements PlugIn
 			addSourceToListsGenericType( volatileSource, i + 1, numTimepoints, volatileSource.getType(), converterSetups, sourcesAndConverters );
 		}
 
-		final BigDataViewer bdv = new BigDataViewer(
-				converterSetups,
-				sourcesAndConverters,
-				null,
-				numTimepoints,
-				new CacheControl.CacheControls(),
-				"N5 Viewer",
-				new ProgressWriterConsole(),
-				BdvOptions.options().values.getViewerOptions()
-			);
+		for( MetadataSource src : additionalSources ) {
+//			System.out.println("adding source  " + i );
+//			System.out.println("  " + src.numTimePoints());
+			if( src.numTimePoints() > numTimepoints )
+				numTimepoints = src.numTimePoints();
 
-		InitializeViewerState.initTransform( bdv.getViewer() );
+			addSourceToListsGenericType( src, i + 1, src.numTimePoints(), src.getType(), converterSetups, sourcesAndConverters );
+		}
 
-		bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
-		bdv.getViewerFrame().setVisible( true );
-
-		initCropController( bdv, sources );
 	}
 
 	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BigDataViewer bdv, final List< ? extends Source< T > > sources )

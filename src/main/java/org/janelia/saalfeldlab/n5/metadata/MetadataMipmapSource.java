@@ -26,16 +26,16 @@ public class MetadataMipmapSource <T extends NumericType<T> & NativeType<T>> ext
 				metadata.getName(),
 				getImgs( n5, metadata ),
 				metadata.spatialTransforms3d());
-		
+
 		this.n5 = n5;
 		this.metadata = metadata;
-		
+
 		this.channelDim = channelDim;
 		this.channelPos = channelPos;
 	}
-	
-	public static RandomAccessibleInterval[] getImgs( N5Reader n5, MultiscaleMetadata<?> metadata )
-	{
+
+	public static RandomAccessibleInterval[] getImgs( N5Reader n5, MultiscaleMetadata<?> metadata ) {
+
 		final RandomAccessibleInterval[] imgs = new RandomAccessibleInterval[ metadata.childrenMetadata.length ];
 		for( int i = 0; i < metadata.childrenMetadata.length; i++ )
 			try {
@@ -44,9 +44,9 @@ public class MetadataMipmapSource <T extends NumericType<T> & NativeType<T>> ext
 
 		return imgs;
 	}
-	
-	public static <T extends NumericType<T> & NativeType<T>> T getType( N5Reader n5, MultiscaleMetadata<?> metadata )
-	{
+
+	public static <T extends NumericType<T> & NativeType<T>> T getType( N5Reader n5, MultiscaleMetadata<?> metadata ) {
+
 		CachedCellImg<T, ?> img;
 		try {
 			img = N5Utils.open(n5, metadata.getChildrenMetadata()[0].getPath());
@@ -59,7 +59,7 @@ public class MetadataMipmapSource <T extends NumericType<T> & NativeType<T>> ext
 	public MetadataMipmapSource( N5Reader n5, MultiscaleMetadata<?> metadata ) {
 		this( n5, metadata, -1, 0 );
 	}
-	
+
 	public MetadataMipmapSource( N5Reader n5, MultiscaleMetadata<?> metadata, int channelPos ) {
 		this( n5, metadata, -1, channelPos );
 	}
