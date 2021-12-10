@@ -51,6 +51,7 @@ import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5GenericSingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
@@ -92,8 +93,9 @@ public class N5Viewer implements PlugIn
 
 	public static final N5MetadataParser<?>[] n5vParsers = new N5MetadataParser[] {
 		new N5CosemMetadataParser(),
-		new CanonicalMetadataParser(),
 		new N5SingleScaleMetadataParser(),
+		new CanonicalMetadataParser(),
+		new N5GenericSingleScaleMetadataParser()
 	};
 
 	private int numTimepoints;
