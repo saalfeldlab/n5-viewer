@@ -1,0 +1,35 @@
+{
+  "spatialTransform": {
+    "transform": {
+      "affine": [ 2, 0, 0, 0, 3, 0 ],
+      "type": "affine"
+    },
+    "unit": "mm",
+    "axes": [
+      {
+        "type": "channel",
+        "label": "c",
+        "unit": "none"
+      },
+      {
+        "type": "space",
+        "label": "x",
+        "unit": "nm"
+      },
+      {
+        "type": "space",
+        "label": "y",
+        "unit": "nm"
+      }
+    ],
+    "path": ""
+  },
+  "dimensions": [ 2, 3, 4 ],
+  "blockSize": [ 8, 8, 8 ],
+  "dataType": "uint8",
+  "compression": {
+    "type": "gzip",
+    "useZlib": false,
+    "level": -1
+  }
+}

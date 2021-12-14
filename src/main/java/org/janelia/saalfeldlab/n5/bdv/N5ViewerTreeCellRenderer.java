@@ -12,7 +12,9 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.imagej.N5ImagePlusMetadata;
 import org.janelia.saalfeldlab.n5.ui.N5TreeNodeWrapper;
 
@@ -43,19 +45,35 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 		if ( value instanceof N5TreeNodeWrapper )
 		{
 			node = ( ( N5TreeNodeWrapper ) value ).getNode();
-			if ( node.getMetadata() != null )
+			N5Metadata meta = node.getMetadata();
+			if ( meta != null )
 			{
+
 				final String multiscaleString;
-				if( node.getMetadata() instanceof MultiscaleMetadata )
+				if( meta instanceof MultiscaleMetadata )
+				{
 					multiscaleString = "multiscale";
+				}
 				else
 					multiscaleString = "";
+
+				final String multiChannelString;
+				if( meta instanceof N5ViewerMultichannelMetadata ||
+					meta instanceof CanonicalMultichannelMetadata )
+				{
+					multiChannelString = "multichannel";
+				}
+				else
+					multiChannelString = "";
+
+//				String canonicalPrefix = meta instanceof CanonicalMetadata ? "canonical " : "";
 
 				setText( String.join( "", new String[]{
 						"<html>",
 						String.format( nameFormat, node.getNodeName() ),
 						" (",
 						getParameterString( node ),
+						multiChannelString,
 						multiscaleString,
 						")</html>"
 				}));
