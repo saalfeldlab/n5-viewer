@@ -33,6 +33,7 @@ import ij.ImageJ;
 import ij.plugin.PlugIn;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.Converter;
 import net.imglib2.display.RealARGBColorConverter;
 import net.imglib2.display.ScaledARGBConverter;
@@ -43,6 +44,8 @@ import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
+import net.imglib2.view.Views;
+
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
@@ -103,6 +106,8 @@ public class N5Viewer implements PlugIn
 	};
 
 	private int numTimepoints;
+
+	private boolean is2D = false;
 
 	final public static void main( final String... args )
 	{
@@ -176,7 +181,6 @@ public class N5Viewer implements PlugIn
 		final List<N5Source<T>> sources = new ArrayList<>();
 		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
 
-		for ( int i = 0; i < selected.size(); ++i )
 		buildN5Sources(selection, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
 
 		final BigDataViewer bdv = new BigDataViewer(
@@ -187,7 +191,7 @@ public class N5Viewer implements PlugIn
 				new CacheControl.CacheControls(),
 				"N5 Viewer",
 				new ProgressWriterConsole(),
-				BdvOptions.options().values.getViewerOptions()
+				BdvOptions.options().values.getViewerOptions().is2D( is2D )
 			);
 
 		InitializeViewerState.initTransform( bdv.getViewer() );
@@ -199,7 +203,7 @@ public class N5Viewer implements PlugIn
 	}
 
 	public < T extends NumericType< T > & NativeType< T >,
-					V extends Volatile< T > & NumericType< V >>  void buildN5Sources(
+					V extends Volatile< T > & NumericType< V >> void buildN5Sources(
 		final DataSelection selection,
 		final SharedQueue sharedQueue,
 		final ArrayList< ConverterSetup > converterSetups,
@@ -261,10 +265,25 @@ public class N5Viewer implements PlugIn
 			if( datasetsToOpen == null )
 				continue;
 
+			// is2D should be true at the end of this loop if all sources are 2D
+			is2D = true;
+
 			@SuppressWarnings( "rawtypes" )
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
 			for ( int s = 0; s < images.length; ++s )
-				images[ s ] = N5Utils.openVolatile( selection.n5, datasetsToOpen[s] );
+			{
+				CachedCellImg<?, ?> vimg = N5Utils.openVolatile( selection.n5, datasetsToOpen[s] );
+				if( vimg.numDimensions() == 2 )
+				{
+					images[ s ] = Views.addDimension(vimg, 0, 0);
+					is2D = is2D && true;
+				}
+				else
+				{
+					images[ s ] = vimg;
+					is2D = is2D && false;
+				}
+			}
 
 			@SuppressWarnings( "unchecked" )
 			final N5Source<T> source = new N5Source<>(
@@ -304,7 +323,6 @@ public class N5Viewer implements PlugIn
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
 	}
-
 
 	/**
 	 * Add the given {@code source} to the lists of {@code converterSetups}
