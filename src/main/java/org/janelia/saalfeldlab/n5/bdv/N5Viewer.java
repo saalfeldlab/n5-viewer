@@ -181,7 +181,7 @@ public class N5Viewer implements PlugIn
 		final List<N5Source<T>> sources = new ArrayList<>();
 		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
 
-		buildN5Sources(selection, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
+		buildN5Sources(selection.n5, selected, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
 
 		final BigDataViewer bdv = new BigDataViewer(
 				converterSetups,
@@ -204,16 +204,16 @@ public class N5Viewer implements PlugIn
 
 	public < T extends NumericType< T > & NativeType< T >,
 					V extends Volatile< T > & NumericType< V >> void buildN5Sources(
-		final DataSelection selection,
+		final N5Reader n5,
+		final List<N5Metadata> selectedMetadata,
 		final SharedQueue sharedQueue,
 		final ArrayList< ConverterSetup > converterSetups,
 		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters,
 		final List<N5Source<T>> sources,
 		final List<N5VolatileSource<T, V>> volatileSources) throws IOException
 	{
-		ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
+		final ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
 
-		List<N5Metadata> selectedMetadata = selection.metadata;
 		int i = 0;
 		for ( i = 0; i < selectedMetadata.size(); ++i )
 		{
@@ -253,7 +253,7 @@ public class N5Viewer implements PlugIn
 				transforms = msd.getTransforms();
 			}
 			else if( metadata instanceof N5DatasetMetadata ) {
-				final List<MetadataSource<?>> addTheseSources = MetadataSource.buildMetadataSources(selection.n5, (N5DatasetMetadata)metadata);
+				final List<MetadataSource<?>> addTheseSources = MetadataSource.buildMetadataSources(n5, (N5DatasetMetadata)metadata);
 				if( addTheseSources != null )
 					additionalSources.addAll(addTheseSources);
 			}
@@ -262,7 +262,7 @@ public class N5Viewer implements PlugIn
 				transforms = new AffineTransform3D[] { new AffineTransform3D() };
 			}
 
-			if( datasetsToOpen == null )
+			if( datasetsToOpen == null || datasetsToOpen.length == 0 )
 				continue;
 
 			// is2D should be true at the end of this loop if all sources are 2D
@@ -272,7 +272,7 @@ public class N5Viewer implements PlugIn
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
 			for ( int s = 0; s < images.length; ++s )
 			{
-				CachedCellImg<?, ?> vimg = N5Utils.openVolatile( selection.n5, datasetsToOpen[s] );
+				CachedCellImg<?, ?> vimg = N5Utils.openVolatile( n5, datasetsToOpen[s] );
 				if( vimg.numDimensions() == 2 )
 				{
 					images[ s ] = Views.addDimension(vimg, 0, 0);

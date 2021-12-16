@@ -58,15 +58,12 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 					multiscaleString = "";
 
 				final String multiChannelString;
-				if( meta instanceof N5ViewerMultichannelMetadata ||
-					meta instanceof CanonicalMultichannelMetadata )
+				if( meta instanceof N5ViewerMultichannelMetadata || meta instanceof CanonicalMultichannelMetadata )
 				{
 					multiChannelString = "multichannel";
 				}
 				else
 					multiChannelString = "";
-
-//				String canonicalPrefix = meta instanceof CanonicalMetadata ? "canonical " : "";
 
 				setText( String.join( "", new String[]{
 						"<html>",
@@ -120,11 +117,7 @@ public class N5ViewerTreeCellRenderer extends DefaultTreeCellRenderer
 
 	public String getParameterString( final N5TreeNode node )
 	{
-		if ( node.getMetadata() != null && node.getMetadata() instanceof N5ViewerMultichannelMetadata )
-		{
-			return  "multichannel";
-		}
-		else if ( node.getMetadata() != null && node.getMetadata() instanceof N5DatasetMetadata )
+		if ( node.getMetadata() != null && node.getMetadata() instanceof N5DatasetMetadata )
 		{
 			final DatasetAttributes attributes = ((N5DatasetMetadata)node.getMetadata()).getAttributes();
 			final String dimString = String.join( dimDelimeter,
