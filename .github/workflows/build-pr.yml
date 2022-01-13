@@ -24,6 +24,10 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
 
+      - name: Install blosc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libblosc1
       - name: Set up JDK 8
         uses: actions/setup-java@v2
         with:
