@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>n5-viewer_fiji</artifactId>
-	<version>4.4.1-SNAPSHOT</version>
+	<version>4.5.1-SNAPSHOT</version>
 
 	<name>N5 Viewer for Fiji</name>
 	<description>BigDataViewer-based visualization tool for N5 datasets</description>
