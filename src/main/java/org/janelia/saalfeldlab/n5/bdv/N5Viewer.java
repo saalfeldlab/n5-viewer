@@ -127,12 +127,10 @@ public class N5Viewer implements PlugIn
 				n5vParsers);
 
 		dialog.setLoaderExecutor( exec );
-		dialog.setTreeRenderer( new N5DatasetTreeCellRenderer( true ) );
 
 //		dialog.setRecursiveFilterCallback( new N5ViewerDatasetFilter() );
-
 		dialog.setContainerPathUpdateCallback( x -> lastOpenedContainer = x );
-		dialog.setTreeRenderer( new N5ViewerTreeCellRenderer() );
+		dialog.setTreeRenderer( new N5ViewerTreeCellRenderer( false ) );
 
 		dialog.run( selection -> {
 			try

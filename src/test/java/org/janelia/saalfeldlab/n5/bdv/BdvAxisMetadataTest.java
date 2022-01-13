@@ -9,6 +9,7 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadataParser;
+import org.janelia.saalfeldlab.n5.translation.JqUtils;
 import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,7 +24,7 @@ public class BdvAxisMetadataTest {
 	public void setUp() throws IOException {
 
 		final String n5Root = "src/test/resources/axisTest.n5";
-		n5 = new N5FSReader(n5Root);
+		n5 = new N5FSReader(n5Root, JqUtils.gsonBuilder(null));
 	}
 
 	@Test
