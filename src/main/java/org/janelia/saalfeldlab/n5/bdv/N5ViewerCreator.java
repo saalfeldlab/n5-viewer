@@ -76,8 +76,7 @@ public class N5ViewerCreator {
         dialog.run( selection -> {
             try
             {
-                final JFrame frame = new JFrame( "N5 Viewer" );
-                N5Viewer n5Viewer = new N5Viewer(frame, selection, true);
+                N5Viewer n5Viewer = new N5Viewer(null, selection, true);
                 if (viewerConsumer != null) {
                     viewerConsumer.accept(n5Viewer);
                 }
