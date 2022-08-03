@@ -5,7 +5,6 @@ import org.janelia.saalfeldlab.n5.metadata.*;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadataParser;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
 
-import javax.swing.*;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

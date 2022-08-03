@@ -17,13 +17,13 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import bdv.BigDataViewer;
+import bdv.cache.SharedQueue;
 import bdv.tools.InitializeViewerState;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.transformation.TransformedSource;
 import bdv.ui.splitpanel.SplitPanel;
 import bdv.util.*;
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
