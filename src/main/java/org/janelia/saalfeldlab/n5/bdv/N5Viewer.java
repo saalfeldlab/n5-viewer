@@ -24,7 +24,7 @@ import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.transformation.TransformedSource;
 import bdv.util.*;
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
