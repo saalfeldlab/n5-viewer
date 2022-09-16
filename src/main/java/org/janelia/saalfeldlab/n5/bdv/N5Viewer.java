@@ -22,20 +22,16 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import bdv.BigDataViewer;
-import bdv.cache.CacheControl;
-import bdv.export.ProgressWriterConsole;
+import bdv.cache.SharedQueue;
 import bdv.tools.InitializeViewerState;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.transformation.TransformedSource;
+import bdv.ui.splitpanel.SplitPanel;
 import bdv.util.*;
-import bdv.util.volatiles.SharedQueue;
-import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import ij.IJ;
-import ij.ImageJ;
-import ij.plugin.PlugIn;
+import bdv.viewer.ViewerPanel;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
@@ -50,40 +46,23 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.ij.N5Importer;
-import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
-
-import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5GenericSingleScaleMetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
-import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultiscaleMetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadataParser;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.metadata.*;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalSpatialMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
-import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
-import org.janelia.saalfeldlab.n5.ui.N5DatasetTreeCellRenderer;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
+import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 
 /**
@@ -92,78 +71,55 @@ import java.util.concurrent.Executors;
  * @author Igor Pisarev
  * @author John Bogovic
  */
-public class N5Viewer implements PlugIn
-{
-	private static String lastOpenedContainer = "";
+public class N5Viewer {
 
-	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{ 
-			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
-			new N5ViewerMultiscaleMetadataParser(),
-			new CanonicalMetadataParser(),
-			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser() 
-			};
+	private int numTimepoints = 1;
 
-	public static final N5MetadataParser<?>[] n5vParsers = new N5MetadataParser[] {
-		new N5CosemMetadataParser(),
-		new N5SingleScaleMetadataParser(),
-		new CanonicalMetadataParser(),
-		new N5GenericSingleScaleMetadataParser()
-	};
+	private boolean is2D = true;
 
-	private int numTimepoints;
+	private final SharedQueue sharedQueue;
 
-	private boolean is2D = false;
+	private final BdvHandle bdv;
 
-	final public static void main( final String... args )
-	{
-		new ImageJ();
-		new N5Viewer().run( "" );
-	}
-	
-	@Override
-	public void run( final String args )
-	{
-		ExecutorService exec = Executors.newFixedThreadPool( ij.Prefs.getThreads() );
-		final DatasetSelectorDialog dialog = new DatasetSelectorDialog( 
-				new N5Importer.N5ViewerReaderFun(),
-				x -> "",
-				lastOpenedContainer,
-				n5vGroupParsers,
-				n5vParsers);
 
-		dialog.setLoaderExecutor( exec );
-
-//		dialog.setRecursiveFilterCallback( new N5ViewerDatasetFilter() );
-		dialog.setContainerPathUpdateCallback( x -> lastOpenedContainer = x );
-		dialog.setTreeRenderer( new N5ViewerTreeCellRenderer( false ) );
-
-		dialog.run( selection -> {
-			try
-			{
-				exec( selection );
-			}
-			catch ( final IOException e )
-			{
-				IJ.handleException( e );
-			}
-		} );
+	public BdvHandle getBdv() {
+		return bdv;
 	}
 
+	public SplitPanel getBdvSplitPanel() {
+		return bdv.getSplitPanel();
+	}
+
+	public N5Viewer(final Frame parent, final DataSelection selection) throws IOException {
+		this(parent, selection, true);
+	}
+
+	/**
+	 * Creates a new N5Viewer with the given data sets.
+	 * @param parentFrame parent frame, can be null
+	 * @param dataSelection data sets to display
+	 * @param wantFrame if true, use BdvHandleFrame and display a window. If false, use a BdvHandlePanel and do not display anything.
+	 * @throws IOException
+	 */
 	public < T extends NumericType< T > & NativeType< T >,
 					V extends Volatile< T > & NumericType< V >,
-					R extends N5Reader > 
-				void exec( final DataSelection selection ) throws IOException
+					R extends N5Reader >
+			N5Viewer(final Frame parentFrame,
+					 final DataSelection dataSelection,
+					 final boolean wantFrame ) throws IOException
 	{
-		numTimepoints = 1;
 		Prefs.showScaleBar( true );
 
-		final SharedQueue sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
+		this.sharedQueue = new SharedQueue( Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
 
-		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
-		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
+		// TODO: These setups are not used anymore, because BdvFunctions creates its own.
+		//       They either need to be deleted from here or integrated somehow.
+		final List< ConverterSetup > converterSetups = new ArrayList<>();
+
+		final List< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
 
 		final List<N5Metadata> selected = new ArrayList<>();
-		for( N5Metadata meta : selection.metadata )
+		for( N5Metadata meta : dataSelection.metadata )
 		{
 			if( meta instanceof N5ViewerMultichannelMetadata )
 			{
@@ -184,25 +140,89 @@ public class N5Viewer implements PlugIn
 		final List<N5Source<T>> sources = new ArrayList<>();
 		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
 
+		buildN5Sources(dataSelection.n5, selected, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
+
+		BdvHandle bdvHandle = null;
+
+		BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
+		if (is2D) {
+			options = options.is2D();
+		}
+
+		for (SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
+			if (bdvHandle == null) {
+				if (wantFrame) {
+					// Create and show a BdvHandleFrame with the first source
+					bdvHandle = BdvFunctions.show(sourcesAndConverter, BdvOptions.options()).getBdvHandle();
+				}
+				else {
+					// Create a BdvHandlePanel, but don't show it
+					bdvHandle = new BdvHandlePanel(parentFrame, options);
+					// Add the first source to it
+					BdvFunctions.show(sourcesAndConverter, BdvOptions.options().addTo(bdvHandle));
+				}
+			}
+			else {
+				// Subsequent sources are added to the existing handle
+				BdvFunctions.show(sourcesAndConverter, BdvOptions.options().addTo(bdvHandle));
+			}
+		}
+		this.bdv = bdvHandle;
+
+		if (bdv != null) {
+			ViewerPanel viewerPanel = bdv.getViewerPanel();
+			if (viewerPanel != null) {
+				viewerPanel.setNumTimepoints(numTimepoints);
+				initCropController( sources );
+				// Delay initTransform until the viewer is shown because it needs to have a size.
+				viewerPanel.addComponentListener(new ComponentAdapter() {
+					boolean needsInit = true;
+					@Override
+					public void componentShown(ComponentEvent e) {
+						if (needsInit) {
+							InitializeViewerState.initTransform(viewerPanel);
+							needsInit = false;
+						}
+					}
+				});
+			}
+		}
+	}
+
+	public < T extends NumericType< T > & NativeType< T >,
+				V extends Volatile< T > & NumericType< V >,
+				R extends N5Reader >
+			void addData( final DataSelection selection ) throws IOException
+	{
+		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
+		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
+
+		final List<N5Metadata> selected = new ArrayList<>();
+		for( N5Metadata meta : selection.metadata )
+		{
+			if( meta instanceof N5ViewerMultichannelMetadata )
+			{
+				N5ViewerMultichannelMetadata mc = (N5ViewerMultichannelMetadata)meta;
+				selected.addAll(Arrays.asList(mc.getChildrenMetadata()));
+			}
+			else if ( meta instanceof CanonicalMultichannelMetadata )
+			{
+				CanonicalMultichannelMetadata mc = (CanonicalMultichannelMetadata)meta;
+				selected.addAll(Arrays.asList(mc.getChildrenMetadata()));
+			}
+			else
+				selected.add( meta );
+		}
+
+		final List<N5Source<T>> sources = new ArrayList<>();
+		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
+
 		buildN5Sources(selection.n5, selected, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
 
-		final BigDataViewer bdv = new BigDataViewer(
-				converterSetups,
-				sourcesAndConverters,
-				null,
-				numTimepoints,
-				new CacheControl.CacheControls(),
-				"N5 Viewer",
-				new ProgressWriterConsole(),
-				BdvOptions.options().values.getViewerOptions().is2D( is2D )
-			);
 
-		InitializeViewerState.initTransform( bdv.getViewer() );
-
-		bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
-		bdv.getViewerFrame().setVisible( true );
-
-		initCropController( bdv, sources );
+		for (SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
+			BdvFunctions.show(sourcesAndConverter, BdvOptions.options().addTo(bdv));
+		}
 	}
 
 	public < T extends NumericType< T > & NativeType< T >,
@@ -210,14 +230,14 @@ public class N5Viewer implements PlugIn
 		final N5Reader n5,
 		final List<N5Metadata> selectedMetadata,
 		final SharedQueue sharedQueue,
-		final ArrayList< ConverterSetup > converterSetups,
-		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters,
+		final List< ConverterSetup > converterSetups,
+		final List< SourceAndConverter< ? > > sourcesAndConverters,
 		final List<N5Source<T>> sources,
 		final List<N5VolatileSource<T, V>> volatileSources) throws IOException
 	{
 		final ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
 
-		int i = 0;
+		int i;
 		for ( i = 0; i < selectedMetadata.size(); ++i )
 		{
 			String[] datasetsToOpen = null;
@@ -311,16 +331,16 @@ public class N5Viewer implements PlugIn
 		}
 	}
 
-	private static < T extends NumericType< T > & NativeType< T > > void initCropController( final BigDataViewer bdv, final List< ? extends Source< T > > sources )
+	private < T extends NumericType< T > & NativeType< T > > void initCropController( final List< ? extends Source< T > > sources )
 	{
-		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
+		final TriggerBehaviourBindings bindings = bdv.getBdvHandle().getTriggerbindings();
 		final InputTriggerConfig config = new InputTriggerConfig();
 
 		final CropController< T > cropController = new CropController<>(
-					bdv.getViewer(),
+					bdv.getViewerPanel(),
 					sources,
 					config,
-					bdv.getViewerFrame().getKeybindings(),
+					bdv.getKeybindings(),
 					config );
 
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
@@ -336,7 +356,7 @@ public class N5Viewer implements PlugIn
 	 * @param source
 	 *            source to add.
 	 * @param setupId
-	 *            id of the new source for use in {@link SetupAssignments}.
+	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
 	 * @param numTimepoints
 	 *            the number of timepoints of the source.
 	 * @param type
@@ -350,19 +370,19 @@ public class N5Viewer implements PlugIn
 	 */
 	@SuppressWarnings( { "rawtypes", "unchecked" } )
 	private static < T > void addSourceToListsGenericType(
-			final Source< T > source,
+			final Source source,
 			final int setupId,
 			final int numTimepoints,
 			final T type,
 			final List< ConverterSetup > converterSetups,
 			final List< SourceAndConverter< ? > > sources )
 	{
-		if ( type instanceof RealType )
-			addSourceToListsRealType( ( Source ) source, setupId, ( List ) converterSetups, ( List ) sources );
-		else if ( type instanceof ARGBType )
-			addSourceToListsARGBType( ( Source ) source, setupId, ( List ) converterSetups, ( List ) sources );
+		if ( type instanceof RealType ) {
+			addSourceToListsRealType(source, setupId, converterSetups, ( List ) sources );
+		} else if ( type instanceof ARGBType )
+			addSourceToListsARGBType(source, setupId, converterSetups, ( List ) sources );
 		else if ( type instanceof VolatileARGBType )
-			addSourceToListsVolatileARGBType( ( Source ) source, setupId, ( List ) converterSetups, ( List ) sources );
+			addSourceToListsVolatileARGBType(source, setupId, converterSetups, ( List ) sources );
 		else
 			throw new IllegalArgumentException( "Unknown source type. Expected RealType, ARGBType, or VolatileARGBType" );
 	}
@@ -376,7 +396,7 @@ public class N5Viewer implements PlugIn
 	 * @param source
 	 *            source to add.
 	 * @param setupId
-	 *            id of the new source for use in {@link SetupAssignments}.
+	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
 	 * @param converterSetups
 	 *            list of {@link ConverterSetup}s to which the source should be
 	 *            added.
@@ -414,7 +434,7 @@ public class N5Viewer implements PlugIn
 	 * @param source
 	 *            source to add.
 	 * @param setupId
-	 *            id of the new source for use in {@link SetupAssignments}.
+	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
 	 * @param converterSetups
 	 *            list of {@link ConverterSetup}s to which the source should be
 	 *            added.
@@ -447,7 +467,7 @@ public class N5Viewer implements PlugIn
 	 * @param source
 	 *            source to add.
 	 * @param setupId
-	 *            id of the new source for use in {@link SetupAssignments}.
+	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
 	 * @param converterSetups
 	 *            list of {@link ConverterSetup}s to which the source should be
 	 *            added.
