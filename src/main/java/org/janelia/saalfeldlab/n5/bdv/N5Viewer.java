@@ -93,7 +93,6 @@ public class N5Viewer {
 
 	private final BdvHandle bdv;
 
-
 	public BdvHandle getBdv() {
 		return bdv;
 	}
@@ -210,7 +209,7 @@ public class N5Viewer {
 
 			JMenu toolsMenu = menuBar.getMenu( 2 );
 			final JMenuItem cropItem = new JMenuItem( actionMap.get( "crop" ));
-			cropItem.setText( "Extract to ImageJ." );
+			cropItem.setText( "Extract to ImageJ" );
 			toolsMenu.add( cropItem );
 		}
 
