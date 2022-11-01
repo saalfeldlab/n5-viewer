@@ -590,9 +590,9 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 	{
 		AffineTransform3D tmp = new AffineTransform3D();
 		sac.getSpimSource().getSourceTransform( 0, level, tmp );
-		imp.getCalibration().pixelWidth = (tmp.get( 0, 0 ) + tmp.get( 0, 1 ) + tmp.get( 0, 2 )) / 3;
-		imp.getCalibration().pixelHeight = (tmp.get( 1, 0 ) + tmp.get( 1, 1 ) + tmp.get( 1, 2 )) / 3;
-		imp.getCalibration().pixelDepth = (tmp.get( 2, 0 ) + tmp.get( 2, 1 ) + tmp.get( 2, 2 )) / 3;
+		imp.getCalibration().pixelWidth = tmp.get( 0, 0 );
+		imp.getCalibration().pixelHeight = tmp.get( 1, 1 );
+		imp.getCalibration().pixelDepth = tmp.get( 2, 2 );
 	}
 
 	public static FinalRealInterval transformedBoundingBox( RealTransform xfm, RealInterval interval )
