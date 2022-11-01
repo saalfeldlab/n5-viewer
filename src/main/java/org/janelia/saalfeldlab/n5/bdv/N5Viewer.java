@@ -24,6 +24,7 @@ package org.janelia.saalfeldlab.n5.bdv;
 import bdv.BigDataViewer;
 import bdv.cache.SharedQueue;
 import bdv.tools.InitializeViewerState;
+import bdv.tools.boundingbox.BoxSelectionOptions;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.transformation.TransformedSource;
@@ -31,7 +32,10 @@ import bdv.ui.splitpanel.SplitPanel;
 import bdv.util.*;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerFrame;
 import bdv.viewer.ViewerPanel;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
@@ -47,6 +51,7 @@ import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.tools.boundingbox.BoxCrop;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.*;
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
@@ -54,6 +59,8 @@ import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata
 import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalSpatialMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.Actions;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import java.awt.*;
@@ -63,6 +70,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import javax.swing.ActionMap;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 
 
 /**
@@ -187,6 +199,21 @@ public class N5Viewer {
 				});
 			}
 		}
+
+		if( bdv instanceof BdvHandleFrame )
+		{
+			// add crop to menu bar
+			BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
+			final ViewerFrame viewerFrame = bdvFrame.getBigDataViewer().getViewerFrame();
+			final JMenuBar menuBar = viewerFrame.getJMenuBar();
+			final ActionMap actionMap = viewerFrame.getKeybindings().getConcatenatedActionMap();
+
+			JMenu toolsMenu = menuBar.getMenu( 2 );
+			final JMenuItem cropItem = new JMenuItem( actionMap.get( "crop" ));
+			cropItem.setText( "Extract to ImageJ." );
+			toolsMenu.add( cropItem );
+		}
+
 	}
 
 	public < T extends NumericType< T > & NativeType< T >,
@@ -334,17 +361,61 @@ public class N5Viewer {
 	private < T extends NumericType< T > & NativeType< T > > void initCropController( final List< ? extends Source< T > > sources )
 	{
 		final TriggerBehaviourBindings bindings = bdv.getBdvHandle().getTriggerbindings();
-		final InputTriggerConfig config = new InputTriggerConfig();
 
-		final CropController< T > cropController = new CropController<>(
+		final InputTriggerConfig config;
+		ViewerFrame viewerFrame = null;
+		if( bdv instanceof BdvHandleFrame )
+		{
+			BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
+			config = bdvFrame.getBigDataViewer().getKeymapManager().getForwardSelectedKeymap().getConfig();
+			viewerFrame = bdvFrame.getBigDataViewer().getViewerFrame();
+		}
+		else
+		{
+			config = new InputTriggerConfig();
+		}
+
+		final Source< T > src = sources.get( 0 );
+		final double[] boxMin = new double[ 3 ];
+		final double[] boxMax = new double[ 3 ];
+
+		// interval min / max
+		final Interval itvl = src.getSource( 0, 0 );
+		itvl.realMin( boxMin );
+		itvl.realMax( boxMax );
+
+		// world (physical) min / max
+		final AffineTransform3D srcXfm = new AffineTransform3D();
+		src.getSourceTransform( 0, 0, srcXfm );
+		srcXfm.apply( boxMin, boxMin );
+		srcXfm.apply( boxMax, boxMax );
+
+		final FinalRealInterval srcItvlWorld = new FinalRealInterval( boxMin, boxMax );
+		final BoxCrop cropController = new BoxCrop(
 					bdv.getViewerPanel(),
-					sources,
+					bdv.getConverterSetups(),
+					0,
 					config,
-					bdv.getKeybindings(),
-					config );
+					bindings,
+					BoxSelectionOptions.options(),
+					new AffineTransform3D(),
+					srcItvlWorld, srcItvlWorld,
+					"crop", "SPACE");
 
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
+
+		if( viewerFrame != null )
+		{
+			// set action for crop item in menu bar
+			final InputActionBindings inputActionBindings = viewerFrame.getKeybindings();
+			Actions actions = new Actions(config, "bdv");
+			actions.install( inputActionBindings, "crop" );
+			actions.runnableAction( () -> {
+					cropController.click( 0, 0); },
+				"crop", "SPACE" );
+		}
+
 	}
 
 	/**
