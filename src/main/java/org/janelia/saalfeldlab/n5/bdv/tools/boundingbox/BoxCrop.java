@@ -73,6 +73,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 
 	private final AbstractViewerPanel viewer;
 	private final List< SourceAndConverter< ? > > sources;
+	private int[] scales;
 
 	private final String name;
 	private final String[] defaultTriggers;
@@ -137,6 +138,9 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		// so store the current source here, and make it current 
 		currSrc = viewer.state().getCurrentSource();
 		updateScales();
+
+		// reset scale levels
+		scales = null;
 
 		final Source<?> src = currSrc.getSpimSource();
 		final int estBestScale = MipmapTransforms.getBestMipMapLevel( viewer.state().getViewerTransform(), src, 0 );
@@ -307,7 +311,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		content.add( exportedSourcesDropddown, gbc );
 
 		gbc.gridy++;
-		concatenateSourcesCheck = new JCheckBox( "Concatenate export" );
+		concatenateSourcesCheck = new JCheckBox( "Multichannel export" );
 		concatenateSourcesCheck.setEnabled( false );
 		concatenateSourcesCheck.addActionListener( (e) -> {
 			if( EXPORT_VISIBLE.equals( (String)exportedSourcesDropddown.getSelectedItem()) && concatenateSourcesCheck.isSelected() )
@@ -357,7 +361,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 			numScales = sources.get( 0 ).getSpimSource().getNumMipmapLevels();
 
 		scaleLevelDropdown.setModel( new DefaultComboBoxModel<Integer>( 
-				IntStream.range( 0, numScales ).mapToObj( x -> new Integer(x) ).toArray( Integer[]::new )));
+				IntStream.range( 0, numScales ).mapToObj( x -> x ).toArray( Integer[]::new )));
 
 		pack();
 	}
@@ -411,13 +415,13 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return new FinalInterval( pixMin, pixMax );
 	}
 
-	protected <T extends NumericType<T> & NativeType<T>> boolean canExportVisible( boolean showMessage )
+	protected boolean canExportVisible( boolean showMessage )
 	{
-		final List< SourceAndConverter< T > > srcList = getVisibleSources();
+		final List< SourceAndConverter< ? > > srcList = getVisibleSources();
 		// returns false if the selected Level 
 		for( int i = 0; i < srcList.size(); i++ )
 		{
-			final Source< T > src = srcList.get(i).getSpimSource();
+			final Source< ? > src = srcList.get(i).getSpimSource();
 			if( selectedLevel > src.getNumMipmapLevels() - 1)
 			{
 				if( showMessage )
@@ -429,23 +433,65 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return true;
 	}
 
-	protected <T extends NumericType<T> & NativeType<T>> List< SourceAndConverter<T>> getVisibleSources()
+//	protected <T extends NumericType<T> & NativeType<T>> List< SourceAndConverter<T>> getVisibleSources()
+	protected List< SourceAndConverter<?>> getVisibleSources()
 	{
-		final List< SourceAndConverter<T>> srcList = new ArrayList<>();
+		final List< SourceAndConverter<?>> srcList = new ArrayList<>();
 		final Set< SourceAndConverter< ? > > visibleSources = viewer.state().getVisibleSources();
 		// exclude the box display source which has a Void type
 		visibleSources.removeIf( x -> { return x.getSpimSource().getType() == null; } );
-		visibleSources.forEach( x -> srcList.add( (SourceAndConverter<T>)x ) );
+		visibleSources.forEach( x -> srcList.add( x ) );
 		return srcList;
 	}
 
-	protected <T extends NumericType<T> & NativeType<T>> boolean canStackVisibleSources( boolean showMessage )
+	protected boolean canStackVisibleSources( boolean showMessage )
 	{
-		final List< SourceAndConverter<T>> srcList = getVisibleSources();
+		final List< SourceAndConverter<?>> srcList = getVisibleSources();
 		return canStackSources( srcList, showMessage );
 	}
 
-	protected <T extends NumericType<T> & NativeType<T>> boolean canStackSources( List<SourceAndConverter<T>> srcList, boolean showMessage )
+	/**
+	 * Find scale levels for sources in the source list that match the given affine.
+	 * Scale levels stored in a local int array are updated. If no matching scale level exists, 
+	 * the array will contain a value less than zero at that index.
+	 *
+	 * @param srcList the source list
+	 * @param affine the affine
+	 * @return true if all sources have a matching scale level
+	 */
+	protected boolean findMatchingScaleLevels( List<SourceAndConverter<?>> srcList, AffineTransform3D affine, double threshold )
+	{
+		scales = new int[ srcList.size() ];
+		Arrays.fill( scales, -1 );
+
+		int i = 0;
+		final AffineTransform3D testTransform = new AffineTransform3D();
+		for( SourceAndConverter< ? > sac : srcList )
+		{
+			final int N = sac.getSpimSource().getNumMipmapLevels();
+			for( int j = 0; j < N; j++ )
+			{
+				sac.getSpimSource().getSourceTransform( 0, j, testTransform );
+				if( affineAlmostEqual( testTransform, affine, threshold ))
+				{
+					scales[i] = j;
+					continue;
+				}
+			}
+			i++;
+		}
+
+		for( i = 0; i < scales.length; i++ )
+		{
+			if( scales[i] < 0 )
+				return false;
+		}
+
+		return true;
+	}
+
+//	protected <T extends NumericType<T> & NativeType<T>> boolean canStackSources( List<SourceAndConverter<T>> srcList, boolean showMessage )
+	protected boolean canStackSources( List<SourceAndConverter<?>> srcList, boolean showMessage )
 	{
 		// check that types are the same and that affines are the same
 		final AffineTransform3D first = new AffineTransform3D();
@@ -484,6 +530,10 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 			srcList.get( i ).getSpimSource().getSourceTransform( 0, selectedLevel, comp );
 			if( !affineAlmostEqual( first, comp, 1e-9 ))
 			{
+				// we can still stack if there exist matching scales
+				if( findMatchingScaleLevels( srcList, comp, 1e-9 ))
+					return true;
+
 				if( showMessage )
 					System.out.println("Can't stack visible sources : different resolutions.");
 
@@ -493,15 +543,16 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return true;
 	}
 
-	public <T extends NumericType<T> & NativeType<T>> ImagePlus[] crop()
+	@SuppressWarnings( "unchecked" )
+	public < T extends NumericType< T > & NativeType< T > > ImagePlus[] crop()
 	{
 		// remember this interval for next time
 		lastInterval = model.getInterval();
 
 		final String exportOption = ( String ) exportedSourcesDropddown.getSelectedItem();
-		final List< SourceAndConverter<T>> srcList = new ArrayList<>();
+		final List< SourceAndConverter< ? > > srcList = new ArrayList<>();
 		if( exportOption.equals( EXPORT_CURRENT ))
-			srcList.add( ( SourceAndConverter< T > ) currSrc );
+			srcList.add( ( SourceAndConverter< ? > ) currSrc );
 		else 
 		{
 			final Set< SourceAndConverter< ? > > visibleSources = viewer.state().getVisibleSources();
@@ -515,12 +566,25 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		if( doStack )
 			doStack = canStackSources( srcList, false );
 
-		final List< RandomAccessibleInterval<T>> imgList = new ArrayList<>();
-		for( SourceAndConverter< T > sac : srcList )
-			imgList.add( cropSource( sac.getSpimSource() ));
+		if( scales == null )
+		{
+			scales = new int[ srcList.size() ];
+			Arrays.fill( scales, selectedLevel );
+		}
+
+		final List< RandomAccessibleInterval< T > > imgList = new ArrayList<>();
+		int i = 0;
+		for( SourceAndConverter< ? > sac : srcList )
+			imgList.add( cropSource( ( Source< T > ) sac.getSpimSource(), scales[ i++ ] ) );
 
 		if( doStack )
 		{
+			if( scales == null )
+			{
+				scales = new int[ imgList.size() ];
+				Arrays.fill( scales, selectedLevel );
+			}
+
 			final RandomAccessibleInterval< T > imgTmp = Views.stack( imgList );
 			final RandomAccessibleInterval< T > imgP = Views.moveAxis( imgTmp, imgTmp.numDimensions() - 1, 2 );
 			final ImagePlus imp = ImageJFunctions.wrap( imgP, "concatenated_crop" );
@@ -533,7 +597,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		else
 		{
 			final ImagePlus[] results = new ImagePlus[ imgList.size() ];
-			for( int i = 0; i < imgList.size(); i++ )
+			for( i = 0; i < imgList.size(); i++ )
 			{
 				final RandomAccessibleInterval< T > imgTmp = imgList.get( i );
 				final RandomAccessibleInterval< T > img;
@@ -553,9 +617,9 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		}
 	}
 
-	public <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<T> cropSource( Source<T> src )
+	public <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<T> cropSource( Source<T> src, int level )
 	{
-		final RandomAccessibleInterval< T > img = src.getSource( 0, selectedLevel );
+		final RandomAccessibleInterval< T > img = src.getSource( 0, level );
 		Interval pixItvl = getPixelInterval( src, selectedLevel );
 		final IntervalView< T > cropImg = Views.interval( Views.extendZero( img ), pixItvl );
 		return cropImg;
@@ -656,11 +720,12 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 	    return String.format("%.1f %cB", bytes / 1000.0, ci.current());
 	}
 
+	@SuppressWarnings( "unchecked" )
 	private <T extends NativeType<T>> long estimateBytes( Interval itvl, T t, int level )
 	{
-		NativeType g;
+		T g;
 		if( t instanceof Volatile )
-			g = (NativeType)((Volatile<?>)t).get();
+			g = ((Volatile<T>)t).get();
 		else
 			g = t;
 
@@ -696,6 +761,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return true;
 	}
 	
+	@SuppressWarnings( "unused" )
 	private static double frobeniusNorm( AffineTransform3D a )
 	{
 		double norm = 0;
