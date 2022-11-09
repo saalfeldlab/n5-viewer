@@ -405,14 +405,23 @@ public class N5Viewer {
 		bindings.addBehaviourMap( "crop", cropController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "crop", cropController.getInputTriggerMap() );
 
+		final CropController< T > cropControllerLegacy = new CropController<>(
+				bdv.getViewerPanel(),
+				sources,
+				config,
+				bdv.getKeybindings(),
+				config );
+
+		bindings.addBehaviourMap( "cropLegacy", cropControllerLegacy.getBehaviourMap() );
+		bindings.addInputTriggerMap( "cropLegacy", cropControllerLegacy.getInputTriggerMap() );
+
 		if( viewerFrame != null )
 		{
 			// set action for crop item in menu bar
 			final InputActionBindings inputActionBindings = viewerFrame.getKeybindings();
 			Actions actions = new Actions(config, "bdv");
 			actions.install( inputActionBindings, "crop" );
-			actions.runnableAction( () -> {
-					cropController.click( 0, 0); },
+			actions.runnableAction( () -> { cropController.click( 0, 0); },
 				"crop", "SPACE" );
 		}
 
