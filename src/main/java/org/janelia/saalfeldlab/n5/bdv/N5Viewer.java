@@ -270,6 +270,7 @@ public class N5Viewer {
 			AffineTransform3D[] transforms = null;
 
 			final N5Metadata metadata = selectedMetadata.get( i );
+			final String srcName = metadata.getName();
 			if (metadata instanceof N5SingleScaleMetadata) {
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata) metadata;
 				String[] tmpDatasets= new String[]{ singleScaleDataset.getPath() };
@@ -337,7 +338,7 @@ public class N5Viewer {
 			@SuppressWarnings( "unchecked" )
 			final N5Source<T> source = new N5Source<>(
 					(T) Util.getTypeFromInterval(images[0]),
-					"source " + (i + 1),
+					srcName,
 					images,
 					transforms);
 
