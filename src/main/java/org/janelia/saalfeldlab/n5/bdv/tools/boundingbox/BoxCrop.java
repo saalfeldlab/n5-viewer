@@ -369,7 +369,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 	public <T extends NativeType<T>> void updateInformation()
 	{
 		@SuppressWarnings( "unchecked" )
-		final Source< T > src = ( Source< T > ) sources.get( 0 ).getSpimSource();
+		final Source< T > src = ( Source< T > ) currSrc.getSpimSource();
 		final T t = Util.getTypeFromInterval( src.getSource( 0, 0 ));
 
 		final Interval pixItvl = getPixelInterval( src, selectedLevel );
@@ -433,7 +433,6 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return true;
 	}
 
-//	protected <T extends NumericType<T> & NativeType<T>> List< SourceAndConverter<T>> getVisibleSources()
 	protected List< SourceAndConverter<?>> getVisibleSources()
 	{
 		final List< SourceAndConverter<?>> srcList = new ArrayList<>();
@@ -490,7 +489,6 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return true;
 	}
 
-//	protected <T extends NumericType<T> & NativeType<T>> boolean canStackSources( List<SourceAndConverter<T>> srcList, boolean showMessage )
 	protected boolean canStackSources( List<SourceAndConverter<?>> srcList, boolean showMessage )
 	{
 		// check that types are the same and that affines are the same
@@ -555,10 +553,17 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 			srcList.add( ( SourceAndConverter< ? > ) currSrc );
 		else 
 		{
+			// make sure the current source is first in the list
+			srcList.add( currSrc );
+
 			final Set< SourceAndConverter< ? > > visibleSources = viewer.state().getVisibleSources();
+			// add all other sources
 			// exclude the box display source which has a Void type
 			visibleSources.removeIf( x -> { return x.getSpimSource().getType() == null; } );
-			visibleSources.forEach( x -> srcList.add( (SourceAndConverter<T>)x ) );
+			visibleSources.forEach( x -> {
+				if( x != currSrc ) // this check so that we don't double add the current source
+					srcList.add( (SourceAndConverter<T>)x );
+			});
 		}
 
 		// if exporting to a single stack, check that the types are all equal
@@ -574,8 +579,19 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 
 		final List< RandomAccessibleInterval< T > > imgList = new ArrayList<>();
 		int i = 0;
+		Interval[] intervals = new Interval[ srcList.size() ];
 		for( SourceAndConverter< ? > sac : srcList )
-			imgList.add( cropSource( ( Source< T > ) sac.getSpimSource(), scales[ i++ ] ) );
+		{
+			Source< T > src = ( Source< T > ) sac.getSpimSource();
+			int level = scales[ i ];
+			final Interval pixItvl = getPixelInterval( src, level );
+
+			// save the interval for later
+			intervals[ i ] = pixItvl;
+
+			imgList.add( cropSource( src, pixItvl, level) );
+			i++;
+		}
 
 		if( doStack )
 		{
@@ -587,10 +603,9 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 
 			final RandomAccessibleInterval< T > imgTmp = Views.stack( imgList );
 			final RandomAccessibleInterval< T > imgP = Views.moveAxis( imgTmp, imgTmp.numDimensions() - 1, 2 );
-			final ImagePlus imp = ImageJFunctions.wrap( imgP, "concatenated_crop" );
+			final ImagePlus imp = ImageJFunctions.wrap( imgP, "multichannel crop" );
 			updateDisplayRange( imp, srcList.get( 0 ));
-			updateResolution( imp, srcList.get( 0 ), selectedLevel );
-			updateOffset( imp, model.getInterval() );
+			updateResolutionOffset( imp, srcList.get( 0 ).getSpimSource(), intervals[0], selectedLevel );
 			imp.show();
 			return new ImagePlus[] { imp };
 		}
@@ -599,6 +614,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 			final ImagePlus[] results = new ImagePlus[ imgList.size() ];
 			for( i = 0; i < imgList.size(); i++ )
 			{
+				// TODO need different interval here than for the stacked case
 				final RandomAccessibleInterval< T > imgTmp = imgList.get( i );
 				final RandomAccessibleInterval< T > img;
 				if( imgTmp.numDimensions() == 3 )
@@ -608,8 +624,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 
 				final ImagePlus imp = ImageJFunctions.wrap( img, srcList.get( i ).getSpimSource().getName() + "+_crop" );
 				updateDisplayRange( imp, srcList.get( i ) );
-				updateResolution( imp, srcList.get( i ), selectedLevel );
-				updateOffset( imp, model.getInterval() );
+				updateResolutionOffset( imp, srcList.get( 0 ).getSpimSource(), intervals[ i ], scales[ i ] );
 				results[i] = imp;
 				imp.show();
 			}
@@ -617,16 +632,17 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		}
 	}
 
-	public <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<T> cropSource( Source<T> src, int level )
+	public <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<T> cropSource( Source<T> src, 
+			Interval pixItvl,
+			int level )
 	{
 		final RandomAccessibleInterval< T > img = src.getSource( 0, level );
-		Interval pixItvl = getPixelInterval( src, selectedLevel );
 		final IntervalView< T > cropImg = Views.interval( Views.extendZero( img ), pixItvl );
 		return cropImg;
 	}
 
 	/**
-	 * Modifies the displayrange of the ImagePlus using the provided SourceAndConverter,
+	 * Modifies the display range of the ImagePlus using the provided SourceAndConverter,
 	 * if possible
 	 * 
 	 * @param imp the ImagePlus
@@ -643,20 +659,20 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		}
 	}
 
-	private static void updateOffset( ImagePlus imp, RealInterval itvl )
-	{
-		imp.getCalibration().xOrigin = itvl.realMin( 0 );
-		imp.getCalibration().yOrigin = itvl.realMin( 1 );
-		imp.getCalibration().zOrigin = itvl.realMin( 2 );
-	}
-
-	private static void updateResolution( ImagePlus imp, SourceAndConverter<?> sac, int level )
+	private static void updateResolutionOffset( ImagePlus imp, Source<?> src, Interval itvl, int level )
 	{
 		AffineTransform3D tmp = new AffineTransform3D();
-		sac.getSpimSource().getSourceTransform( 0, level, tmp );
-		imp.getCalibration().pixelWidth = tmp.get( 0, 0 );
-		imp.getCalibration().pixelHeight = tmp.get( 1, 1 );
-		imp.getCalibration().pixelDepth = tmp.get( 2, 2 );
+		src.getSourceTransform( 0, level, tmp );
+		final double sx = tmp.get( 0, 0 );
+		final double sy = tmp.get( 1, 1 );
+		final double sz = tmp.get( 2, 2 );
+		imp.getCalibration().pixelWidth = sx;
+		imp.getCalibration().pixelHeight = sy;
+		imp.getCalibration().pixelDepth = sz;
+
+		imp.getCalibration().xOrigin = sx * itvl.min( 0 ) + tmp.get( 0, 3 );
+		imp.getCalibration().yOrigin = sy * itvl.min( 1 ) + tmp.get( 1, 3 );
+		imp.getCalibration().zOrigin = sz * itvl.min( 2 ) + tmp.get( 2, 3 );
 	}
 
 	public static FinalRealInterval transformedBoundingBox( RealTransform xfm, RealInterval interval )
