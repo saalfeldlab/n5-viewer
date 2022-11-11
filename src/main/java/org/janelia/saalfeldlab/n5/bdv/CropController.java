@@ -61,6 +61,7 @@ import net.imglib2.view.Views;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ * @author John Bogovic &lt;bogovicj@janelia.hhmi.org&gt;
  */
 public class CropController< T extends NumericType< T > & NativeType< T > >
 {
@@ -94,9 +95,9 @@ public class CropController< T extends NumericType< T > & NativeType< T > >
 		this.viewer = viewer;
 		this.sources = sources;
 
-		inputAdder = config.inputTriggerAdder( inputTriggerMap, "crop" );
+		inputAdder = config.inputTriggerAdder( inputTriggerMap, "cropLegacy" );
 
-		new Crop( "crop", "SPACE" ).register();
+		new Crop( "cropLegacy", "ctrl SPACE" ).register();
 
 		inputActionBindings.addActionMap( "select", ksActionMap );
 		inputActionBindings.addInputMap( "select", ksInputMap );
