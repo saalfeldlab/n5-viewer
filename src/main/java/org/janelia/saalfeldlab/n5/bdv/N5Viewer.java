@@ -8,18 +8,58 @@
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
  * #L%
  */
 package org.janelia.saalfeldlab.n5.bdv;
+
+import java.awt.Frame;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import javax.swing.ActionMap;
+import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.SwingUtilities;
+
+import org.janelia.saalfeldlab.control.mcu.MCUBDVControls;
+import org.janelia.saalfeldlab.control.mcu.XTouchMiniMCUControlPanel;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.tools.boundingbox.BoxCrop;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
+import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalSpatialMetadata;
+import org.janelia.saalfeldlab.n5.ui.DataSelection;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.Actions;
+import org.scijava.ui.behaviour.util.InputActionBindings;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.BigDataViewer;
 import bdv.cache.SharedQueue;
@@ -29,7 +69,12 @@ import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.transformation.TransformedSource;
 import bdv.ui.splitpanel.SplitPanel;
-import bdv.util.*;
+import bdv.util.BdvFunctions;
+import bdv.util.BdvHandle;
+import bdv.util.BdvHandleFrame;
+import bdv.util.BdvHandlePanel;
+import bdv.util.BdvOptions;
+import bdv.util.Prefs;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerFrame;
@@ -50,31 +95,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.tools.boundingbox.BoxCrop;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.metadata.*;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalSpatialMetadata;
-import org.janelia.saalfeldlab.n5.ui.DataSelection;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.util.Actions;
-import org.scijava.ui.behaviour.util.InputActionBindings;
-import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
-
-import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import javax.swing.ActionMap;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
 
 
 /**
@@ -130,18 +150,18 @@ public class N5Viewer {
 		final List< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
 
 		final List<N5Metadata> selected = new ArrayList<>();
-		for( N5Metadata meta : dataSelection.metadata )
+		for( final N5Metadata meta : dataSelection.metadata )
 		{
 			if( meta instanceof N5ViewerMultichannelMetadata )
 			{
-				N5ViewerMultichannelMetadata mc = (N5ViewerMultichannelMetadata)meta;
-				for( MultiscaleMetadata<?> m : mc.getChildrenMetadata() )
+				final N5ViewerMultichannelMetadata mc = (N5ViewerMultichannelMetadata)meta;
+				for( final MultiscaleMetadata<?> m : mc.getChildrenMetadata() )
 					selected.add( m );
 			}
 			else if ( meta instanceof CanonicalMultichannelMetadata )
 			{
-				CanonicalMultichannelMetadata mc = (CanonicalMultichannelMetadata)meta;
-				for( N5Metadata m : mc.getChildrenMetadata() )
+				final CanonicalMultichannelMetadata mc = (CanonicalMultichannelMetadata)meta;
+				for( final N5Metadata m : mc.getChildrenMetadata() )
 					selected.add( m );
 			}
 			else
@@ -160,7 +180,7 @@ public class N5Viewer {
 			options = options.is2D();
 		}
 
-		for (SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
+		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
 			if (bdvHandle == null) {
 				if (wantFrame) {
 					// Create and show a BdvHandleFrame with the first source
@@ -181,7 +201,7 @@ public class N5Viewer {
 		this.bdv = bdvHandle;
 
 		if (bdv != null) {
-			ViewerPanel viewerPanel = bdv.getViewerPanel();
+			final ViewerPanel viewerPanel = bdv.getViewerPanel();
 			if (viewerPanel != null) {
 				viewerPanel.setNumTimepoints(numTimepoints);
 				initCropController( sources );
@@ -189,7 +209,7 @@ public class N5Viewer {
 				viewerPanel.addComponentListener(new ComponentAdapter() {
 					boolean needsInit = true;
 					@Override
-					public void componentShown(ComponentEvent e) {
+					public void componentShown(final ComponentEvent e) {
 						if (needsInit) {
 							InitializeViewerState.initTransform(viewerPanel);
 							needsInit = false;
@@ -202,17 +222,34 @@ public class N5Viewer {
 		if( bdv instanceof BdvHandleFrame )
 		{
 			// add crop to menu bar
-			BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
+			final BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
 			final ViewerFrame viewerFrame = bdvFrame.getBigDataViewer().getViewerFrame();
 			final JMenuBar menuBar = viewerFrame.getJMenuBar();
 			final ActionMap actionMap = viewerFrame.getKeybindings().getConcatenatedActionMap();
 
-			JMenu toolsMenu = menuBar.getMenu( 2 );
+			final JMenu toolsMenu = menuBar.getMenu( 2 );
 			final JMenuItem cropItem = new JMenuItem( actionMap.get( "crop" ));
 			cropItem.setText( "Extract to ImageJ" );
 			toolsMenu.add( cropItem );
-		}
 
+			/* create XTouchMini midi controller */
+			try {
+				final XTouchMiniMCUControlPanel controlPanel = XTouchMiniMCUControlPanel.build();
+				new MCUBDVControls(
+						bdv.getBdvHandle().getViewerPanel(),
+						controlPanel);
+
+				((JFrame)SwingUtilities.getWindowAncestor(bdv.getBdvHandle().getViewerPanel())).addWindowListener(new WindowAdapter(){
+
+				    @Override
+					public void windowClosing(final WindowEvent e){
+				    	controlPanel.close();
+				    }
+
+				});
+
+			} catch (final Exception e) {}
+		}
 	}
 
 	public < T extends NumericType< T > & NativeType< T >,
@@ -224,16 +261,16 @@ public class N5Viewer {
 		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
 
 		final List<N5Metadata> selected = new ArrayList<>();
-		for( N5Metadata meta : selection.metadata )
+		for( final N5Metadata meta : selection.metadata )
 		{
 			if( meta instanceof N5ViewerMultichannelMetadata )
 			{
-				N5ViewerMultichannelMetadata mc = (N5ViewerMultichannelMetadata)meta;
+				final N5ViewerMultichannelMetadata mc = (N5ViewerMultichannelMetadata)meta;
 				selected.addAll(Arrays.asList(mc.getChildrenMetadata()));
 			}
 			else if ( meta instanceof CanonicalMultichannelMetadata )
 			{
-				CanonicalMultichannelMetadata mc = (CanonicalMultichannelMetadata)meta;
+				final CanonicalMultichannelMetadata mc = (CanonicalMultichannelMetadata)meta;
 				selected.addAll(Arrays.asList(mc.getChildrenMetadata()));
 			}
 			else
@@ -246,7 +283,7 @@ public class N5Viewer {
 		buildN5Sources(selection.n5, selected, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
 
 
-		for (SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
+		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
 			BdvFunctions.show(sourcesAndConverter, BdvOptions.options().addTo(bdv));
 		}
 	}
@@ -273,10 +310,10 @@ public class N5Viewer {
 			final String srcName = metadata.getName();
 			if (metadata instanceof N5SingleScaleMetadata) {
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata) metadata;
-				String[] tmpDatasets= new String[]{ singleScaleDataset.getPath() };
-				AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{ singleScaleDataset.spatialTransform3d() };
+				final String[] tmpDatasets= new String[]{ singleScaleDataset.getPath() };
+				final AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{ singleScaleDataset.spatialTransform3d() };
 
-				MultiscaleDatasets msd = MultiscaleDatasets.sort( tmpDatasets, tmpTransforms );
+				final MultiscaleDatasets msd = MultiscaleDatasets.sort( tmpDatasets, tmpTransforms );
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
 			} else if (metadata instanceof N5MultiScaleMetadata) {
@@ -293,12 +330,12 @@ public class N5Viewer {
 				transforms = new AffineTransform3D[]{ canonicalDataset.getSpatialTransform().spatialTransform3d() };
 			} else if (metadata instanceof N5CosemMultiScaleMetadata ) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata) metadata;
-				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
+				final MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
 			} else if (metadata instanceof CanonicalMultiscaleMetadata ) {
 				final CanonicalMultiscaleMetadata multiScaleDataset = (CanonicalMultiscaleMetadata) metadata;
-				MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
+				final MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
 			}
@@ -322,7 +359,7 @@ public class N5Viewer {
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
 			for ( int s = 0; s < images.length; ++s )
 			{
-				CachedCellImg<?, ?> vimg = N5Utils.openVolatile( n5, datasetsToOpen[s] );
+				final CachedCellImg<?, ?> vimg = N5Utils.openVolatile( n5, datasetsToOpen[s] );
 				if( vimg.numDimensions() == 2 )
 				{
 					images[ s ] = Views.addDimension(vimg, 0, 0);
@@ -350,7 +387,7 @@ public class N5Viewer {
 			addSourceToListsGenericType( volatileSource, i + 1, numTimepoints, volatileSource.getType(), converterSetups, sourcesAndConverters );
 		}
 
-		for( MetadataSource src : additionalSources ) {
+		for( final MetadataSource src : additionalSources ) {
 			if( src.numTimePoints() > numTimepoints )
 				numTimepoints = src.numTimePoints();
 
@@ -366,7 +403,7 @@ public class N5Viewer {
 		ViewerFrame viewerFrame = null;
 		if( bdv instanceof BdvHandleFrame )
 		{
-			BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
+			final BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
 			config = bdvFrame.getBigDataViewer().getKeymapManager().getForwardSelectedKeymap().getConfig();
 			viewerFrame = bdvFrame.getBigDataViewer().getViewerFrame();
 		}
@@ -419,7 +456,7 @@ public class N5Viewer {
 		{
 			// set action for crop item in menu bar
 			final InputActionBindings inputActionBindings = viewerFrame.getKeybindings();
-			Actions actions = new Actions(config, "bdv");
+			final Actions actions = new Actions(config, "bdv");
 			actions.install( inputActionBindings, "crop" );
 			actions.runnableAction( () -> { cropController.click( 0, 0); },
 				"crop", "SPACE" );
