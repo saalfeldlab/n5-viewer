@@ -34,9 +34,9 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import bdv.tools.boundingbox.AbstractTransformedBoxModel.IntervalChangedListener;
 import bdv.tools.boundingbox.BoxDisplayModePanel;
 import bdv.tools.boundingbox.BoxSelectionOptions;
+import bdv.tools.boundingbox.BoxSelectionOptions.TimepointSelection;
 import bdv.tools.boundingbox.TransformedRealBoxSelectionDialog;
 import bdv.util.MipmapTransforms;
-import bdv.tools.boundingbox.BoxSelectionOptions.TimepointSelection;
 import bdv.viewer.AbstractViewerPanel;
 import bdv.viewer.ConverterSetups;
 import bdv.viewer.Source;
@@ -60,9 +60,9 @@ import net.imglib2.realtransform.RealTransform;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import net.imglib2.util.Util;
 
 public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickBehaviour, ViewerStateChangeListener
 {
@@ -128,7 +128,14 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		});
 
 		// add actions
-		super.buttons.onOk( () -> crop() );
+		super.buttons.onOk( () -> {
+			crop();
+			viewer.state().changeListeners().remove( this );
+		} );
+
+		super.buttons.onCancel( () -> {
+			viewer.state().changeListeners().remove( this );
+		} );
 	}
 
 	@Override
@@ -137,6 +144,8 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		// creating the box source makes the selection the current source.
 		// so store the current source here, and make it current 
 		currSrc = viewer.state().getCurrentSource();
+		viewer.state().changeListeners().add( this );
+
 		updateScales();
 
 		// reset scale levels
@@ -799,6 +808,11 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		{
 			// need to guard agains the current source being the selection source (which has null type)
 			SourceAndConverter< ? > tmpSrc = viewer.state().getCurrentSource();
+
+			// should not be necessary, but being extra careful
+			if ( tmpSrc == null )
+				return;
+
 			if( tmpSrc.getSpimSource().getType() != null )
 				currSrc = tmpSrc;
 
