@@ -42,14 +42,34 @@
 				<role>maintainer</role>
 			</roles>
 		</developer>
+		<developer>
+			<id>bogovicj</id>
+			<name>John Bogovic</name>
+			<url>http://imagej.net/User:Bogovic</url>
+			<roles>
+				<role>lead</role>
+				<role>developer</role>
+				<role>debugger</role>
+				<role>reviewer</role>
+				<role>support</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
+		<developer>
+			<id>axtimwalde</id>
+			<name>Stephan Saalfeld</name>
+			<url>https://imagej.net/people/axtimwalde</url>
+			<roles>
+				<role>lead</role>
+				<role>developer</role>
+				<role>debugger</role>
+				<role>reviewer</role>
+				<role>support</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
 	</developers>
 	<contributors>
-		<contributor>
-			<name>Stephan Saalfeld</name>
-			<properties>
-				<id>axtimwalde</id>
-			</properties>
-		</contributor>
 		<contributor>
 			<name>Andrew Champion</name>
 			<properties>
@@ -57,9 +77,21 @@
 			</properties>
 		</contributor>
 		<contributor>
-			<name>John Bogovic</name>
+			<name>Tobias Pietzsch</name>
 			<properties>
-				<id>bogovicj</id>
+				<id>tpietzsch</id>
+			</properties>
+		</contributor>
+		<contributor>
+			<name>Caleb Hulbert</name>
+			<properties>
+				<id>cmhulbert</id>
+			</properties>
+		</contributor>
+		<contributor>
+			<name>Konrad Rokicki</name>
+			<properties>
+				<id>rokickik</id>
 			</properties>
 		</contributor>
 	</contributors>
