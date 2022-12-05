@@ -66,7 +66,6 @@ import bdv.cache.SharedQueue;
 import bdv.tools.InitializeViewerState;
 import bdv.tools.boundingbox.BoxSelectionOptions;
 import bdv.tools.brightness.ConverterSetup;
-import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.transformation.TransformedSource;
 import bdv.ui.splitpanel.SplitPanel;
 import bdv.util.BdvFunctions;
@@ -75,6 +74,8 @@ import bdv.util.BdvHandleFrame;
 import bdv.util.BdvHandlePanel;
 import bdv.util.BdvOptions;
 import bdv.util.Prefs;
+import bdv.util.volatiles.VolatileTypeMatcher;
+import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerFrame;
@@ -84,9 +85,9 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converter;
-import net.imglib2.display.RealARGBColorConverter;
-import net.imglib2.display.ScaledARGBConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
@@ -95,6 +96,9 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+
+import static bdv.BigDataViewer.createConverterToARGB;
+import static bdv.BigDataViewer.wrapWithTransformedSource;
 
 
 /**
@@ -147,7 +151,7 @@ public class N5Viewer {
 		//       They either need to be deleted from here or integrated somehow.
 		final List< ConverterSetup > converterSetups = new ArrayList<>();
 
-		final List< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
+		final List< SourceAndConverter< T > > sourcesAndConverters = new ArrayList<>();
 
 		final List<N5Metadata> selected = new ArrayList<>();
 		for( final N5Metadata meta : dataSelection.metadata )
@@ -169,7 +173,7 @@ public class N5Viewer {
 		}
 
 		final List<N5Source<T>> sources = new ArrayList<>();
-		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
+		final List<N5Source<V>> volatileSources = new ArrayList<>();
 
 		buildN5Sources(dataSelection.n5, selected, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
 
@@ -258,7 +262,7 @@ public class N5Viewer {
 			void addData( final DataSelection selection ) throws IOException
 	{
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
-		final ArrayList< SourceAndConverter< ? > > sourcesAndConverters = new ArrayList<>();
+		final ArrayList< SourceAndConverter< T > > sourcesAndConverters = new ArrayList<>();
 
 		final List<N5Metadata> selected = new ArrayList<>();
 		for( final N5Metadata meta : selection.metadata )
@@ -278,7 +282,7 @@ public class N5Viewer {
 		}
 
 		final List<N5Source<T>> sources = new ArrayList<>();
-		final List<N5VolatileSource<T, V>> volatileSources = new ArrayList<>();
+		final List<N5Source<V>> volatileSources = new ArrayList<>();
 
 		buildN5Sources(selection.n5, selected, sharedQueue, converterSetups, sourcesAndConverters, sources, volatileSources);
 
@@ -294,9 +298,9 @@ public class N5Viewer {
 		final List<N5Metadata> selectedMetadata,
 		final SharedQueue sharedQueue,
 		final List< ConverterSetup > converterSetups,
-		final List< SourceAndConverter< ? > > sourcesAndConverters,
+		final List< SourceAndConverter< T > > sourcesAndConverters,
 		final List<N5Source<T>> sources,
-		final List<N5VolatileSource<T, V>> volatileSources) throws IOException
+		final List<N5Source<V>> volatileSources) throws IOException
 	{
 		final ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
 
@@ -372,26 +376,53 @@ public class N5Viewer {
 				}
 			}
 
-			@SuppressWarnings( "unchecked" )
+			final RandomAccessibleInterval[] vimages = new RandomAccessibleInterval[images.length];
+			for (int s = 0; s < images.length; ++s) {
+				final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, 0, true);
+				vimages[s] = VolatileViews.wrapAsVolatile(images[s], sharedQueue, cacheHints);
+			}
+			// TODO: Ideally, the volatile views should use a caching strategy
+			//   where blocks are enqueued with reverse resolution level as
+			//   priority. However, this would require to predetermine the number
+			//   of resolution levels, which would man a lot of duplicated code
+			//   for analyzing selectedMetadata. Instead, wait until SharedQueue
+			//   supports growing numPriorities, then revisit.
+			//   See https://github.com/imglib/imglib2-cache/issues/18.
+			//   Probably it should look like this:
+//			sharedQueue.ensureNumPriorities(images.length);
+//			for (int s = 0; s < images.length; ++s) {
+//				final int priority = images.length - 1 - s;
+//				final CacheHints cacheHints = new CacheHints(LoadingStrategy.BUDGETED, priority, false);
+//				vimages[s] = VolatileViews.wrapAsVolatile(images[s], sharedQueue, cacheHints);
+//			}
+
+			@SuppressWarnings("unchecked")
+			final T type = (T) Util.getTypeFromInterval(images[0]);
 			final N5Source<T> source = new N5Source<>(
-					(T) Util.getTypeFromInterval(images[0]),
+					type,
 					srcName,
 					images,
 					transforms);
 
-			final N5VolatileSource<T, V> volatileSource = source.asVolatile(sharedQueue);
+			@SuppressWarnings("unchecked")
+			final V volatileType = (V) VolatileTypeMatcher.getVolatileTypeForType(type);
+			final N5Source<V> volatileSource = new N5Source<>(
+					volatileType,
+					srcName,
+					vimages,
+					transforms);
 
 			sources.add(source);
 			volatileSources.add(volatileSource);
 
-			addSourceToListsGenericType( volatileSource, i + 1, numTimepoints, volatileSource.getType(), converterSetups, sourcesAndConverters );
+			addSourceToListsGenericType(source, volatileSource, i + 1, converterSetups, sourcesAndConverters);
 		}
 
 		for( final MetadataSource src : additionalSources ) {
 			if( src.numTimePoints() > numTimepoints )
 				numTimepoints = src.numTimePoints();
 
-			addSourceToListsGenericType( src, i + 1, src.numTimePoints(), src.getType(), converterSetups, sourcesAndConverters );
+			addSourceToListsGenericType( src, i + 1, converterSetups, sourcesAndConverters );
 		}
 	}
 
@@ -473,11 +504,7 @@ public class N5Viewer {
 	 * @param source
 	 *            source to add.
 	 * @param setupId
-	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
-	 * @param numTimepoints
-	 *            the number of timepoints of the source.
-	 * @param type
-	 *            instance of the {@code img} type.
+	 *            id of the new source for use in {@code SetupAssignments}.
 	 * @param converterSetups
 	 *            list of {@link ConverterSetup}s to which the source should be
 	 *            added.
@@ -487,19 +514,42 @@ public class N5Viewer {
 	 */
 	@SuppressWarnings( { "rawtypes", "unchecked" } )
 	private static < T > void addSourceToListsGenericType(
-			final Source source,
+			final Source< T > source,
 			final int setupId,
-			final int numTimepoints,
-			final T type,
 			final List< ConverterSetup > converterSetups,
-			final List< SourceAndConverter< ? > > sources )
+			final List< SourceAndConverter< T > > sources )
 	{
-		if ( type instanceof RealType ) {
-			addSourceToListsRealType(source, setupId, converterSetups, ( List ) sources );
-		} else if ( type instanceof ARGBType )
-			addSourceToListsARGBType(source, setupId, converterSetups, ( List ) sources );
-		else if ( type instanceof VolatileARGBType )
-			addSourceToListsVolatileARGBType(source, setupId, converterSetups, ( List ) sources );
+		addSourceToListsGenericType( source, null, setupId, converterSetups, sources );
+	}
+
+	/**
+	 * Add the given {@code source} to the lists of {@code converterSetups}
+	 * (using specified {@code setupId}) and {@code sources}. For this, the
+	 * {@code source} is wrapped with an appropriate {@link Converter} to
+	 * {@link ARGBType} and into a {@link TransformedSource}.
+	 *
+	 * @param source
+	 *            source to add.
+	 * @param setupId
+	 *            id of the new source for use in {@code SetupAssignments}.
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup}s to which the source should be
+	 *            added.
+	 * @param sources
+	 *            list of {@link SourceAndConverter}s to which the source should
+	 *            be added.
+	 */
+	@SuppressWarnings( { "rawtypes", "unchecked" } )
+	private static < T, V extends Volatile< T > > void addSourceToListsGenericType(
+			final Source< T > source,
+			final Source< V > volatileSource,
+			final int setupId,
+			final List< ConverterSetup > converterSetups,
+			final List< SourceAndConverter< T > > sources )
+	{
+		final T type = source.getType();
+		if ( type instanceof RealType || type instanceof ARGBType || type instanceof VolatileARGBType )
+			addSourceToListsNumericType( ( Source ) source, ( Source ) volatileSource, setupId, converterSetups, ( List ) sources );
 		else
 			throw new IllegalArgumentException( "Unknown source type. Expected RealType, ARGBType, or VolatileARGBType" );
 	}
@@ -507,13 +557,15 @@ public class N5Viewer {
 	/**
 	 * Add the given {@code source} to the lists of {@code converterSetups}
 	 * (using specified {@code setupId}) and {@code sources}. For this, the
-	 * {@code source} is wrapped with a {@link RealARGBColorConverter} and into
-	 * a {@link TransformedSource}.
+	 * {@code source} is wrapped with an appropriate {@link Converter} to
+	 * {@link ARGBType} and into a {@link TransformedSource}.
 	 *
 	 * @param source
 	 *            source to add.
+	 * @param volatileSource
+	 *            corresponding volatile source.
 	 * @param setupId
-	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
+	 *            id of the new source for use in {@code SetupAssignments}.
 	 * @param converterSetups
 	 *            list of {@link ConverterSetup}s to which the source should be
 	 *            added.
@@ -521,90 +573,20 @@ public class N5Viewer {
 	 *            list of {@link SourceAndConverter}s to which the source should
 	 *            be added.
 	 */
-	private static < T extends RealType< T > > void addSourceToListsRealType(
+	private static < T extends NumericType< T >, V extends Volatile< T > & NumericType< V > > void addSourceToListsNumericType(
 			final Source< T > source,
+			final Source< V > volatileSource,
 			final int setupId,
 			final List< ConverterSetup > converterSetups,
 			final List< SourceAndConverter< T > > sources )
 	{
-		final T type = Util.getTypeFromInterval( source.getSource( 0, 0 ) );
-		final double typeMin = Math.max( 0, Math.min( type.getMinValue(), 65535 ) );
-		final double typeMax = Math.max( 0, Math.min( type.getMaxValue(), 65535 ) );
-		final RealARGBColorConverter< T > converter = RealARGBColorConverter.create( source.getType(), typeMin, typeMax );
-		converter.setColor( new ARGBType( 0xffffffff ) );
+		final SourceAndConverter< V > vsoc = ( volatileSource == null )
+				? null
+				: new SourceAndConverter<>( volatileSource, createConverterToARGB( volatileSource.getType() ) );
+		final SourceAndConverter< T > soc = new SourceAndConverter<>( source, createConverterToARGB( source.getType() ), vsoc );
+		final SourceAndConverter< T > tsoc = wrapWithTransformedSource( soc );
 
-		final TransformedSource< T > ts = new TransformedSource<>( source );
-		final SourceAndConverter< T > soc = new SourceAndConverter<>( ts, converter );
-
-		final RealARGBColorConverterSetup setup = new RealARGBColorConverterSetup( setupId, converter );
-
-		converterSetups.add( setup );
-		sources.add( soc );
-	}
-
-	/**
-	 * Add the given {@code source} to the lists of {@code converterSetups}
-	 * (using specified {@code setupId}) and {@code sources}. For this, the
-	 * {@code source} is wrapped with a {@link ScaledARGBConverter.ARGB} and
-	 * into a {@link TransformedSource}.
-	 *
-	 * @param source
-	 *            source to add.
-	 * @param setupId
-	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
-	 * @param converterSetups
-	 *            list of {@link ConverterSetup}s to which the source should be
-	 *            added.
-	 * @param sources
-	 *            list of {@link SourceAndConverter}s to which the source should
-	 *            be added.
-	 */
-	private static void addSourceToListsARGBType(
-			final Source< ARGBType > source,
-			final int setupId,
-			final List< ConverterSetup > converterSetups,
-			final List< SourceAndConverter< ARGBType > > sources )
-	{
-		final TransformedSource< ARGBType > ts = new TransformedSource<>( source );
-		final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
-		final SourceAndConverter< ARGBType > soc = new SourceAndConverter<>( ts, converter );
-
-		final RealARGBColorConverterSetup setup = new RealARGBColorConverterSetup( setupId, converter );
-
-		converterSetups.add( setup );
-		sources.add( soc );
-	}
-
-	/**
-	 * Add the given {@code source} to the lists of {@code converterSetups}
-	 * (using specified {@code setupId}) and {@code sources}. For this, the
-	 * {@code source} is wrapped with a {@link ScaledARGBConverter.ARGB} and
-	 * into a {@link TransformedSource}.
-	 *
-	 * @param source
-	 *            source to add.
-	 * @param setupId
-	 *            id of the new source for use in {@link bdv.tools.brightness.SetupAssignments}.
-	 * @param converterSetups
-	 *            list of {@link ConverterSetup}s to which the source should be
-	 *            added.
-	 * @param sources
-	 *            list of {@link SourceAndConverter}s to which the source should
-	 *            be added.
-	 */
-	private static void addSourceToListsVolatileARGBType(
-			final Source< VolatileARGBType > source,
-			final int setupId,
-			final List< ConverterSetup > converterSetups,
-			final List< SourceAndConverter< VolatileARGBType > > sources )
-	{
-		final TransformedSource< VolatileARGBType > ts = new TransformedSource<>( source );
-		final ScaledARGBConverter.VolatileARGB converter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
-		final SourceAndConverter< VolatileARGBType > soc = new SourceAndConverter<>( ts, converter );
-
-		final RealARGBColorConverterSetup setup = new RealARGBColorConverterSetup( setupId, converter );
-
-		converterSetups.add( setup );
-		sources.add( soc );
+		converterSetups.add( BigDataViewer.createConverterSetup( tsoc, setupId ) );
+		sources.add( tsoc );
 	}
 }

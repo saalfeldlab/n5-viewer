@@ -21,17 +21,11 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
-import bdv.cache.SharedQueue;
 import bdv.util.AbstractSource;
-import bdv.util.volatiles.VolatileTypeMatcher;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
-
-import java.util.function.Supplier;
 
 public class N5Source< T extends NumericType< T > > extends AbstractSource< T >
 {
@@ -73,25 +67,5 @@ public class N5Source< T extends NumericType< T > > extends AbstractSource< T >
 	public int getNumMipmapLevels()
 	{
 		return images.length;
-	}
-
-	public < V extends Volatile< T > & NumericType< V > > N5VolatileSource< T, V > asVolatile( final V vType, final SharedQueue queue )
-	{
-		return new N5VolatileSource<>( this, vType, queue );
-	}
-
-	public < V extends Volatile< T > & NumericType< V > > N5VolatileSource< T, V > asVolatile(final Supplier< V > vTypeSupplier, final SharedQueue queue )
-	{
-		return new N5VolatileSource<>( this, vTypeSupplier, queue );
-	}
-
-	@SuppressWarnings( { "unchecked", "rawtypes" } )
-	public < V extends Volatile< T > & NumericType< V > > N5VolatileSource< T, V > asVolatile( final SharedQueue queue )
-	{
-		final T t = getType();
-		if ( t instanceof NativeType )
-			return new N5VolatileSource<>( this, ( V ) VolatileTypeMatcher.getVolatileTypeForType( ( NativeType )getType() ), queue );
-		else
-			throw new UnsupportedOperationException( "This method only works for sources of NativeType." );
 	}
 }
