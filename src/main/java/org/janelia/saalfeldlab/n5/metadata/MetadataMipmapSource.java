@@ -26,6 +26,7 @@ import java.io.IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.N5Source;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.img.CachedCellImg;
@@ -57,8 +58,9 @@ public class MetadataMipmapSource <T extends NumericType<T> & NativeType<T>> ext
 
 	public static RandomAccessibleInterval[] getImgs( N5Reader n5, MultiscaleMetadata<?> metadata ) {
 
-		final RandomAccessibleInterval[] imgs = new RandomAccessibleInterval[ metadata.childrenMetadata.length ];
-		for( int i = 0; i < metadata.childrenMetadata.length; i++ )
+		int N = metadata.getChildrenMetadata().length;
+		final RandomAccessibleInterval[] imgs = new RandomAccessibleInterval[N];
+		for( int i = 0; i < N; i++ )
 			try {
 				imgs[i] = N5Utils.open(n5, metadata.getChildrenMetadata()[i].getPath());
 			} catch (IOException e) { }

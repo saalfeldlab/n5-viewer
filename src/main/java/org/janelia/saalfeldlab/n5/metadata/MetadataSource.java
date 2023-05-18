@@ -28,12 +28,16 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5TreeNode;
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.metadata.axes.AxisMetadata;
-import org.janelia.saalfeldlab.n5.metadata.axes.AxisSlicer;
-import org.janelia.saalfeldlab.n5.metadata.axes.AxisUtils;
-import org.janelia.saalfeldlab.n5.metadata.axes.DefaultAxisMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisSlicer;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.DefaultAxisMetadata;
 
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
