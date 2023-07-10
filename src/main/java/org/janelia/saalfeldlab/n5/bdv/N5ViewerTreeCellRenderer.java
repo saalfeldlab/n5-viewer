@@ -25,10 +25,10 @@ import java.awt.Component;
 
 import javax.swing.JTree;
 
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.ui.N5DatasetTreeCellRenderer;
 import org.janelia.saalfeldlab.n5.ui.N5SwingTreeNode;
 

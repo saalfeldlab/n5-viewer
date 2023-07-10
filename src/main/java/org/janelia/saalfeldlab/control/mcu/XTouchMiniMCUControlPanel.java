@@ -128,8 +128,8 @@ public class XTouchMiniMCUControlPanel extends MCUControlPanel {
 	/**
 	 * Reset all controls.
 	 *
-	 * @throws InterruptedException
-	 * @throws InvalidMidiDataException
+	 * @throws InterruptedException if interrupted
+	 * @throws InvalidMidiDataException if midi data are invalid
 	 */
 	public void reset() throws InterruptedException, InvalidMidiDataException {
 

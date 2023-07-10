@@ -44,17 +44,19 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.tools.boundingbox.BoxCrop;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
-import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultichannelMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalSpatialMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalSpatialMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
@@ -131,10 +133,14 @@ public class N5Viewer {
 
 	/**
 	 * Creates a new N5Viewer with the given data sets.
+	 * 
+	 * @param <T> the image data type
+	 * @param <V> the image volatile data type
+	 * @param <R> the n5 reader type
 	 * @param parentFrame parent frame, can be null
 	 * @param dataSelection data sets to display
 	 * @param wantFrame if true, use BdvHandleFrame and display a window. If false, use a BdvHandlePanel and do not display anything.
-	 * @throws IOException
+	 * @throws IOException if data could not be read
 	 */
 	public < T extends NumericType< T > & NativeType< T >,
 					V extends Volatile< T > & NumericType< V >,
@@ -332,6 +338,11 @@ public class N5Viewer {
 				final CanonicalSpatialMetadata canonicalDataset = (CanonicalSpatialMetadata) metadata;
 				datasetsToOpen = new String[]{ canonicalDataset.getPath() };
 				transforms = new AffineTransform3D[]{ canonicalDataset.getSpatialTransform().spatialTransform3d() };
+			} else if (metadata instanceof OmeNgffMetadata ) {
+				final OmeNgffMetadata multiScaleDataset = (OmeNgffMetadata) metadata;
+				final MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );
+				datasetsToOpen = msd.getPaths();
+				transforms = msd.getTransforms();
 			} else if (metadata instanceof N5CosemMultiScaleMetadata ) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata) metadata;
 				final MultiscaleDatasets msd = MultiscaleDatasets.sort( multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d() );

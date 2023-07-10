@@ -465,9 +465,10 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 	 *
 	 * @param srcList the source list
 	 * @param affine the affine
+	 * @param tolerance the tolerance within which affines may differ to be "equal"
 	 * @return true if all sources have a matching scale level
 	 */
-	protected boolean findMatchingScaleLevels( List<SourceAndConverter<?>> srcList, AffineTransform3D affine, double threshold )
+	protected boolean findMatchingScaleLevels( List<SourceAndConverter<?>> srcList, AffineTransform3D affine, double tolerance )
 	{
 		scales = new int[ srcList.size() ];
 		Arrays.fill( scales, -1 );
@@ -480,7 +481,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 			for( int j = 0; j < N; j++ )
 			{
 				sac.getSpimSource().getSourceTransform( 0, j, testTransform );
-				if( affineAlmostEqual( testTransform, affine, threshold ))
+				if( affineAlmostEqual( testTransform, affine, tolerance ))
 				{
 					scales[i] = j;
 					continue;

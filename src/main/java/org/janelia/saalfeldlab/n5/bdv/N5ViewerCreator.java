@@ -2,7 +2,16 @@ package org.janelia.saalfeldlab.n5.bdv;
 
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
 import org.janelia.saalfeldlab.n5.metadata.*;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5GenericSingleScaleMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5ViewerMultiscaleMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMetadataParser;
+
+import ij.ImageJ;
+
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
 
 import java.io.IOException;
@@ -22,6 +31,8 @@ import java.util.function.Consumer;
 public class N5ViewerCreator {
 
     public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{
+    		new org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser(),
+//    		new org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v03.OmeNgffMetadataParser(), // TODO test later
             new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
             new N5ViewerMultiscaleMetadataParser(),
             new CanonicalMetadataParser(),
@@ -38,8 +49,9 @@ public class N5ViewerCreator {
     private String lastOpenedContainer = "";
 
     final public static void main(final String... args) {
-        new N5ViewerCreator().openViewer(
-                Throwable::printStackTrace);
+		new ImageJ();
+		ij.Prefs.setThreads(6);
+		new N5ViewerCreator().openViewer(Throwable::printStackTrace);
     }
 
     /**

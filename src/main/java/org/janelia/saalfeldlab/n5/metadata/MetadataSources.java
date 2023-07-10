@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
+
 import bdv.viewer.Source;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;

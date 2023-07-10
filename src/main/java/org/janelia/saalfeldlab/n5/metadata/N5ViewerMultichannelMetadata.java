@@ -29,7 +29,10 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5TreeNode;
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
+import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
 
 public class N5ViewerMultichannelMetadata implements N5MetadataGroup<MultiscaleMetadata<?>> {
 

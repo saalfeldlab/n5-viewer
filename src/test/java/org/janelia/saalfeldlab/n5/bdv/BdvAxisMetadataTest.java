@@ -28,10 +28,10 @@ import java.util.Optional;
 
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadata;
-import org.janelia.saalfeldlab.n5.metadata.canonical.CanonicalMetadataParser;
-import org.janelia.saalfeldlab.n5.translation.JqUtils;
-import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.translation.JqUtils;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
 import org.junit.Before;
 import org.junit.Test;
 
