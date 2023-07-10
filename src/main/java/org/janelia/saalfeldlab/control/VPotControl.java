@@ -63,7 +63,7 @@ public interface VPotControl extends AdjustableClippingIntControl {
 	 *   this into an enum or if we will have to permit other display modes
 	 *   (for which keeping this na integer sounds fair).
 	 *
-	 * @param display
+	 * @param display the display type
 	 */
 	public void setDisplayType(final int display);
 }

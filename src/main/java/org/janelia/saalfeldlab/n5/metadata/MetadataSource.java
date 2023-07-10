@@ -195,7 +195,7 @@ public class MetadataSource <T extends NumericType<T> & NativeType<T>> implement
 	 * The default axes for dialects that store only spatial data (n5viewer and cosem).
 	 *
 	 * @param meta the metadata
-	 * @return axes
+	 * @return axes default axis metadata
 	 */
 	public static DefaultAxisMetadata defaultAxesSpatial( N5DatasetMetadata meta ) {
 

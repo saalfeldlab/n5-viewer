@@ -133,10 +133,14 @@ public class N5Viewer {
 
 	/**
 	 * Creates a new N5Viewer with the given data sets.
+	 * 
+	 * @param <T> the image data type
+	 * @param <V> the image volatile data type
+	 * @param <R> the n5 reader type
 	 * @param parentFrame parent frame, can be null
 	 * @param dataSelection data sets to display
 	 * @param wantFrame if true, use BdvHandleFrame and display a window. If false, use a BdvHandlePanel and do not display anything.
-	 * @throws IOException
+	 * @throws IOException if data could not be read
 	 */
 	public < T extends NumericType< T > & NativeType< T >,
 					V extends Volatile< T > & NumericType< V >,
