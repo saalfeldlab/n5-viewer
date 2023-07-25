@@ -8,12 +8,12 @@
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
@@ -21,8 +21,7 @@
  */
 package org.janelia.saalfeldlab.n5.metadata;
 
-import java.io.IOException;
-
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.N5Source;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -42,8 +41,8 @@ public class MetadataMipmapSource <T extends NumericType<T> & NativeType<T>> ext
 	private int channelDim;
 	private int channelPos;
 
-	public MetadataMipmapSource( N5Reader n5, MultiscaleMetadata<?> metadata, int channelDim, int channelPos ) {
-		super( 
+	public MetadataMipmapSource( final N5Reader n5, final MultiscaleMetadata<?> metadata, final int channelDim, final int channelPos ) {
+		super(
 				getType( n5, metadata ),
 				metadata.getName(),
 				getImgs( n5, metadata ),
@@ -56,34 +55,34 @@ public class MetadataMipmapSource <T extends NumericType<T> & NativeType<T>> ext
 		this.channelPos = channelPos;
 	}
 
-	public static RandomAccessibleInterval[] getImgs( N5Reader n5, MultiscaleMetadata<?> metadata ) {
+	public static RandomAccessibleInterval[] getImgs( final N5Reader n5, final MultiscaleMetadata<?> metadata ) {
 
-		int N = metadata.getChildrenMetadata().length;
+		final int N = metadata.getChildrenMetadata().length;
 		final RandomAccessibleInterval[] imgs = new RandomAccessibleInterval[N];
 		for( int i = 0; i < N; i++ )
 			try {
 				imgs[i] = N5Utils.open(n5, metadata.getChildrenMetadata()[i].getPath());
-			} catch (IOException e) { }
+			} catch (final N5Exception e) { }
 
 		return imgs;
 	}
 
-	public static <T extends NumericType<T> & NativeType<T>> T getType( N5Reader n5, MultiscaleMetadata<?> metadata ) {
+	public static <T extends NumericType<T> & NativeType<T>> T getType( final N5Reader n5, final MultiscaleMetadata<?> metadata ) {
 
 		CachedCellImg<T, ?> img;
 		try {
 			img = N5Utils.open(n5, metadata.getChildrenMetadata()[0].getPath());
 			return Util.getTypeFromInterval(img);
-		} catch (IOException e) {
+		} catch (final N5Exception e) {
 		}
 		return null;
 	}
 
-	public MetadataMipmapSource( N5Reader n5, MultiscaleMetadata<?> metadata ) {
+	public MetadataMipmapSource( final N5Reader n5, final MultiscaleMetadata<?> metadata ) {
 		this( n5, metadata, -1, 0 );
 	}
 
-	public MetadataMipmapSource( N5Reader n5, MultiscaleMetadata<?> metadata, int channelPos ) {
+	public MetadataMipmapSource( final N5Reader n5, final MultiscaleMetadata<?> metadata, final int channelPos ) {
 		this( n5, metadata, -1, channelPos );
 	}
 

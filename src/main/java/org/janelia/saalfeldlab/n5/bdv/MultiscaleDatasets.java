@@ -8,12 +8,12 @@
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
@@ -21,9 +21,9 @@
  */
 package org.janelia.saalfeldlab.n5.bdv;
 
-import java.io.IOException;
 import java.util.Arrays;
 
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
@@ -44,21 +44,21 @@ public class MultiscaleDatasets
 
 	private String unit;
 
-	public MultiscaleDatasets( String[] paths, AffineTransform3D[] transforms, final String unit )
+	public MultiscaleDatasets( final String[] paths, final AffineTransform3D[] transforms, final String unit )
 	{
 		this.paths = paths;
 		this.transforms = transforms;
 		this.unit = unit;
 	}
 
-	public MultiscaleDatasets( String[] paths, AffineTransform3D[] transforms )
+	public MultiscaleDatasets( final String[] paths, final AffineTransform3D[] transforms )
 	{
 		this( paths, transforms, "pixel" );
 	}
 
-	public MultiscaleDatasets( ScaleLevel[] scales )
+	public MultiscaleDatasets( final ScaleLevel[] scales )
 	{
-		int N = scales.length;
+		final int N = scales.length;
 		this.paths = new String[ N ];
 		this.transforms = new AffineTransform3D[ N ];
 		for( int i = 0; i < N; i++ )
@@ -97,7 +97,7 @@ public class MultiscaleDatasets
 				else
 					images[ s ] = N5Utils.open( n5, paths[s] );
 			}
-			catch ( IOException e )
+			catch ( final N5Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -108,7 +108,7 @@ public class MultiscaleDatasets
 		}
 
 		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleIntervalMipmapSource<T> source = new RandomAccessibleIntervalMipmapSource<T>( 
+		final RandomAccessibleIntervalMipmapSource<T> source = new RandomAccessibleIntervalMipmapSource<T>(
 				images,
 				(T)Util.getTypeFromInterval(images[0]),
 				mipmapScales,
@@ -119,12 +119,12 @@ public class MultiscaleDatasets
 		return source;
 	}
 
-	public static MultiscaleDatasets sort( final String[] paths, AffineTransform3D[] transforms )
+	public static MultiscaleDatasets sort( final String[] paths, final AffineTransform3D[] transforms )
 	{
 		assert( paths.length == transforms.length );
 
-		int N = paths.length;
-		ScaleLevel[] scales = new ScaleLevel[ N ];
+		final int N = paths.length;
+		final ScaleLevel[] scales = new ScaleLevel[ N ];
 		for( int i = 0; i < N; i++ )
 		{
 			scales[ i ] = new ScaleLevel( paths[ i ], transforms[ i ] );
@@ -143,18 +143,19 @@ public class MultiscaleDatasets
 		{
 			this.path = path;
 			this.transform = transform;
-			averageScale = (transform.get( 0, 0 ) + 
-							transform.get( 1, 1 ) + 
+			averageScale = (transform.get( 0, 0 ) +
+							transform.get( 1, 1 ) +
 							transform.get( 2, 2 )) / 3;
 		}
 
+		@Override
 		public String toString()
 		{
 			return path + " (" + averageScale + ")";
 		}
 
 		@Override
-		public int compareTo( ScaleLevel o )
+		public int compareTo( final ScaleLevel o )
 		{
 			if( this.averageScale == o.averageScale )
 				return 0;

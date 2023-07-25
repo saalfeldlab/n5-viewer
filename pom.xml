@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>35.1.1</version>
+		<version>36.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -131,18 +131,14 @@
 
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 
-		<imglib2.version>6.1.0</imglib2.version>
-		<imglib2-realtransform.version>4.0.0</imglib2-realtransform.version>
-		<imglib2-cache.version>1.0.0-beta-17</imglib2-cache.version>
-
-
-		<n5.version>3.0.0-SNAPSHOT</n5.version>
-		<n5-hdf5.version>1.3.0</n5-hdf5.version>
-		<n5-google-cloud.version>3.3.3-SNAPSHOT</n5-google-cloud.version>
-		<n5-ij.version>3.2.4-SNAPSHOT</n5-ij.version>
-		<n5-aws-s3.version>3.2.1-SNAPSHOT</n5-aws-s3.version>
-		<n5-zarr.version>0.0.9-SNAPSHOT</n5-zarr.version>
-		<n5-imglib2.version>6.0.0-SNAPSHOT</n5-imglib2.version>
+		<n5.version>3.0.0</n5.version>
+		<n5-hdf5.version>2.0.0</n5-hdf5.version>
+		<n5-google-cloud.version>4.0.0</n5-google-cloud.version>
+		<n5-ij.version>3.2.4</n5-ij.version>
+		<n5-aws-s3.version>4.0.0</n5-aws-s3.version>
+		<n5-zarr.version>1.0.0</n5-zarr.version>
+		<n5-imglib2.version>7.0.0</n5-imglib2.version>
+		<bigdataviewer-core.version>10.4.8</bigdataviewer-core.version>
 
 <!--Not yet managed by pom-scijava-->
 <!--		<n5-universe.version>0.1.1-SNAPSHOT</n5-universe.version>-->
