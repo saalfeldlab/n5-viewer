@@ -15,10 +15,10 @@ import javax.sound.midi.ShortMessage;
 import org.janelia.saalfeldlab.control.VPotControl;
 
 /**
- * V-Pot control using the MCU protocol over MIDI.  MCU V-Pots do not do
+ * V-Pot control using the MCU protocol over MIDI. MCU V-Pots do not do
  * anything meaningful when their value is changed from outside, so the
  * instance does not know about the id of the actual control element but
- * it generates visual feedback via an assigned LED display.  Only 11
+ * it generates visual feedback via an assigned LED display. Only 11
  * LEDs are used because MCU does not permit more.
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -47,8 +47,10 @@ public class MCUVPotControl extends MCUControl implements VPotControl {
 
 	/**
 	 *
-	 * @param led LED display MIDI id associated with this V-Pot
-	 * @param rec MIDI receiver for LED display
+	 * @param led
+	 *            LED display MIDI id associated with this V-Pot
+	 * @param rec
+	 *            MIDI receiver for LED display
 	 */
 	public MCUVPotControl(final int led, final Receiver rec) {
 
@@ -69,16 +71,17 @@ public class MCUVPotControl extends MCUControl implements VPotControl {
 			final double n = max - min;
 			if (listeners.size() == 0) {
 				j = 0;
-			} else switch (ledType) {
-			case DISPLAY_NONE:
-				j = 0;
-				break;
-			case DISPLAY_SPREAD:
-				j = Math.max(1, Math.min(6, (int)Math.floor(6.0 * (value - min) / n) + 1));
-				break;
-			default:
-				j = Math.max(1, Math.min(0xb, (int)Math.floor((double)0xb * (value - min) / n) + 1));
-			}
+			} else
+				switch (ledType) {
+				case DISPLAY_NONE:
+					j = 0;
+					break;
+				case DISPLAY_SPREAD:
+					j = Math.max(1, Math.min(6, (int)Math.floor(6.0 * (value - min) / n) + 1));
+					break;
+				default:
+					j = Math.max(1, Math.min(0xb, (int)Math.floor((double)0xb * (value - min) / n) + 1));
+				}
 			try {
 				ledMsg.setMessage(STATUS, led, ledCode | j);
 				send(ledMsg);
@@ -90,19 +93,20 @@ public class MCUVPotControl extends MCUControl implements VPotControl {
 			if (listeners.size() == 0) {
 				j = 0;
 				k = 0;
-			} else switch (ledType) {
-			case DISPLAY_NONE:
-				j = 0;
-				k = 0;
-				break;
-			case DISPLAY_SPREAD:
-				j = Math.max(1, Math.min(6, (int)Math.floor(6.0 / 14.0 * Math.abs(value) + 3.0) + 1));
-				k = 1;
-				break;
-			default:
-				j = Math.max(1, Math.min(0xb, (int)Math.floor((double)0xb * (value + 7) / 14) + 1));
-				k = 6;
-			}
+			} else
+				switch (ledType) {
+				case DISPLAY_NONE:
+					j = 0;
+					k = 0;
+					break;
+				case DISPLAY_SPREAD:
+					j = Math.max(1, Math.min(6, (int)Math.floor(6.0 / 14.0 * Math.abs(value) + 3.0) + 1));
+					k = 1;
+					break;
+				default:
+					j = Math.max(1, Math.min(0xb, (int)Math.floor((double)0xb * (value + 7) / 14) + 1));
+					k = 6;
+				}
 			try {
 				if (resetTask != null)
 					resetTask.cancel(false);
@@ -112,15 +116,15 @@ public class MCUVPotControl extends MCUControl implements VPotControl {
 				send(ledMsg);
 
 				resetTask = resetExec.schedule(() -> {
-						try {
-							ledMsg.setMessage(STATUS, led, ledCode | k);
-							send(ledMsg);
-							resetTask = null;
-						} catch (final InvalidMidiDataException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}, 200, TimeUnit.MILLISECONDS);
+					try {
+						ledMsg.setMessage(STATUS, led, ledCode | k);
+						send(ledMsg);
+						resetTask = null;
+					} catch (final InvalidMidiDataException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}, 200, TimeUnit.MILLISECONDS);
 			} catch (final InvalidMidiDataException e) {
 				e.printStackTrace();
 			}
@@ -129,7 +133,7 @@ public class MCUVPotControl extends MCUControl implements VPotControl {
 
 	void setValueSilently(final int value) {
 
-		this.value = Math.min(max,  Math.max(min, value));
+		this.value = Math.min(max, Math.max(min, value));
 	}
 
 	@Override
@@ -181,8 +185,8 @@ public class MCUVPotControl extends MCUControl implements VPotControl {
 	@Override
 	void update(final int data) {
 
-		final int d = (0x40 & data) == 0 ? data : - (0x0f & data);
-		setValue(absolute? value + d : d);
+		final int d = (0x40 & data) == 0 ? data : -(0x0f & data);
+		setValue(absolute ? value + d : d);
 	}
 
 	@Override

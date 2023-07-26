@@ -40,7 +40,7 @@ public class MCUButtonControl extends MCUControl implements ButtonControl {
 
 	public void display() {
 
-		if (led  > 0) {
+		if (led > 0) {
 			try {
 				ledMsg.setMessage(STATUS, led, value);
 				send(ledMsg);
@@ -53,7 +53,7 @@ public class MCUButtonControl extends MCUControl implements ButtonControl {
 	@Override
 	public void setValue(final int value) {
 
-		this.value = Math.min(127,  Math.max(0, value));
+		this.value = Math.min(127, Math.max(0, value));
 
 		display();
 
@@ -78,7 +78,8 @@ public class MCUButtonControl extends MCUControl implements ButtonControl {
 	void update(final int data) {
 
 		if (isSwitch) {
-			if (data != 0) setValue(value == 0 ? data : 0);
+			if (data != 0)
+				setValue(value == 0 ? data : 0);
 		} else
 			setValue(data);
 	}

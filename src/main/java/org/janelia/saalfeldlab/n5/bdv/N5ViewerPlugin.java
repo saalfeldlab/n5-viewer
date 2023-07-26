@@ -13,15 +13,15 @@ import ij.plugin.PlugIn;
  */
 public class N5ViewerPlugin implements PlugIn {
 
-    final public static void main( final String... args )
-    {
-        new ImageJ();
-        new N5ViewerPlugin().run( "" );
-    }
+	final public static void main(final String... args) {
 
-    @Override
-    public void run( final String args )
-    {
-        new N5ViewerCreator().openViewer(IJ::handleException);
-    }
+		new ImageJ();
+		new N5ViewerPlugin().run("");
+	}
+
+	@Override
+	public void run(final String args) {
+
+		new N5ViewerCreator().openViewer(IJ::handleException);
+	}
 }

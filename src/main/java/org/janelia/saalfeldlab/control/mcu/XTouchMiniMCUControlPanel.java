@@ -26,7 +26,7 @@ public class XTouchMiniMCUControlPanel extends MCUControlPanel {
 	private final int[] vpotIds = {0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17};
 	private final int[] vpotLedIds = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37};
 	private final MCUVPotControl[] vpots = new MCUVPotControl[8];
-	private final TIntIntHashMap vpotIndexMap  = new TIntIntHashMap(
+	private final TIntIntHashMap vpotIndexMap = new TIntIntHashMap(
 			vpotIds.length,
 			Constants.DEFAULT_LOAD_FACTOR,
 			-1,
@@ -48,7 +48,7 @@ public class XTouchMiniMCUControlPanel extends MCUControlPanel {
 			0x54, 0x55,
 			-1, -1, -1, -1, -1, -1, -1, -1};
 	private final MCUButtonControl[] keys = new MCUButtonControl[26];
-	private final TIntIntHashMap keyIndexMap  = new TIntIntHashMap(
+	private final TIntIntHashMap keyIndexMap = new TIntIntHashMap(
 			keyIds.length,
 			Constants.DEFAULT_LOAD_FACTOR,
 			-1,
@@ -128,8 +128,10 @@ public class XTouchMiniMCUControlPanel extends MCUControlPanel {
 	/**
 	 * Reset all controls.
 	 *
-	 * @throws InterruptedException if interrupted
-	 * @throws InvalidMidiDataException if midi data are invalid
+	 * @throws InterruptedException
+	 *             if interrupted
+	 * @throws InvalidMidiDataException
+	 *             if midi data are invalid
 	 */
 	public void reset() throws InterruptedException, InvalidMidiDataException {
 
@@ -147,7 +149,8 @@ public class XTouchMiniMCUControlPanel extends MCUControlPanel {
 			key.display();
 	}
 
-	public static XTouchMiniMCUControlPanel build(final String deviceDescription) throws InvalidMidiDataException, MidiUnavailableException, InterruptedException {
+	public static XTouchMiniMCUControlPanel build(
+			final String deviceDescription) throws InvalidMidiDataException, MidiUnavailableException, InterruptedException {
 
 		MidiDevice transDev = null;
 		Transmitter trans = null;
@@ -158,7 +161,8 @@ public class XTouchMiniMCUControlPanel extends MCUControlPanel {
 			final MidiDevice device = MidiSystem.getMidiDevice(info);
 			System.out.println(info.getName() + " : " + info.getDescription());
 			final String lowerDeviceDescription = deviceDescription.toLowerCase();
-			if (info.getDescription().toLowerCase().contains(lowerDeviceDescription) || info.getName().toLowerCase().contains(lowerDeviceDescription)) {
+			if (info.getDescription().toLowerCase().contains(lowerDeviceDescription)
+					|| info.getName().toLowerCase().contains(lowerDeviceDescription)) {
 				if (device.getMaxTransmitters() != 0) {
 					transDev = device;
 					trans = device.getTransmitter();
@@ -191,7 +195,8 @@ public class XTouchMiniMCUControlPanel extends MCUControlPanel {
 		return build(DEFAULT_DEVICE_DESCRIPTION);
 	}
 
-	public static void main(final String... args) throws InvalidMidiDataException, MidiUnavailableException, InterruptedException {
+	public static void main(
+			final String... args) throws InvalidMidiDataException, MidiUnavailableException, InterruptedException {
 
 		build();
 	}

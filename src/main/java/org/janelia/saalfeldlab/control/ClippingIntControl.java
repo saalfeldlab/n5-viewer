@@ -13,5 +13,6 @@ package org.janelia.saalfeldlab.control;
 public interface ClippingIntControl extends IntControl {
 
 	public int getMin();
+
 	public int getMax();
 }

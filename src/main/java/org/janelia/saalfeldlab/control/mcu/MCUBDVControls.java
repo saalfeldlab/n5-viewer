@@ -82,19 +82,22 @@ public class MCUBDVControls {
 		key = panel.getButtonControl(18);
 		key.setToggle(false);
 		key.addListener(i -> {
-			if (i != 0) viewer.align(AlignPlane.ZY);
+			if (i != 0)
+				viewer.align(AlignPlane.ZY);
 		});
 
 		key = panel.getButtonControl(19);
 		key.setToggle(false);
 		key.addListener(i -> {
-			if (i != 0) viewer.align(AlignPlane.XZ);
+			if (i != 0)
+				viewer.align(AlignPlane.XZ);
 		});
 
 		key = panel.getButtonControl(20);
 		key.setToggle(false);
 		key.addListener(i -> {
-			if (i != 0) viewer.align(AlignPlane.XY);
+			if (i != 0)
+				viewer.align(AlignPlane.XY);
 		});
 
 		System.out.println((ViewerFrame)viewerPanel.getRootPane().getParent());
@@ -118,15 +121,15 @@ public class MCUBDVControls {
 			// center shift
 			final double cX = 0.5 * viewerPanel.getWidth();
 			final double cY = 0.5 * viewerPanel.getHeight();
-			viewerTransform.set(viewerTransform.get( 0, 3 ) - cX, 0, 3);
-			viewerTransform.set(viewerTransform.get( 1, 3 ) - cY, 1, 3);
+			viewerTransform.set(viewerTransform.get(0, 3) - cX, 0, 3);
+			viewerTransform.set(viewerTransform.get(1, 3) - cY, 1, 3);
 
 			// rotate
 			viewerTransform.rotate(axis, value * step);
 
 			// center un-shift
-			viewerTransform.set(viewerTransform.get( 0, 3 ) + cX, 0, 3);
-			viewerTransform.set(viewerTransform.get( 1, 3 ) + cY, 1, 3);
+			viewerTransform.set(viewerTransform.get(0, 3) + cX, 0, 3);
+			viewerTransform.set(viewerTransform.get(1, 3) + cY, 1, 3);
 
 			state.setViewerTransform(viewerTransform);
 		}
@@ -147,7 +150,7 @@ public class MCUBDVControls {
 			final SynchronizedViewerState state = viewerPanel.state();
 			final AffineTransform3D viewerTransform = state.getViewerTransform();
 
-			viewerTransform.set(viewerTransform.get( axis, 3 ) + value, axis, 3);
+			viewerTransform.set(viewerTransform.get(axis, 3) + value, axis, 3);
 
 			state.setViewerTransform(viewerTransform);
 		}
@@ -164,16 +167,16 @@ public class MCUBDVControls {
 			// center shift
 			final double cX = 0.5 * viewerPanel.getWidth();
 			final double cY = 0.5 * viewerPanel.getHeight();
-			viewerTransform.set(viewerTransform.get( 0, 3 ) - cX, 0, 3);
-			viewerTransform.set(viewerTransform.get( 1, 3 ) - cY, 1, 3);
+			viewerTransform.set(viewerTransform.get(0, 3) - cX, 0, 3);
+			viewerTransform.set(viewerTransform.get(1, 3) - cY, 1, 3);
 
 			// rotate
 			final double dScale = 1.0 + 0.05;
 			viewerTransform.scale(Math.pow(dScale, value));
 
 			// center un-shift
-			viewerTransform.set(viewerTransform.get( 0, 3 ) + cX, 0, 3);
-			viewerTransform.set(viewerTransform.get( 1, 3 ) + cY, 1, 3);
+			viewerTransform.set(viewerTransform.get(0, 3) + cX, 0, 3);
+			viewerTransform.set(viewerTransform.get(1, 3) + cY, 1, 3);
 
 			state.setViewerTransform(viewerTransform);
 		}

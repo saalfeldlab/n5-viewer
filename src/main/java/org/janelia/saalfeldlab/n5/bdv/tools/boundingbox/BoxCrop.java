@@ -64,15 +64,15 @@ import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickBehaviour, ViewerStateChangeListener
-{
+public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickBehaviour, ViewerStateChangeListener {
+
 	private static final long serialVersionUID = -1857317799215108065L;
 
 	public static final String EXPORT_CURRENT = "Current";
 	public static final String EXPORT_VISIBLE = "Visible";
 
 	private final AbstractViewerPanel viewer;
-	private final List< SourceAndConverter< ? > > sources;
+	private final List<SourceAndConverter<?>> sources;
 	private int[] scales;
 
 	private final String name;
@@ -83,7 +83,7 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 	private JCheckBox concatenateSourcesCheck;
 	private JLabel information;
 
-	private SourceAndConverter< ? > currSrc;
+	private SourceAndConverter<?> currSrc;
 	private int selectedLevel;
 	private RealInterval lastInterval;
 
@@ -105,46 +105,56 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 			final RealInterval initialInterval,
 			final RealInterval rangeInterval,
 			final String name,
-			final String... defaultTriggers )
-	{
-		super( viewer, converterSetups, setupId, keyConfig, triggerbindings, boxTransform, initialInterval, rangeInterval, options );
+			final String... defaultTriggers) {
+
+		super(
+				viewer,
+				converterSetups,
+				setupId,
+				keyConfig,
+				triggerbindings,
+				boxTransform,
+				initialInterval,
+				rangeInterval,
+				options);
 		this.viewer = viewer;
 		sources = viewer.state().getSources();
-		viewer.state().changeListeners().add( this );
+		viewer.state().changeListeners().add(this);
 
 		this.name = name;
 		this.defaultTriggers = defaultTriggers;
 		timePointSelection = options.values.getTimepointSelection();
 
-		inputAdder = keyConfig.inputTriggerAdder( inputTriggerMap, "crop" );
+		inputAdder = keyConfig.inputTriggerAdder(inputTriggerMap, "crop");
 		register();
 
-		super.model.intervalChangedListeners().add( new IntervalChangedListener() {
+		super.model.intervalChangedListeners().add(new IntervalChangedListener() {
+
 			@Override
-			public void intervalChanged()
-			{
+			public void intervalChanged() {
+
 				updateInformation();
 			}
 		});
 
 		// add actions
-		super.buttons.onOk( () -> {
+		super.buttons.onOk(() -> {
 			crop();
-			viewer.state().changeListeners().remove( this );
-		} );
+			viewer.state().changeListeners().remove(this);
+		});
 
-		super.buttons.onCancel( () -> {
-			viewer.state().changeListeners().remove( this );
-		} );
+		super.buttons.onCancel(() -> {
+			viewer.state().changeListeners().remove(this);
+		});
 	}
 
 	@Override
-	public void click( int x, int y )
-	{
+	public void click(final int x, final int y) {
+
 		// creating the box source makes the selection the current source.
-		// so store the current source here, and make it current 
+		// so store the current source here, and make it current
 		currSrc = viewer.state().getCurrentSource();
-		viewer.state().changeListeners().add( this );
+		viewer.state().changeListeners().add(this);
 
 		updateScales();
 
@@ -152,110 +162,112 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		scales = null;
 
 		final Source<?> src = currSrc.getSpimSource();
-		final int estBestScale = MipmapTransforms.getBestMipMapLevel( viewer.state().getViewerTransform(), src, 0 );
-		final int bestScale  = estBestScale <= src.getNumMipmapLevels() - 1 ? estBestScale : src.getNumMipmapLevels() - 1;
-		scaleLevelDropdown.setSelectedIndex( bestScale );
+		final int estBestScale = MipmapTransforms.getBestMipMapLevel(viewer.state().getViewerTransform(), src, 0);
+		final int bestScale = estBestScale <= src.getNumMipmapLevels() - 1 ? estBestScale
+				: src.getNumMipmapLevels() - 1;
+		scaleLevelDropdown.setSelectedIndex(bestScale);
 
-		final double[] boxMin = new double[ 3 ];
-		final double[] boxMax = new double[ 3 ];
+		final double[] boxMin = new double[3];
+		final double[] boxMax = new double[3];
 
 		// interval min / max
-		final Interval srcItvl = src.getSource( 0, 0 );
-		srcItvl.realMin( boxMin );
-		srcItvl.realMax( boxMax );
+		final Interval srcItvl = src.getSource(0, 0);
+		srcItvl.realMin(boxMin);
+		srcItvl.realMax(boxMax);
 
 		// world (physical) min / max
 		final AffineTransform3D srcXfm = new AffineTransform3D();
-		src.getSourceTransform( 0, 0, srcXfm );
-		srcXfm.apply( boxMin, boxMin );
-		srcXfm.apply( boxMax, boxMax );
+		src.getSourceTransform(0, 0, srcXfm);
+		srcXfm.apply(boxMin, boxMin);
+		srcXfm.apply(boxMax, boxMax);
 
 		// use the laset interval if we have it
 		final RealInterval initItvl;
-		if( lastInterval == null )
-			initItvl = initialBoxFromView( viewer, src );
-		else 
+		if (lastInterval == null)
+			initItvl = initialBoxFromView(viewer, src);
+		else
 			initItvl = lastInterval;
 
-		model.setInterval( initItvl);
+		model.setInterval(initItvl);
 
 		updateInformation();
-		setVisible( true );
+		setVisible(true);
 
 		// make sure the selection source is not the current source
 		// this isn't working as I'd expect though
-		viewer.state().setCurrentSource( currSrc );
+		viewer.state().setCurrentSource(currSrc);
 	}
 
-	public static RealInterval initialBoxFromView( AbstractViewerPanel viewer, Source<?> src )
-	{
-		final Dimension dispSz = viewer.getDisplayComponent().getSize();
-		final RealPoint minCorner = new RealPoint( 3 );
-		final RealPoint maxCorner = new RealPoint( dispSz.width, dispSz.height, 0 );
-		viewer.state().getViewerTransform().applyInverse( minCorner, minCorner );
-		viewer.state().getViewerTransform().applyInverse( maxCorner, maxCorner );
+	public static RealInterval initialBoxFromView(final AbstractViewerPanel viewer, final Source<?> src) {
 
-		final Interval srcItvl = src.getSource( 0, 0 );
-		AffineTransform3D srcXfm = new AffineTransform3D();
-		src.getSourceTransform( 0, 0, srcXfm );
-		final RealInterval srcBboxWorld = transformedBoundingBox( srcXfm, srcItvl );
+		final Dimension dispSz = viewer.getDisplayComponent().getSize();
+		final RealPoint minCorner = new RealPoint(3);
+		final RealPoint maxCorner = new RealPoint(dispSz.width, dispSz.height, 0);
+		viewer.state().getViewerTransform().applyInverse(minCorner, minCorner);
+		viewer.state().getViewerTransform().applyInverse(maxCorner, maxCorner);
+
+		final Interval srcItvl = src.getSource(0, 0);
+		final AffineTransform3D srcXfm = new AffineTransform3D();
+		src.getSourceTransform(0, 0, srcXfm);
+		final RealInterval srcBboxWorld = transformedBoundingBox(srcXfm, srcItvl);
 
 		final int nd = srcItvl.numDimensions();
-		final double[] min = new double[ nd ];
-		final double[] max = new double[ nd ];
+		final double[] min = new double[nd];
+		final double[] max = new double[nd];
 		double maxWidth = 0;
 		double minFrac = Double.MAX_VALUE;
 
 		double w, f;
 		double avgFrac = 0; // the average across
-		for( int d = 0; d < nd; d++ )
-		{
-			// compute half of the viewer width (center to corner is half the width)
-			// need abs, since world coordinates of maxcorner in viewer space may be smaller than
+		for (int d = 0; d < nd; d++) {
+			// compute half of the viewer width (center to corner is half the
+			// width)
+			// need abs, since world coordinates of maxcorner in viewer space
+			// may be smaller than
 			// world coordinates of viewer min corner
-			w = Math.abs( maxCorner.getDoublePosition( d ) - minCorner.getDoublePosition( d )) / 2;
-			maxWidth =  w > maxWidth ? w : maxWidth;
+			w = Math.abs(maxCorner.getDoublePosition(d) - minCorner.getDoublePosition(d)) / 2;
+			maxWidth = w > maxWidth ? w : maxWidth;
 
 			// fraction of whole image
-			f = w / (srcBboxWorld.realMax( d ) - srcBboxWorld.realMin( d ));
+			f = w / (srcBboxWorld.realMax(d) - srcBboxWorld.realMin(d));
 			avgFrac += f;
-			minFrac =  f < minFrac ? f : minFrac;
+			minFrac = f < minFrac ? f : minFrac;
 		}
 		avgFrac = avgFrac / nd;
 
-		for( int d = 0; d < nd; d++ )
-		{
+		for (int d = 0; d < nd; d++) {
 			w = maxWidth / 2;
-			f = w / (srcBboxWorld.realMax( d ) - srcBboxWorld.realMin( d ));
-			if( f > avgFrac )
-				w = avgFrac * (srcBboxWorld.realMax( d ) - srcBboxWorld.realMin( d ));
+			f = w / (srcBboxWorld.realMax(d) - srcBboxWorld.realMin(d));
+			if (f > avgFrac)
+				w = avgFrac * (srcBboxWorld.realMax(d) - srcBboxWorld.realMin(d));
 
-			double center = 0.5 * ( minCorner.getDoublePosition( d ) + maxCorner.getDoublePosition( d ) );
-			min[ d ] = center - w;
-			max[ d ] = center + w;
+			final double center = 0.5 * (minCorner.getDoublePosition(d) + maxCorner.getDoublePosition(d));
+			min[d] = center - w;
+			max[d] = center + w;
 		}
 
-		return new FinalRealInterval( min, max );
+		return new FinalRealInterval(min, max);
 	}
 
-	public void register()
-	{
-		behaviourMap.put( name, this );
-		inputAdder.put( name, defaultTriggers );
+	public void register() {
+
+		behaviourMap.put(name, this);
+		inputAdder.put(name, defaultTriggers);
 	}
 
 	/**
 	 * Adds {@link #boxSelectionPanel} etc to {@link #content}.
 	 * Override in subclasses to add more / different stuff.
 	 */
-	protected JPanel createContent()
-	{
+	@Override
+	protected JPanel createContent() {
+
 		final JPanel content = new JPanel();
 
 		final GridBagLayout layout = new GridBagLayout();
-		layout.columnWidths = new int[] { 80 };
-		layout.columnWeights = new double[] { 1. };
-		content.setLayout( layout );
+		layout.columnWidths = new int[]{80};
+		layout.columnWeights = new double[]{1.};
+		content.setLayout(layout);
 
 		final GridBagConstraints gbc = new GridBagConstraints();
 		gbc.gridy = 0;
@@ -263,178 +275,190 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		gbc.anchor = GridBagConstraints.NORTH;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.gridwidth = GridBagConstraints.REMAINDER;
-		gbc.insets = new Insets( 5, 5, 5, 5 );
+		gbc.insets = new Insets(5, 5, 5, 5);
 
 		information = new JLabel("");
-		content.add( information, gbc );
+		content.add(information, gbc);
 
 		gbc.gridy++;
-		content.add( new JLabel("Scale level"), gbc );
+		content.add(new JLabel("Scale level"), gbc);
 
 		gbc.gridx = 1;
-		scaleLevelDropdown = new JComboBox< Integer >( new Integer[] { 0 } );
-		scaleLevelDropdown.addActionListener( (e) -> { 
+		scaleLevelDropdown = new JComboBox<Integer>(new Integer[]{0});
+		scaleLevelDropdown.addActionListener((e) -> {
 
 			/*
 			 * I tried instead calling scaleLevelDropwodn.getSelectedIndex()
-			 * in the crop methods, but when called there, it always returns zero.
-			 * So instead, I'm forced to store the value here. I'm not happy about this. -John
+			 * in the crop methods, but when called there, it always returns
+			 * zero.
+			 * So instead, I'm forced to store the value here. I'm not happy
+			 * about this. -John
 			 */
 			this.selectedLevel = scaleLevelDropdown.getSelectedIndex();
 
-			if( EXPORT_VISIBLE.equals( (String)exportedSourcesDropddown.getSelectedItem()) )
-			{
-				if( !canExportVisible( true ))
-				{
-					exportedSourcesDropddown.setSelectedItem( EXPORT_CURRENT );
-					concatenateSourcesCheck.setEnabled( false );
+			if (EXPORT_VISIBLE.equals((String)exportedSourcesDropddown.getSelectedItem())) {
+				if (!canExportVisible(true)) {
+					exportedSourcesDropddown.setSelectedItem(EXPORT_CURRENT);
+					concatenateSourcesCheck.setEnabled(false);
 				}
 			}
 
 			updateInformation();
 		});
-		content.add( scaleLevelDropdown, gbc );
+		content.add(scaleLevelDropdown, gbc);
 
 		gbc.gridy++;
 		gbc.gridx = 0;
-		content.add( new JLabel("Images to export"), gbc );
+		content.add(new JLabel("Images to export"), gbc);
 
 		gbc.gridx = 1;
-		exportedSourcesDropddown = new JComboBox<>( new String[] { EXPORT_CURRENT, EXPORT_VISIBLE });
-		exportedSourcesDropddown.addActionListener( (e) -> {
-			if( EXPORT_VISIBLE.equals( (String)exportedSourcesDropddown.getSelectedItem()) )
-			{
-				if( concatenateSourcesCheck.isSelected() && !canStackVisibleSources( true ))
-					exportedSourcesDropddown.setSelectedItem( EXPORT_CURRENT );
+		exportedSourcesDropddown = new JComboBox<>(new String[]{EXPORT_CURRENT, EXPORT_VISIBLE});
+		exportedSourcesDropddown.addActionListener((e) -> {
+			if (EXPORT_VISIBLE.equals((String)exportedSourcesDropddown.getSelectedItem())) {
+				if (concatenateSourcesCheck.isSelected() && !canStackVisibleSources(true))
+					exportedSourcesDropddown.setSelectedItem(EXPORT_CURRENT);
 
-				if( !canExportVisible( true ))
-					exportedSourcesDropddown.setSelectedItem( EXPORT_CURRENT );
+				if (!canExportVisible(true))
+					exportedSourcesDropddown.setSelectedItem(EXPORT_CURRENT);
 
-				concatenateSourcesCheck.setEnabled( true );
-			}
-			else
-			{
-				concatenateSourcesCheck.setEnabled( false );
+				concatenateSourcesCheck.setEnabled(true);
+			} else {
+				concatenateSourcesCheck.setEnabled(false);
 			}
 		});
-		content.add( exportedSourcesDropddown, gbc );
+		content.add(exportedSourcesDropddown, gbc);
 
 		gbc.gridy++;
-		concatenateSourcesCheck = new JCheckBox( "Multichannel export" );
-		concatenateSourcesCheck.setEnabled( false );
-		concatenateSourcesCheck.addActionListener( (e) -> {
-			if( EXPORT_VISIBLE.equals( (String)exportedSourcesDropddown.getSelectedItem()) && concatenateSourcesCheck.isSelected() )
-			{
-				if( !canStackVisibleSources( true ))
-					concatenateSourcesCheck.setSelected( false );
+		concatenateSourcesCheck = new JCheckBox("Multichannel export");
+		concatenateSourcesCheck.setEnabled(false);
+		concatenateSourcesCheck.addActionListener((e) -> {
+			if (EXPORT_VISIBLE.equals((String)exportedSourcesDropddown.getSelectedItem())
+					&& concatenateSourcesCheck.isSelected()) {
+				if (!canStackVisibleSources(true))
+					concatenateSourcesCheck.setSelected(false);
 			}
 		});
-		content.add( concatenateSourcesCheck, gbc );
+		content.add(concatenateSourcesCheck, gbc);
 
 		gbc.gridx = 0;
 		gbc.gridy++;
-		final JLabel lblTitle = new JLabel( "Selection:" );
-		lblTitle.setFont( content.getFont().deriveFont( Font.BOLD ) );
-		content.add( lblTitle, gbc );
+		final JLabel lblTitle = new JLabel("Selection:");
+		lblTitle.setFont(content.getFont().deriveFont(Font.BOLD));
+		content.add(lblTitle, gbc);
 
 		gbc.gridy++;
 		final JPanel boundsPanel = new JPanel();
-		boundsPanel.setLayout( new BoxLayout( boundsPanel, BoxLayout.PAGE_AXIS ) );
-		boundsPanel.add( boxSelectionPanel );
-		if ( timePointSelection != NONE )
-			boundsPanel.add( timepointSelectionPanel );
-		content.add( boundsPanel, gbc );
+		boundsPanel.setLayout(new BoxLayout(boundsPanel, BoxLayout.PAGE_AXIS));
+		boundsPanel.add(boxSelectionPanel);
+		if (timePointSelection != NONE)
+			boundsPanel.add(timepointSelectionPanel);
+		content.add(boundsPanel, gbc);
 
 		gbc.gridy++;
 		gbc.anchor = GridBagConstraints.BASELINE_LEADING;
 		gbc.fill = GridBagConstraints.NONE;
-		final BoxDisplayModePanel boxModePanel = new BoxDisplayModePanel( boxEditor.boxDisplayMode() );
-		content.add( boxModePanel, gbc );
+		final BoxDisplayModePanel boxModePanel = new BoxDisplayModePanel(boxEditor.boxDisplayMode());
+		content.add(boxModePanel, gbc);
 
 		return content;
 	}
 
 	@Override
-	public void setVisible( boolean visible )
-	{
+	public void setVisible(final boolean visible) {
+
 		updateScales();
-		super.setVisible( visible );
+		super.setVisible(visible);
 	}
 
-	public void updateScales()
-	{
-		final int numScales; 
-		if( currSrc != null )
-			numScales = currSrc.getSpimSource().getNumMipmapLevels();
-		else 
-			numScales = sources.get( 0 ).getSpimSource().getNumMipmapLevels();
+	public void updateScales() {
 
-		scaleLevelDropdown.setModel( new DefaultComboBoxModel<Integer>( 
-				IntStream.range( 0, numScales ).mapToObj( x -> x ).toArray( Integer[]::new )));
+		final int numScales;
+		if (currSrc != null)
+			numScales = currSrc.getSpimSource().getNumMipmapLevels();
+		else
+			numScales = sources.get(0).getSpimSource().getNumMipmapLevels();
+
+		scaleLevelDropdown
+				.setModel(
+						new DefaultComboBoxModel<Integer>(
+								IntStream.range(0, numScales).mapToObj(x -> x).toArray(Integer[]::new)));
 
 		pack();
 	}
 
-	public <T extends NativeType<T>> void updateInformation()
-	{
-		@SuppressWarnings( "unchecked" )
-		final Source< T > src = ( Source< T > ) currSrc.getSpimSource();
-		final T t = Util.getTypeFromInterval( src.getSource( 0, 0 ));
+	public <T extends NativeType<T>> void updateInformation() {
 
-		final Interval pixItvl = getPixelInterval( src, selectedLevel );
-		final long numBytes = estimateBytes( pixItvl, t, selectedLevel );
-		final String byteString = humanReadableByteCountSI( numBytes );
+		@SuppressWarnings("unchecked")
+		final Source<T> src = (Source<T>)currSrc.getSpimSource();
+		final T t = Util.getTypeFromInterval(src.getSource(0, 0));
 
-		if ( pixItvl.numDimensions() == 2 )
-			information.setText( String.format( "Output %d x %d (%s)",
-					pixItvl.dimension( 0 ), pixItvl.dimension( 1 ), byteString ) );
-		else if ( pixItvl.numDimensions() == 3 )
-			information.setText( String.format( "Output %d x %d x %d (%s)",
-					pixItvl.dimension( 0 ), pixItvl.dimension( 1 ), pixItvl.dimension( 2 ), byteString ));
+		final Interval pixItvl = getPixelInterval(src, selectedLevel);
+		final long numBytes = estimateBytes(pixItvl, t, selectedLevel);
+		final String byteString = humanReadableByteCountSI(numBytes);
+
+		if (pixItvl.numDimensions() == 2)
+			information
+					.setText(
+							String
+									.format(
+											"Output %d x %d (%s)",
+											pixItvl.dimension(0),
+											pixItvl.dimension(1),
+											byteString));
+		else if (pixItvl.numDimensions() == 3)
+			information
+					.setText(
+							String
+									.format(
+											"Output %d x %d x %d (%s)",
+											pixItvl.dimension(0),
+											pixItvl.dimension(1),
+											pixItvl.dimension(2),
+											byteString));
 
 		repaint();
 	}
 
-	public BehaviourMap getBehaviourMap()
-	{
+	public BehaviourMap getBehaviourMap() {
+
 		return behaviourMap;
 	}
 
-	public InputTriggerMap getInputTriggerMap()
-	{
+	public InputTriggerMap getInputTriggerMap() {
+
 		return inputTriggerMap;
 	}
 
-	public Interval getPixelInterval( Source<?> src, int scale )
-	{
+	public Interval getPixelInterval(final Source<?> src, final int scale) {
+
 		final AffineTransform3D srcXfm = new AffineTransform3D();
-		src.getSourceTransform( 0, scale, srcXfm );
+		src.getSourceTransform(0, scale, srcXfm);
 
 		final RealInterval requestedInterval = model.getInterval();
 
 		// get pixel interval from real interval
-		final FinalRealInterval bbox = transformedBoundingBox( srcXfm.inverse(), requestedInterval );
+		final FinalRealInterval bbox = transformedBoundingBox(srcXfm.inverse(), requestedInterval);
 		final long[] pixMin = new long[bbox.numDimensions()];
 		final long[] pixMax = new long[bbox.numDimensions()];
-		for( int d = 0; d < bbox.numDimensions(); d++ )
-		{
-			pixMin[d] = (long)Math.floor( bbox.realMin( d ) );
-			pixMax[d] = (long)Math.ceil( bbox.realMax( d ) );
+		for (int d = 0; d < bbox.numDimensions(); d++) {
+			pixMin[d] = (long)Math.floor(bbox.realMin(d));
+			pixMax[d] = (long)Math.ceil(bbox.realMax(d));
 		}
-		return new FinalInterval( pixMin, pixMax );
+		return new FinalInterval(pixMin, pixMax);
 	}
 
-	protected boolean canExportVisible( boolean showMessage )
-	{
-		final List< SourceAndConverter< ? > > srcList = getVisibleSources();
-		// returns false if the selected Level 
-		for( int i = 0; i < srcList.size(); i++ )
-		{
-			final Source< ? > src = srcList.get(i).getSpimSource();
-			if( selectedLevel > src.getNumMipmapLevels() - 1)
-			{
-				if( showMessage )
-					System.out.println("Can't export all visible : source  " + src.getName() + " does not have scale level " + selectedLevel );
+	protected boolean canExportVisible(final boolean showMessage) {
+
+		final List<SourceAndConverter<?>> srcList = getVisibleSources();
+		// returns false if the selected Level
+		for (int i = 0; i < srcList.size(); i++) {
+			final Source<?> src = srcList.get(i).getSpimSource();
+			if (selectedLevel > src.getNumMipmapLevels() - 1) {
+				if (showMessage)
+					System.out
+							.println(
+									"Can't export all visible : source  " + src.getName()
+											+ " does not have scale level " + selectedLevel);
 
 				return false;
 			}
@@ -442,47 +466,54 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return true;
 	}
 
-	protected List< SourceAndConverter<?>> getVisibleSources()
-	{
-		final List< SourceAndConverter<?>> srcList = new ArrayList<>();
-		final Set< SourceAndConverter< ? > > visibleSources = viewer.state().getVisibleSources();
+	protected List<SourceAndConverter<?>> getVisibleSources() {
+
+		final List<SourceAndConverter<?>> srcList = new ArrayList<>();
+		final Set<SourceAndConverter<?>> visibleSources = viewer.state().getVisibleSources();
 		// exclude the box display source which has a Void type
-		visibleSources.removeIf( x -> { return x.getSpimSource().getType() == null; } );
-		visibleSources.forEach( x -> srcList.add( x ) );
+		visibleSources.removeIf(x -> {
+			return x.getSpimSource().getType() == null;
+		});
+		visibleSources.forEach(x -> srcList.add(x));
 		return srcList;
 	}
 
-	protected boolean canStackVisibleSources( boolean showMessage )
-	{
-		final List< SourceAndConverter<?>> srcList = getVisibleSources();
-		return canStackSources( srcList, showMessage );
+	protected boolean canStackVisibleSources(final boolean showMessage) {
+
+		final List<SourceAndConverter<?>> srcList = getVisibleSources();
+		return canStackSources(srcList, showMessage);
 	}
 
 	/**
-	 * Find scale levels for sources in the source list that match the given affine.
-	 * Scale levels stored in a local int array are updated. If no matching scale level exists, 
+	 * Find scale levels for sources in the source list that match the given
+	 * affine.
+	 * Scale levels stored in a local int array are updated. If no matching
+	 * scale level exists,
 	 * the array will contain a value less than zero at that index.
 	 *
-	 * @param srcList the source list
-	 * @param affine the affine
-	 * @param tolerance the tolerance within which affines may differ to be "equal"
+	 * @param srcList
+	 *            the source list
+	 * @param affine
+	 *            the affine
+	 * @param tolerance
+	 *            the tolerance within which affines may differ to be "equal"
 	 * @return true if all sources have a matching scale level
 	 */
-	protected boolean findMatchingScaleLevels( List<SourceAndConverter<?>> srcList, AffineTransform3D affine, double tolerance )
-	{
-		scales = new int[ srcList.size() ];
-		Arrays.fill( scales, -1 );
+	protected boolean findMatchingScaleLevels(
+			final List<SourceAndConverter<?>> srcList,
+			final AffineTransform3D affine,
+			final double tolerance) {
+
+		scales = new int[srcList.size()];
+		Arrays.fill(scales, -1);
 
 		int i = 0;
 		final AffineTransform3D testTransform = new AffineTransform3D();
-		for( SourceAndConverter< ? > sac : srcList )
-		{
+		for (final SourceAndConverter<?> sac : srcList) {
 			final int N = sac.getSpimSource().getNumMipmapLevels();
-			for( int j = 0; j < N; j++ )
-			{
-				sac.getSpimSource().getSourceTransform( 0, j, testTransform );
-				if( affineAlmostEqual( testTransform, affine, tolerance ))
-				{
+			for (int j = 0; j < N; j++) {
+				sac.getSpimSource().getSourceTransform(0, j, testTransform);
+				if (affineAlmostEqual(testTransform, affine, tolerance)) {
 					scales[i] = j;
 					continue;
 				}
@@ -490,59 +521,53 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 			i++;
 		}
 
-		for( i = 0; i < scales.length; i++ )
-		{
-			if( scales[i] < 0 )
+		for (i = 0; i < scales.length; i++) {
+			if (scales[i] < 0)
 				return false;
 		}
 
 		return true;
 	}
 
-	protected boolean canStackSources( List<SourceAndConverter<?>> srcList, boolean showMessage )
-	{
+	protected boolean canStackSources(final List<SourceAndConverter<?>> srcList, final boolean showMessage) {
+
 		// check that types are the same and that affines are the same
 		final AffineTransform3D first = new AffineTransform3D();
 		final AffineTransform3D comp = new AffineTransform3D();
 
-		Object t = Util.getTypeFromInterval( srcList.get( 0 ).getSpimSource().getSource( 0, 0 ) );
-		if( srcList.get( 0 ).getSpimSource().getNumMipmapLevels() <= selectedLevel )
-		{
-			if( showMessage )
+		final Object t = Util.getTypeFromInterval(srcList.get(0).getSpimSource().getSource(0, 0));
+		if (srcList.get(0).getSpimSource().getNumMipmapLevels() <= selectedLevel) {
+			if (showMessage)
 				System.out.println("Can't stack visible sources : different scale levels");
 
 			return false;
 		}
 
-		srcList.get( 0 ).getSpimSource().getSourceTransform( 0, selectedLevel, first );
+		srcList.get(0).getSpimSource().getSourceTransform(0, selectedLevel, first);
 
-		for( int i = 1; i < srcList.size(); i++ )
-		{
-			Object s = Util.getTypeFromInterval( srcList.get( i ).getSpimSource().getSource( 0, 0 ) );
-			if( !s.getClass().equals( t.getClass() ))
-			{
-				if( showMessage )
+		for (int i = 1; i < srcList.size(); i++) {
+			final Object s = Util.getTypeFromInterval(srcList.get(i).getSpimSource().getSource(0, 0));
+			if (!s.getClass().equals(t.getClass())) {
+				if (showMessage)
 					System.out.println("Can't stack visible sources : different types");
 
 				return false;
 			}
 
-			if( srcList.get( i ).getSpimSource().getNumMipmapLevels() <= selectedLevel )
-			{
-				if( showMessage )
+			if (srcList.get(i).getSpimSource().getNumMipmapLevels() <= selectedLevel) {
+				if (showMessage)
 					System.out.println("Can't stack visible sources : different scale levels");
 
 				return false;
 			}
 
-			srcList.get( i ).getSpimSource().getSourceTransform( 0, selectedLevel, comp );
-			if( !affineAlmostEqual( first, comp, 1e-9 ))
-			{
+			srcList.get(i).getSpimSource().getSourceTransform(0, selectedLevel, comp);
+			if (!affineAlmostEqual(first, comp, 1e-9)) {
 				// we can still stack if there exist matching scales
-				if( findMatchingScaleLevels( srcList, comp, 1e-9 ))
+				if (findMatchingScaleLevels(srcList, comp, 1e-9))
 					return true;
 
-				if( showMessage )
+				if (showMessage)
 					System.out.println("Can't stack visible sources : different resolutions.");
 
 				return false;
@@ -551,90 +576,85 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		return true;
 	}
 
-	@SuppressWarnings( "unchecked" )
-	public < T extends NumericType< T > & NativeType< T > > ImagePlus[] crop()
-	{
+	@SuppressWarnings("unchecked")
+	public <T extends NumericType<T> & NativeType<T>> ImagePlus[] crop() {
+
 		// remember this interval for next time
 		lastInterval = model.getInterval();
 
-		final String exportOption = ( String ) exportedSourcesDropddown.getSelectedItem();
-		final List< SourceAndConverter< ? > > srcList = new ArrayList<>();
-		if( exportOption.equals( EXPORT_CURRENT ))
-			srcList.add( ( SourceAndConverter< ? > ) currSrc );
-		else 
-		{
+		final String exportOption = (String)exportedSourcesDropddown.getSelectedItem();
+		final List<SourceAndConverter<?>> srcList = new ArrayList<>();
+		if (exportOption.equals(EXPORT_CURRENT))
+			srcList.add((SourceAndConverter<?>)currSrc);
+		else {
 			// make sure the current source is first in the list
-			srcList.add( currSrc );
+			srcList.add(currSrc);
 
-			final Set< SourceAndConverter< ? > > visibleSources = viewer.state().getVisibleSources();
+			final Set<SourceAndConverter<?>> visibleSources = viewer.state().getVisibleSources();
 			// add all other sources
 			// exclude the box display source which has a Void type
-			visibleSources.removeIf( x -> { return x.getSpimSource().getType() == null; } );
-			visibleSources.forEach( x -> {
-				if( x != currSrc ) // this check so that we don't double add the current source
-					srcList.add( (SourceAndConverter<T>)x );
+			visibleSources.removeIf(x -> {
+				return x.getSpimSource().getType() == null;
+			});
+			visibleSources.forEach(x -> {
+				if (x != currSrc) // this check so that we don't double add the
+									// current source
+					srcList.add((SourceAndConverter<T>)x);
 			});
 		}
 
 		// if exporting to a single stack, check that the types are all equal
 		boolean doStack = concatenateSourcesCheck.isSelected();
-		if( doStack )
-			doStack = canStackSources( srcList, false );
+		if (doStack)
+			doStack = canStackSources(srcList, false);
 
-		if( scales == null )
-		{
-			scales = new int[ srcList.size() ];
-			Arrays.fill( scales, selectedLevel );
+		if (scales == null) {
+			scales = new int[srcList.size()];
+			Arrays.fill(scales, selectedLevel);
 		}
 
-		final List< RandomAccessibleInterval< T > > imgList = new ArrayList<>();
+		final List<RandomAccessibleInterval<T>> imgList = new ArrayList<>();
 		int i = 0;
-		Interval[] intervals = new Interval[ srcList.size() ];
-		for( SourceAndConverter< ? > sac : srcList )
-		{
-			Source< T > src = ( Source< T > ) sac.getSpimSource();
-			int level = scales[ i ];
-			final Interval pixItvl = getPixelInterval( src, level );
+		final Interval[] intervals = new Interval[srcList.size()];
+		for (final SourceAndConverter<?> sac : srcList) {
+			final Source<T> src = (Source<T>)sac.getSpimSource();
+			final int level = scales[i];
+			final Interval pixItvl = getPixelInterval(src, level);
 
 			// save the interval for later
-			intervals[ i ] = pixItvl;
+			intervals[i] = pixItvl;
 
-			imgList.add( cropSource( src, pixItvl, level) );
+			imgList.add(cropSource(src, pixItvl, level));
 			i++;
 		}
 
-		if( doStack )
-		{
-			if( scales == null )
-			{
-				scales = new int[ imgList.size() ];
-				Arrays.fill( scales, selectedLevel );
+		if (doStack) {
+			if (scales == null) {
+				scales = new int[imgList.size()];
+				Arrays.fill(scales, selectedLevel);
 			}
 
-			final RandomAccessibleInterval< T > imgTmp = Views.stack( imgList );
-			final RandomAccessibleInterval< T > imgP = Views.moveAxis( imgTmp, imgTmp.numDimensions() - 1, 2 );
-			final ImagePlus imp = ImageJFunctions.wrap( imgP, "multichannel crop" );
-			updateDisplayRange( imp, srcList.get( 0 ));
-			updateResolutionOffset( imp, srcList.get( 0 ).getSpimSource(), intervals[0], selectedLevel );
+			final RandomAccessibleInterval<T> imgTmp = Views.stack(imgList);
+			final RandomAccessibleInterval<T> imgP = Views.moveAxis(imgTmp, imgTmp.numDimensions() - 1, 2);
+			final ImagePlus imp = ImageJFunctions.wrap(imgP, "multichannel crop");
+			updateDisplayRange(imp, srcList.get(0));
+			updateResolutionOffset(imp, srcList.get(0).getSpimSource(), intervals[0], selectedLevel);
 			imp.show();
-			return new ImagePlus[] { imp };
-		}
-		else
-		{
-			final ImagePlus[] results = new ImagePlus[ imgList.size() ];
-			for( i = 0; i < imgList.size(); i++ )
-			{
+			return new ImagePlus[]{imp};
+		} else {
+			final ImagePlus[] results = new ImagePlus[imgList.size()];
+			for (i = 0; i < imgList.size(); i++) {
 				// TODO need different interval here than for the stacked case
-				final RandomAccessibleInterval< T > imgTmp = imgList.get( i );
-				final RandomAccessibleInterval< T > img;
-				if( imgTmp.numDimensions() == 3 )
-					img = Views.moveAxis( Views.addDimension( imgTmp, 0, 0 ), 2, 3 );
+				final RandomAccessibleInterval<T> imgTmp = imgList.get(i);
+				final RandomAccessibleInterval<T> img;
+				if (imgTmp.numDimensions() == 3)
+					img = Views.moveAxis(Views.addDimension(imgTmp, 0, 0), 2, 3);
 				else
 					img = imgTmp;
 
-				final ImagePlus imp = ImageJFunctions.wrap( img, srcList.get( i ).getSpimSource().getName() + "+_crop" );
-				updateDisplayRange( imp, srcList.get( i ) );
-				updateResolutionOffset( imp, srcList.get( 0 ).getSpimSource(), intervals[ i ], scales[ i ] );
+				final ImagePlus imp = ImageJFunctions.wrap(img, srcList.get(i).getSpimSource().getName() + "+_crop");
+				updateDisplayRange(imp, srcList.get(i));
+				updateResolutionOffset(imp, srcList.get(0).getSpimSource(), intervals[i], scales[i]);
 				results[i] = imp;
 				imp.show();
 			}
@@ -642,192 +662,191 @@ public class BoxCrop extends TransformedRealBoxSelectionDialog implements ClickB
 		}
 	}
 
-	public <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<T> cropSource( Source<T> src, 
-			Interval pixItvl,
-			int level )
-	{
-		final RandomAccessibleInterval< T > img = src.getSource( 0, level );
-		final IntervalView< T > cropImg = Views.interval( Views.extendZero( img ), pixItvl );
+	public <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<T> cropSource(
+			final Source<T> src,
+			final Interval pixItvl,
+			final int level) {
+
+		final RandomAccessibleInterval<T> img = src.getSource(0, level);
+		final IntervalView<T> cropImg = Views.interval(Views.extendZero(img), pixItvl);
 		return cropImg;
 	}
 
 	/**
-	 * Modifies the display range of the ImagePlus using the provided SourceAndConverter,
+	 * Modifies the display range of the ImagePlus using the provided
+	 * SourceAndConverter,
 	 * if possible
-	 * 
-	 * @param imp the ImagePlus
-	 * @param sac the SourceAndConverter
+	 *
+	 * @param imp
+	 *            the ImagePlus
+	 * @param sac
+	 *            the SourceAndConverter
 	 */
-	private static void updateDisplayRange( ImagePlus imp, SourceAndConverter<?> sac )
-	{
-		final Converter<?,?> conv = sac.getConverter();
-		if( conv instanceof RealARGBColorConverter )
-		{
-			@SuppressWarnings( "rawtypes" )
+	private static void updateDisplayRange(final ImagePlus imp, final SourceAndConverter<?> sac) {
+
+		final Converter<?, ?> conv = sac.getConverter();
+		if (conv instanceof RealARGBColorConverter) {
+			@SuppressWarnings("rawtypes")
 			final RealARGBColorConverter rc = (RealARGBColorConverter)conv;
-			imp.setDisplayRange( rc.getMin(), rc.getMax());
+			imp.setDisplayRange(rc.getMin(), rc.getMax());
 		}
 	}
 
-	private static void updateResolutionOffset( ImagePlus imp, Source<?> src, Interval itvl, int level )
-	{
-		AffineTransform3D tmp = new AffineTransform3D();
-		src.getSourceTransform( 0, level, tmp );
-		final double sx = tmp.get( 0, 0 );
-		final double sy = tmp.get( 1, 1 );
-		final double sz = tmp.get( 2, 2 );
+	private static void updateResolutionOffset(final ImagePlus imp, final Source<?> src, final Interval itvl, final int level) {
+
+		final AffineTransform3D tmp = new AffineTransform3D();
+		src.getSourceTransform(0, level, tmp);
+		final double sx = tmp.get(0, 0);
+		final double sy = tmp.get(1, 1);
+		final double sz = tmp.get(2, 2);
 		imp.getCalibration().pixelWidth = sx;
 		imp.getCalibration().pixelHeight = sy;
 		imp.getCalibration().pixelDepth = sz;
 
-		imp.getCalibration().xOrigin = sx * itvl.min( 0 ) + tmp.get( 0, 3 );
-		imp.getCalibration().yOrigin = sy * itvl.min( 1 ) + tmp.get( 1, 3 );
-		imp.getCalibration().zOrigin = sz * itvl.min( 2 ) + tmp.get( 2, 3 );
+		imp.getCalibration().xOrigin = sx * itvl.min(0) + tmp.get(0, 3);
+		imp.getCalibration().yOrigin = sy * itvl.min(1) + tmp.get(1, 3);
+		imp.getCalibration().zOrigin = sz * itvl.min(2) + tmp.get(2, 3);
 	}
 
-	public static FinalRealInterval transformedBoundingBox( RealTransform xfm, RealInterval interval )
-	{
-		if( xfm == null )
-			return new FinalRealInterval( interval );
+	public static FinalRealInterval transformedBoundingBox(final RealTransform xfm, final RealInterval interval) {
 
-		int nd = interval.numDimensions();
-		double[] pt = new double[ nd ];
-		double[] ptxfm = new double[ nd ];
+		if (xfm == null)
+			return new FinalRealInterval(interval);
 
-		double[] min = new double[ nd ];
-		double[] max = new double[ nd ];
-		Arrays.fill( min, Double.MAX_VALUE );
-		Arrays.fill( max, Double.MIN_VALUE );
+		final int nd = interval.numDimensions();
+		final double[] pt = new double[nd];
+		final double[] ptxfm = new double[nd];
 
-		long[] unitInterval = new long[ nd ];
-		Arrays.fill( unitInterval, 2 );
+		final double[] min = new double[nd];
+		final double[] max = new double[nd];
+		Arrays.fill(min, Double.MAX_VALUE);
+		Arrays.fill(max, Double.MIN_VALUE);
 
-		IntervalIterator it = new IntervalIterator( unitInterval );
-		while( it.hasNext() )
-		{
+		final long[] unitInterval = new long[nd];
+		Arrays.fill(unitInterval, 2);
+
+		final IntervalIterator it = new IntervalIterator(unitInterval);
+		while (it.hasNext()) {
 			it.fwd();
-			for( int d = 0; d < nd; d++ )
-			{
-				if( it.getLongPosition( d ) == 0 )
-					pt[ d ] = interval.realMin( d );
+			for (int d = 0; d < nd; d++) {
+				if (it.getLongPosition(d) == 0)
+					pt[d] = interval.realMin(d);
 				else
-					pt[ d ] = interval.realMax( d );
+					pt[d] = interval.realMax(d);
 			}
 
-			xfm.apply( pt, ptxfm );
+			xfm.apply(pt, ptxfm);
 
-			for( int d = 0; d < nd; d++ )
-			{
-				long lo = (long)Math.floor( ptxfm[d] );
-				long hi = (long)Math.ceil( ptxfm[d] );
+			for (int d = 0; d < nd; d++) {
+				final long lo = (long)Math.floor(ptxfm[d]);
+				final long hi = (long)Math.ceil(ptxfm[d]);
 
-				if( lo < min[ d ])
-					min[ d ] = lo;
+				if (lo < min[d])
+					min[d] = lo;
 
-				if( hi > max[ d ])
-					max[ d ] = hi;
+				if (hi > max[d])
+					max[d] = hi;
 			}
 		}
-		return new FinalRealInterval( min, max );
-	}
-	
-	/*
-	 * https://programming.guide/java/formatting-byte-size-to-human-readable-format.html
-	 */
-	protected static String humanReadableByteCountSI(long bytes) {
-	    if (-1000 < bytes && bytes < 1000) {
-	        return bytes + " B";
-	    }
-	    CharacterIterator ci = new StringCharacterIterator("kMGTPE");
-	    while (bytes <= -999_950 || bytes >= 999_950) {
-	        bytes /= 1000;
-	        ci.next();
-	    }
-	    return String.format("%.1f %cB", bytes / 1000.0, ci.current());
+		return new FinalRealInterval(min, max);
 	}
 
-	@SuppressWarnings( "unchecked" )
-	private <T extends NativeType<T>> long estimateBytes( Interval itvl, T t, int level )
-	{
+	/*
+	 * https://programming.guide/java/formatting-byte-size-to-human-readable-
+	 * format.html
+	 */
+	protected static String humanReadableByteCountSI(long bytes) {
+
+		if (-1000 < bytes && bytes < 1000) {
+			return bytes + " B";
+		}
+		final CharacterIterator ci = new StringCharacterIterator("kMGTPE");
+		while (bytes <= -999_950 || bytes >= 999_950) {
+			bytes /= 1000;
+			ci.next();
+		}
+		return String.format("%.1f %cB", bytes / 1000.0, ci.current());
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T extends NativeType<T>> long estimateBytes(final Interval itvl, final T t, final int level) {
+
 		T g;
-		if( t instanceof Volatile )
+		if (t instanceof Volatile)
 			g = ((Volatile<T>)t).get();
 		else
 			g = t;
 
-		final DataType dataType = N5Utils.dataType( g );
+		final DataType dataType = N5Utils.dataType(g);
 		final String typeString = dataType.toString();
-		final long N = Intervals.numElements( itvl );
+		final long N = Intervals.numElements(itvl);
 		long nBytes = -1;
-		if( typeString.endsWith( "8" ))
+		if (typeString.endsWith("8"))
 			nBytes = N;
-		else if( typeString.endsWith( "16" ))
-			nBytes = N*2;
-		else if( typeString.endsWith( "32" ))
-			nBytes = N*4;
-		else if( typeString.endsWith( "64" ))
-			nBytes = N*8;
+		else if (typeString.endsWith("16"))
+			nBytes = N * 2;
+		else if (typeString.endsWith("32"))
+			nBytes = N * 4;
+		else if (typeString.endsWith("64"))
+			nBytes = N * 8;
 
 		return nBytes;
 	}
-	
-	private static boolean affineAlmostEqual( AffineTransform3D a, AffineTransform3D b, double relativeThreshold )
-	{
-		// Consider rejecting if difference is relative to the norm of the affines
+
+	private static boolean affineAlmostEqual(final AffineTransform3D a, final AffineTransform3D b, final double relativeThreshold) {
+
+		// Consider rejecting if difference is relative to the norm of the
+		// affines
 		// rather than based on an absolute threshold
 //		final double avgNorm = frobeniusNorm( a ) * frobeniusNorm( b ) * 0.5;
 		final double[] avals = a.getRowPackedCopy();
 		final double[] bvals = b.getRowPackedCopy();
-		for ( int i = 0; i < avals.length; i++ )
-		{
+		for (int i = 0; i < avals.length; i++) {
 			final double absDiff = Math.abs(avals[i] - bvals[i]);
-			if( absDiff > relativeThreshold )
+			if (absDiff > relativeThreshold)
 				return false;
 		}
 		return true;
 	}
-	
-	@SuppressWarnings( "unused" )
-	private static double frobeniusNorm( AffineTransform3D a )
-	{
+
+	@SuppressWarnings("unused")
+	private static double frobeniusNorm(final AffineTransform3D a) {
+
 		double norm = 0;
-		for( int i = 0; i < 3; i++ ) 
-		{
-			for( int j = 0; j < 3; j++ )
-			{
-				final double v = a.get( i, j );
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				final double v = a.get(i, j);
 				norm += (v * v);
 			}
 		}
-		return Math.sqrt( norm );
+		return Math.sqrt(norm);
 	}
 
 	@Override
-	public void viewerStateChanged( ViewerStateChange change )
-	{
-		if( change.equals( ViewerStateChange.CURRENT_SOURCE_CHANGED ) || change.equals( ViewerStateChange.VISIBILITY_CHANGED ))
-		{
-			// need to guard agains the current source being the selection source (which has null type)
-			SourceAndConverter< ? > tmpSrc = viewer.state().getCurrentSource();
+	public void viewerStateChanged(final ViewerStateChange change) {
+
+		if (change.equals(ViewerStateChange.CURRENT_SOURCE_CHANGED)
+				|| change.equals(ViewerStateChange.VISIBILITY_CHANGED)) {
+			// need to guard agains the current source being the selection
+			// source (which has null type)
+			final SourceAndConverter<?> tmpSrc = viewer.state().getCurrentSource();
 
 			// should not be necessary, but being extra careful
-			if ( tmpSrc == null )
+			if (tmpSrc == null)
 				return;
 
-			if( tmpSrc.getSpimSource().getType() != null )
+			if (tmpSrc.getSpimSource().getType() != null)
 				currSrc = tmpSrc;
 
 			updateScales();
-			if( EXPORT_VISIBLE.equals( (String)exportedSourcesDropddown.getSelectedItem()) )
-			{
-				if( concatenateSourcesCheck.isSelected() && !canStackVisibleSources( true ))
-					exportedSourcesDropddown.setSelectedItem( EXPORT_CURRENT );
+			if (EXPORT_VISIBLE.equals((String)exportedSourcesDropddown.getSelectedItem())) {
+				if (concatenateSourcesCheck.isSelected() && !canStackVisibleSources(true))
+					exportedSourcesDropddown.setSelectedItem(EXPORT_CURRENT);
 
-				if( !canExportVisible( true ))
-					exportedSourcesDropddown.setSelectedItem( EXPORT_CURRENT );
+				if (!canExportVisible(true))
+					exportedSourcesDropddown.setSelectedItem(EXPORT_CURRENT);
 			}
 			updateInformation();
 		}
 	}
-
 }

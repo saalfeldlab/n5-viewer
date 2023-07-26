@@ -4,8 +4,8 @@
 package org.janelia.saalfeldlab.control;
 
 /**
- * A virtual potentiometer control (V-Pot).  V-Pots are report either an
- * absolute position or a relative step size up or down.  Regardless of the
+ * A virtual potentiometer control (V-Pot). V-Pots are report either an
+ * absolute position or a relative step size up or down. Regardless of the
  * reported value, they have no physical start- or end-position, i.e. they are
  * like mouse-wheels and can rotate indefinitely in one direction.
  *
@@ -51,19 +51,21 @@ public interface VPotControl extends AdjustableClippingIntControl {
 	 * or reports relative changes.
 	 *
 	 * @return true if the control tracks an absolute value
-	 *         false if this control reports relative changes
+	 * false if this control reports relative changes
 	 */
 	public boolean isAbsolute();
+
 	public void setAbsolute(final boolean absolute);
 
 	/**
 	 * Set the LED display type to one of the above types.
 	 *
 	 * TODO figure out if this is the final set which would call for turning
-	 *   this into an enum or if we will have to permit other display modes
-	 *   (for which keeping this na integer sounds fair).
+	 * this into an enum or if we will have to permit other display modes
+	 * (for which keeping this na integer sounds fair).
 	 *
-	 * @param display the display type
+	 * @param display
+	 *            the display type
 	 */
 	public void setDisplayType(final int display);
 }

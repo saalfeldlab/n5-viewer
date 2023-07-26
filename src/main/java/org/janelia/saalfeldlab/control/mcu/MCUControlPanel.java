@@ -47,8 +47,6 @@ public abstract class MCUControlPanel implements Receiver {
 
 	abstract public int getNumFaderControls();
 
-
-
 	protected void send(final ShortMessage msg) throws InvalidMidiDataException {
 
 		rec.send(msg, System.currentTimeMillis());
@@ -84,22 +82,22 @@ public abstract class MCUControlPanel implements Receiver {
 //			System.out.println(sm.getData2());
 			switch (status) {
 			case STATUS_CONTROL: {
-					final int data = sm.getData2();
-					final MCUVPotControl control = getVPotControlById(sm.getData1());
-					control.update(data);
-				}
+				final int data = sm.getData2();
+				final MCUVPotControl control = getVPotControlById(sm.getData1());
+				control.update(data);
+			}
 				break;
 			case STATUS_KEY: {
-					final int data = sm.getData2();
-					final MCUButtonControl key = getButtonControlById(sm.getData1());
-					key.update(data);
-				}
+				final int data = sm.getData2();
+				final MCUButtonControl key = getButtonControlById(sm.getData1());
+				key.update(data);
+			}
 				break;
 			case STATUS_FADER: {
-					final int data = sm.getData2();
-					final MCUFaderControl fader = getFaderControlById(sm.getData1());
-					fader.update(data);
-				}
+				final int data = sm.getData2();
+				final MCUFaderControl fader = getFaderControlById(sm.getData1());
+				fader.update(data);
+			}
 				break;
 			}
 		}
