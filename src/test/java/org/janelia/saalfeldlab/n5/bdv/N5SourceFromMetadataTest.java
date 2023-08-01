@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.n5.bdv;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Optional;
 
 import org.janelia.saalfeldlab.n5.N5FSWriter;
@@ -31,7 +32,14 @@ import net.imglib2.util.Intervals;
 
 public class N5SourceFromMetadataTest {
 	
-	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test";
+	private static String testDirPath = createTestDirPath("n5-test");
+	private static String createTestDirPath(String dirName) {
+		try {
+			return Files.createTempDirectory(dirName).toString();
+		} catch (IOException exc) {
+			return System.getProperty("user.home") + "/tmp/" + dirName;
+		}
+	}
 	static private String testBaseDatasetName = "/test/bdvSourceMetadata";
 	
 	private N5FSWriter n5;
