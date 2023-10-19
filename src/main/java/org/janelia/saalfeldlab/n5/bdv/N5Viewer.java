@@ -56,6 +56,8 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalSpatialMetadata;
@@ -78,19 +80,18 @@ import bdv.util.BdvHandleFrame;
 import bdv.util.BdvHandlePanel;
 import bdv.util.BdvOptions;
 import bdv.util.Prefs;
-import bdv.util.volatiles.VolatileTypeMatcher;
-import bdv.util.volatiles.VolatileViews;
+import bdv.util.RandomAccessibleIntervalMipmapSource4D;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerFrame;
 import bdv.viewer.ViewerPanel;
+import mpicbg.spim.data.sequence.FinalVoxelDimensions;
+import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.volatiles.CacheHints;
-import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
@@ -98,7 +99,9 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
 /**
@@ -182,8 +185,8 @@ public class N5Viewer {
 				selected.add(meta);
 		}
 
-		final List<N5Source<T>> sources = new ArrayList<>();
-		final List<N5Source<V>> volatileSources = new ArrayList<>();
+		final List<Source<T>> sources = new ArrayList<>();
+		final List<Source<V>> volatileSources = new ArrayList<>();
 
 		buildN5Sources(
 				dataSelection.n5,
@@ -294,8 +297,8 @@ public class N5Viewer {
 				selected.add(meta);
 		}
 
-		final List<N5Source<T>> sources = new ArrayList<>();
-		final List<N5Source<V>> volatileSources = new ArrayList<>();
+		final List<Source<T>> sources = new ArrayList<>();
+		final List<Source<V>> volatileSources = new ArrayList<>();
 
 		buildN5Sources(
 				selection.n5,
@@ -317,8 +320,8 @@ public class N5Viewer {
 			final SharedQueue sharedQueue,
 			final List<ConverterSetup> converterSetups,
 			final List<SourceAndConverter<T>> sourcesAndConverters,
-			final List<N5Source<T>> sources,
-			final List<N5Source<V>> volatileSources) throws IOException {
+			final List<Source<T>> sources,
+			final List<Source<V>> volatileSources) throws IOException {
 
 		final ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
 
@@ -387,21 +390,21 @@ public class N5Viewer {
 			@SuppressWarnings("rawtypes")
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
 			for (int s = 0; s < images.length; ++s) {
-				final CachedCellImg<?, ?> vimg = N5Utils.openVolatile(n5, datasetsToOpen[s]);
-				if (vimg.numDimensions() == 2) {
-					images[s] = Views.addDimension(vimg, 0, 0);
-					is2D = is2D && true;
-				} else {
-					images[s] = vimg;
-					is2D = is2D && false;
+				final CachedCellImg<?, ?> img = N5Utils.openVolatile(n5, datasetsToOpen[s]);
+				is2D &= img.numDimensions() == 2;
+				final RandomAccessibleInterval< ? > imagejImg;
+				if (metadata instanceof AxisMetadata)
+					imagejImg = AxisUtils.permuteForImagePlus( img, (AxisMetadata)metadata );
+				else
+				{
+					RandomAccessibleInterval< ? > imgTmp = img;
+					while( imgTmp.numDimensions() < 5 )
+						imgTmp = Views.addDimension(imgTmp, 0, 0 );
+					imagejImg = imgTmp;
 				}
+				images[s] = imagejImg;
 			}
 
-			final RandomAccessibleInterval[] vimages = new RandomAccessibleInterval[images.length];
-			for (int s = 0; s < images.length; ++s) {
-				final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, 0, true);
-				vimages[s] = VolatileViews.wrapAsVolatile(images[s], sharedQueue, cacheHints);
-			}
 			// TODO: Ideally, the volatile views should use a caching strategy
 			// where blocks are enqueued with reverse resolution level as
 			// priority. However, this would require to predetermine the number
@@ -419,24 +422,21 @@ public class N5Viewer {
 
 			@SuppressWarnings("unchecked")
 			final T type = (T)Util.getTypeFromInterval(images[0]);
-			final N5Source<T> source = new N5Source<>(
+
+			/* there still can be many channels */
+			final List<Pair<Source<T>, Source<V>>> sourcePairs = createSource(
 					type,
 					srcName,
 					images,
-					transforms);
+					transforms,
+					sharedQueue,
+					new FinalVoxelDimensions("something", 1, 1, 1)); //< fill in real voxel dimensions
 
-			@SuppressWarnings("unchecked")
-			final V volatileType = (V)VolatileTypeMatcher.getVolatileTypeForType(type);
-			final N5Source<V> volatileSource = new N5Source<>(
-					volatileType,
-					srcName,
-					vimages,
-					transforms);
-
-			sources.add(source);
-			volatileSources.add(volatileSource);
-
-			addSourceToListsGenericType(source, volatileSource, i + 1, converterSetups, sourcesAndConverters);
+			for (final Pair<Source<T>, Source<V>> sourcePair : sourcePairs) {
+				sources.add(sourcePair.getA());
+				volatileSources.add(sourcePair.getB());
+				addSourceToListsGenericType(sourcePair.getA(), sourcePair.getB(), i + 1, converterSetups, sourcesAndConverters);
+			}
 		}
 
 		for (final MetadataSource src : additionalSources) {
@@ -445,6 +445,40 @@ public class N5Viewer {
 
 			addSourceToListsGenericType(src, i + 1, converterSetups, sourcesAndConverters);
 		}
+	}
+
+	private static <T extends NumericType<T> & NativeType<T>, V extends NumericType<V> & NativeType<V>> List<Pair<Source<T>, Source<V>>> createSource(
+			final T type,
+			final String srcName,
+			final RandomAccessibleInterval<T>[] images,
+			final AffineTransform3D[] transforms,
+			final SharedQueue sharedQueue,
+			final VoxelDimensions vd) {
+
+		final long nChannels = images[0].dimension(2);
+
+		final ArrayList<Pair<Source<T>, Source<V>>> sourcePairs = new ArrayList<>();
+		for ( int c = 0; c < nChannels; ++c )
+		{
+			final RandomAccessibleInterval<T>[] channels = new RandomAccessibleInterval[images.length];
+			for (int level = 0; level < images.length; ++level) {
+				channels[level] = Views.hyperSlice(images[level], 2, c);
+				final RandomAccessibleIntervalMipmapSource4D<T> source = new RandomAccessibleIntervalMipmapSource4D<>(
+						channels,
+						type,
+						transforms,
+						vd,
+						srcName,
+						true);
+
+				// TODO fix generics
+				final Pair<Source<T>, Source<V>> pair = new ValuePair(
+						source,
+						source.asVolatile(sharedQueue));
+				sourcePairs.add(pair);
+			}
+		}
+		return sourcePairs;
 	}
 
 	private <T extends NumericType<T> & NativeType<T>> void initCropController(
