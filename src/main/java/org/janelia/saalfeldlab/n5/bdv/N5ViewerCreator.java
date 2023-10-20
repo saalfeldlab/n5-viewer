@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.metadata.imagej.ImagePlusLegacyMetadataParser;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
@@ -39,6 +40,7 @@ public class N5ViewerCreator {
 	};
 
 	public static final N5MetadataParser<?>[] n5vParsers = new N5MetadataParser[]{
+			new ImagePlusLegacyMetadataParser(),
 			new N5CosemMetadataParser(),
 			new N5SingleScaleMetadataParser(),
 			new CanonicalMetadataParser(),

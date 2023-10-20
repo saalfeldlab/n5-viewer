@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.swing.ActionMap;
 import javax.swing.JFrame;
@@ -56,8 +57,10 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.DefaultAxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalSpatialMetadata;
@@ -74,6 +77,7 @@ import bdv.tools.boundingbox.BoxSelectionOptions;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.transformation.TransformedSource;
 import bdv.ui.splitpanel.SplitPanel;
+import bdv.util.AxisOrder;
 import bdv.util.BdvFunctions;
 import bdv.util.BdvHandle;
 import bdv.util.BdvHandleFrame;
@@ -185,48 +189,39 @@ public class N5Viewer {
 				selected.add(meta);
 		}
 
-		final List<Source<T>> sources = new ArrayList<>();
-		final List<Source<V>> volatileSources = new ArrayList<>();
-
+		final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
 		buildN5Sources(
 				dataSelection.n5,
 				selected,
 				sharedQueue,
 				converterSetups,
 				sourcesAndConverters,
-				sources,
-				volatileSources);
+				options);
 
 		BdvHandle bdvHandle = null;
-
-		BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
-		if (is2D) {
-			options = options.is2D();
-		}
-
 		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
 			if (bdvHandle == null) {
 				if (wantFrame) {
 					// Create and show a BdvHandleFrame with the first source
-					bdvHandle = BdvFunctions.show(sourcesAndConverter, BdvOptions.options()).getBdvHandle();
+					bdvHandle = BdvFunctions.show(sourcesAndConverter, numTimepoints, options).getBdvHandle();
 				} else {
 					// Create a BdvHandlePanel, but don't show it
 					bdvHandle = new BdvHandlePanel(parentFrame, options);
 					// Add the first source to it
-					BdvFunctions.show(sourcesAndConverter, BdvOptions.options().addTo(bdvHandle));
+					BdvFunctions.show(sourcesAndConverter, numTimepoints, options.addTo(bdvHandle));
 				}
 			} else {
 				// Subsequent sources are added to the existing handle
-				BdvFunctions.show(sourcesAndConverter, BdvOptions.options().addTo(bdvHandle));
+				BdvFunctions.show(sourcesAndConverter, numTimepoints, options.addTo(bdvHandle));
 			}
 		}
-		this.bdv = bdvHandle;
 
+		this.bdv = bdvHandle;
 		if (bdv != null) {
 			final ViewerPanel viewerPanel = bdv.getViewerPanel();
 			if (viewerPanel != null) {
 				viewerPanel.setNumTimepoints(numTimepoints);
-				initCropController(sources);
+				initCropController(sourcesAndConverters);
 				// Delay initTransform until the viewer is shown because it
 				// needs to have a size.
 				viewerPanel.addComponentListener(new ComponentAdapter() {
@@ -297,20 +292,17 @@ public class N5Viewer {
 				selected.add(meta);
 		}
 
-		final List<Source<T>> sources = new ArrayList<>();
-		final List<Source<V>> volatileSources = new ArrayList<>();
-
+		final BdvOptions opts = BdvOptions.options();
 		buildN5Sources(
 				selection.n5,
 				selected,
 				sharedQueue,
 				converterSetups,
 				sourcesAndConverters,
-				sources,
-				volatileSources);
+				opts );
 
 		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
-			BdvFunctions.show(sourcesAndConverter, BdvOptions.options().addTo(bdv));
+			BdvFunctions.show(sourcesAndConverter, opts.addTo(bdv));
 		}
 	}
 
@@ -320,8 +312,7 @@ public class N5Viewer {
 			final SharedQueue sharedQueue,
 			final List<ConverterSetup> converterSetups,
 			final List<SourceAndConverter<T>> sourcesAndConverters,
-			final List<Source<T>> sources,
-			final List<Source<V>> volatileSources) throws IOException {
+			final BdvOptions options ) throws IOException {
 
 		final ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
 
@@ -333,6 +324,7 @@ public class N5Viewer {
 			final N5Metadata metadata = selectedMetadata.get(i);
 			final String srcName = metadata.getName();
 			if (metadata instanceof N5SingleScaleMetadata) {
+				System.out.println("n5v switch");
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata)metadata;
 				final String[] tmpDatasets = new String[]{singleScaleDataset.getPath()};
 				final AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{
@@ -371,6 +363,10 @@ public class N5Viewer {
 						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
+			} else if (metadata instanceof SpatialMetadata) {
+
+				datasetsToOpen = new String[]{metadata.getPath()};
+				transforms = new AffineTransform3D[]{ ((SpatialMetadata)metadata).spatialTransform3d() };
 			} else if (metadata instanceof N5DatasetMetadata) {
 				final List<MetadataSource<?>> addTheseSources = MetadataSource
 						.buildMetadataSources(n5, (N5DatasetMetadata)metadata);
@@ -391,10 +387,21 @@ public class N5Viewer {
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
 			for (int s = 0; s < images.length; ++s) {
 				final CachedCellImg<?, ?> img = N5Utils.openVolatile(n5, datasetsToOpen[s]);
-				is2D &= img.numDimensions() == 2;
 				final RandomAccessibleInterval< ? > imagejImg;
 				if (metadata instanceof AxisMetadata)
+				{
 					imagejImg = AxisUtils.permuteForImagePlus( img, (AxisMetadata)metadata );
+				}
+				else if( metadata instanceof N5SingleScaleMetadata )
+				{
+					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5DatasetMetadata)metadata );
+					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
+				}
+				else if( isN5ViewerMultiscale(metadata))
+				{
+					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5DatasetMetadata)(((N5MultiScaleMetadata)metadata).getChildrenMetadata()[0]) );
+					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
+				}
 				else
 				{
 					RandomAccessibleInterval< ? > imgTmp = img;
@@ -402,7 +409,10 @@ public class N5Viewer {
 						imgTmp = Views.addDimension(imgTmp, 0, 0 );
 					imagejImg = imgTmp;
 				}
+				is2D &= imagejImg.dimension(3) == 1;
 				images[s] = imagejImg;
+
+				numTimepoints = (int)Math.max(numTimepoints, imagejImg.dimension(4));
 			}
 
 			// TODO: Ideally, the volatile views should use a caching strategy
@@ -433,8 +443,6 @@ public class N5Viewer {
 					new FinalVoxelDimensions("something", 1, 1, 1)); //< fill in real voxel dimensions
 
 			for (final Pair<Source<T>, Source<V>> sourcePair : sourcePairs) {
-				sources.add(sourcePair.getA());
-				volatileSources.add(sourcePair.getB());
 				addSourceToListsGenericType(sourcePair.getA(), sourcePair.getB(), i + 1, converterSetups, sourcesAndConverters);
 			}
 		}
@@ -445,6 +453,21 @@ public class N5Viewer {
 
 			addSourceToListsGenericType(src, i + 1, converterSetups, sourcesAndConverters);
 		}
+
+		if (is2D)
+			options.is2D();
+	}
+
+	private boolean isN5ViewerMultiscale( final N5Metadata metadata )
+	{
+		if(metadata instanceof N5MultiScaleMetadata )
+		{
+			final N5MultiScaleMetadata ms = (N5MultiScaleMetadata)metadata;
+			final N5SingleScaleMetadata[] children = ms.getChildrenMetadata();
+			if( children.length > 0 )
+				return children[0] instanceof N5SingleScaleMetadata;
+		}
+		return false;
 	}
 
 	private static <T extends NumericType<T> & NativeType<T>, V extends NumericType<V> & NativeType<V>> List<Pair<Source<T>, Source<V>>> createSource(
@@ -482,7 +505,7 @@ public class N5Viewer {
 	}
 
 	private <T extends NumericType<T> & NativeType<T>> void initCropController(
-			final List<? extends Source<T>> sources) {
+			final List<? extends SourceAndConverter<T>> sourceAndConverers) {
 
 		final TriggerBehaviourBindings bindings = bdv.getBdvHandle().getTriggerbindings();
 
@@ -496,7 +519,7 @@ public class N5Viewer {
 			config = new InputTriggerConfig();
 		}
 
-		final Source<T> src = sources.get(0);
+		final Source<T> src = sourceAndConverers.get(0).getSpimSource();
 		final double[] boxMin = new double[3];
 		final double[] boxMax = new double[3];
 
@@ -528,6 +551,7 @@ public class N5Viewer {
 		bindings.addBehaviourMap("crop", cropController.getBehaviourMap());
 		bindings.addInputTriggerMap("crop", cropController.getInputTriggerMap());
 
+		final List<Source<T>> sources = sourceAndConverers.stream().map( SourceAndConverter::getSpimSource).collect(Collectors.toList());
 		final CropController<T> cropControllerLegacy = new CropController<>(
 				bdv.getViewerPanel(),
 				sources,
