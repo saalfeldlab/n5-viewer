@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
@@ -235,12 +236,14 @@ public class MetadataSource<T extends NumericType<T> & NativeType<T>> implements
 	 *            the metadata
 	 * @return axes default axis metadata
 	 */
-	public static DefaultAxisMetadata defaultN5ViewerAxes(final N5DatasetMetadata meta) {
+	public static DefaultAxisMetadata defaultN5ViewerAxes(final N5SpatialDatasetMetadata meta) {
 
 		final int nd = meta.getAttributes().getNumDimensions();
 
 		final String[] labels;
-		if (nd ==  3)
+		if (nd ==  2)
+			labels = new String[]{"x", "y"};
+		else if (nd ==  3)
 			labels = new String[]{"x", "y", "z"};
 		else if( nd == 4)
 			labels = new String[]{"x", "y", "z", "t"};
@@ -248,7 +251,7 @@ public class MetadataSource<T extends NumericType<T> & NativeType<T>> implements
 			return null;
 
 		final String[] types = AxisUtils.getDefaultTypes(labels);
-		final String[] units = Stream.generate(() -> "pixel").limit(nd).toArray(String[]::new);
+		final String[] units = Stream.generate(() -> meta.unit()).limit(nd).toArray(String[]::new);
 		return new DefaultAxisMetadata(meta.getPath(), labels, types, units);
 	}
 

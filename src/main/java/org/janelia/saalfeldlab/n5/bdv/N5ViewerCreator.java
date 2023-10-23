@@ -36,7 +36,9 @@ public class N5ViewerCreator {
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),
 			new CanonicalMetadataParser(),
-			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser()
+			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser(),
+			new N5ViewerMultichannelMetadata.GenericMultichannelMetadataParser()
+
 	};
 
 	public static final N5MetadataParser<?>[] n5vParsers = new N5MetadataParser[]{

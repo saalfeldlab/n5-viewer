@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.swing.ActionMap;
@@ -50,14 +51,17 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
+import org.janelia.saalfeldlab.n5.universe.metadata.GenericMetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.DefaultAxisMetadata;
@@ -77,7 +81,6 @@ import bdv.tools.boundingbox.BoxSelectionOptions;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.transformation.TransformedSource;
 import bdv.ui.splitpanel.SplitPanel;
-import bdv.util.AxisOrder;
 import bdv.util.BdvFunctions;
 import bdv.util.BdvHandle;
 import bdv.util.BdvHandleFrame;
@@ -117,8 +120,6 @@ import net.imglib2.view.Views;
 public class N5Viewer {
 
 	private int numTimepoints = 1;
-
-	private boolean is2D = true;
 
 	private final SharedQueue sharedQueue;
 
@@ -190,7 +191,7 @@ public class N5Viewer {
 		}
 
 		final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
-		buildN5Sources(
+		numTimepoints = buildN5Sources(
 				dataSelection.n5,
 				selected,
 				sharedQueue,
@@ -293,7 +294,7 @@ public class N5Viewer {
 		}
 
 		final BdvOptions opts = BdvOptions.options();
-		buildN5Sources(
+		numTimepoints = buildN5Sources(
 				selection.n5,
 				selected,
 				sharedQueue,
@@ -302,11 +303,43 @@ public class N5Viewer {
 				opts );
 
 		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
-			BdvFunctions.show(sourcesAndConverter, opts.addTo(bdv));
+			BdvFunctions.show(sourcesAndConverter, numTimepoints, opts.addTo(bdv));
 		}
 	}
 
-	public <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> void buildN5Sources(
+	public static List<N5Metadata> unwrapMultichannelSelections( final DataSelection dataSelection )
+	{
+		final List<N5Metadata> selected = new ArrayList<>();
+		for (final N5Metadata meta : dataSelection.metadata) {
+			if (meta instanceof N5ViewerMultichannelMetadata ||
+				meta instanceof CanonicalMultichannelMetadata ||
+				meta instanceof GenericMetadataGroup  ) {
+
+				@SuppressWarnings("rawtypes")
+				final N5MetadataGroup mc = (N5MetadataGroup)meta;
+				for (final N5Metadata m : mc.getChildrenMetadata())
+					selected.add(m);
+			} else
+				selected.add(meta);
+		}
+
+		return selected;
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
+			final N5Reader n5,
+			final DataSelection dataSelection,
+			final SharedQueue sharedQueue,
+			final List<ConverterSetup> converterSetups,
+			final List<SourceAndConverter<T>> sourcesAndConverters,
+			final BdvOptions options ) throws IOException {
+
+		return buildN5Sources(n5,
+				unwrapMultichannelSelections(dataSelection),
+				sharedQueue, converterSetups, sourcesAndConverters, options);
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
 			final N5Reader n5,
 			final List<N5Metadata> selectedMetadata,
 			final SharedQueue sharedQueue,
@@ -316,6 +349,10 @@ public class N5Viewer {
 
 		final ArrayList<MetadataSource<?>> additionalSources = new ArrayList<>();
 
+		// is2D should be true at the end of this loop if all sources are 2D
+		boolean is2D = true;
+		int numTimepoints = 1;
+
 		int i;
 		for (i = 0; i < selectedMetadata.size(); ++i) {
 			String[] datasetsToOpen = null;
@@ -324,7 +361,6 @@ public class N5Viewer {
 			final N5Metadata metadata = selectedMetadata.get(i);
 			final String srcName = metadata.getName();
 			if (metadata instanceof N5SingleScaleMetadata) {
-				System.out.println("n5v switch");
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata)metadata;
 				final String[] tmpDatasets = new String[]{singleScaleDataset.getPath()};
 				final AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{
@@ -380,27 +416,30 @@ public class N5Viewer {
 			if (datasetsToOpen == null || datasetsToOpen.length == 0)
 				continue;
 
-			// is2D should be true at the end of this loop if all sources are 2D
-			is2D = true;
 
 			@SuppressWarnings("rawtypes")
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
+			String unit = "pixel";
 			for (int s = 0; s < images.length; ++s) {
+
 				final CachedCellImg<?, ?> img = N5Utils.openVolatile(n5, datasetsToOpen[s]);
 				final RandomAccessibleInterval< ? > imagejImg;
 				if (metadata instanceof AxisMetadata)
 				{
 					imagejImg = AxisUtils.permuteForImagePlus( img, (AxisMetadata)metadata );
+					unit = unitFromAxes(((AxisMetadata)metadata).getAxes());
 				}
 				else if( metadata instanceof N5SingleScaleMetadata )
 				{
-					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5DatasetMetadata)metadata );
+					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5SingleScaleMetadata)metadata );
 					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
+					unit = ((N5SingleScaleMetadata)metadata).unit();
 				}
 				else if( isN5ViewerMultiscale(metadata))
 				{
-					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5DatasetMetadata)(((N5MultiScaleMetadata)metadata).getChildrenMetadata()[0]) );
+					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5SingleScaleMetadata)(((N5MultiScaleMetadata)metadata).getChildrenMetadata()[0]) );
 					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
+					unit = unitFromAxes(axes.getAxes());
 				}
 				else
 				{
@@ -409,9 +448,9 @@ public class N5Viewer {
 						imgTmp = Views.addDimension(imgTmp, 0, 0 );
 					imagejImg = imgTmp;
 				}
-				is2D &= imagejImg.dimension(3) == 1;
 				images[s] = imagejImg;
 
+				is2D &= imagejImg.dimension(3) == 1;
 				numTimepoints = (int)Math.max(numTimepoints, imagejImg.dimension(4));
 			}
 
@@ -433,14 +472,21 @@ public class N5Viewer {
 			@SuppressWarnings("unchecked")
 			final T type = (T)Util.getTypeFromInterval(images[0]);
 
+			// TODO this could / should be generalized
+			// resolutions
+			final double rx = transforms[0].get(0, 0);
+			final double ry = transforms[0].get(1, 1);
+			final double rz = transforms[0].get(2, 2);
+
 			/* there still can be many channels */
+			@SuppressWarnings("unchecked")
 			final List<Pair<Source<T>, Source<V>>> sourcePairs = createSource(
 					type,
 					srcName,
 					images,
 					transforms,
 					sharedQueue,
-					new FinalVoxelDimensions("something", 1, 1, 1)); //< fill in real voxel dimensions
+					new FinalVoxelDimensions(unit, rx, ry, rz));
 
 			for (final Pair<Source<T>, Source<V>> sourcePair : sourcePairs) {
 				addSourceToListsGenericType(sourcePair.getA(), sourcePair.getB(), i + 1, converterSetups, sourcesAndConverters);
@@ -456,9 +502,22 @@ public class N5Viewer {
 
 		if (is2D)
 			options.is2D();
+
+		return numTimepoints;
 	}
 
-	private boolean isN5ViewerMultiscale( final N5Metadata metadata )
+	private static String unitFromAxes(Axis[] axes) {
+
+		final Optional<Axis> axisOpt = Arrays.stream(axes)
+				.filter(x -> x.getType().equals(Axis.SPACE)).findFirst();
+
+		if (axisOpt.isPresent())
+			return axisOpt.get().getUnit();
+
+		return "pixel";
+	}
+
+	private static boolean isN5ViewerMultiscale( final N5Metadata metadata )
 	{
 		if(metadata instanceof N5MultiScaleMetadata )
 		{

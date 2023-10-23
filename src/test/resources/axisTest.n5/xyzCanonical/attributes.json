@@ -8,17 +8,17 @@
     "axes": [
       {
         "type": "space",
-        "label": "x",
+        "name": "x",
         "unit": "nm"
       },
       {
         "type": "space",
-        "label": "y",
+        "name": "y",
         "unit": "nm"
       },
       {
         "type": "space",
-        "label": "z",
+        "name": "z",
         "unit": "nm"
       }
     ],
