@@ -545,20 +545,20 @@ public class N5Viewer {
 			final RandomAccessibleInterval<T>[] channels = new RandomAccessibleInterval[images.length];
 			for (int level = 0; level < images.length; ++level) {
 				channels[level] = Views.hyperSlice(images[level], 2, c);
-				final RandomAccessibleIntervalMipmapSource4D<T> source = new RandomAccessibleIntervalMipmapSource4D<>(
-						channels,
-						type,
-						transforms,
-						vd,
-						srcName,
-						true);
-
-				// TODO fix generics
-				final Pair<Source<T>, Source<V>> pair = new ValuePair(
-						source,
-						source.asVolatile(sharedQueue));
-				sourcePairs.add(pair);
 			}
+			final RandomAccessibleIntervalMipmapSource4D<T> source = new RandomAccessibleIntervalMipmapSource4D<>(
+					channels,
+					type,
+					transforms,
+					vd,
+					srcName,
+					true);
+
+			// TODO fix generics
+			final Pair<Source<T>, Source<V>> pair = new ValuePair(
+					source,
+					source.asVolatile(sharedQueue));
+			sourcePairs.add(pair);
 		}
 		return sourcePairs;
 	}
