@@ -229,33 +229,6 @@ public class MetadataSource<T extends NumericType<T> & NativeType<T>> implements
 	}
 
 	/**
-	 * The default axes for dialects that store only spatial data (n5viewer and
-	 * cosem), when time dimension is allowed.
-	 *
-	 * @param meta
-	 *            the metadata
-	 * @return axes default axis metadata
-	 */
-	public static DefaultAxisMetadata defaultN5ViewerAxes(final N5SpatialDatasetMetadata meta) {
-
-		final int nd = meta.getAttributes().getNumDimensions();
-
-		final String[] labels;
-		if (nd ==  2)
-			labels = new String[]{"x", "y"};
-		else if (nd ==  3)
-			labels = new String[]{"x", "y", "z"};
-		else if( nd == 4)
-			labels = new String[]{"x", "y", "z", "t"};
-		else
-			return null;
-
-		final String[] types = AxisUtils.getDefaultTypes(labels);
-		final String[] units = Stream.generate(() -> meta.unit()).limit(nd).toArray(String[]::new);
-		return new DefaultAxisMetadata(meta.getPath(), labels, types, units);
-	}
-
-	/**
 	 * The default axes for imageJ-like dialects with fixed axis-order XYCZT.
 	 *
 	 * @param meta

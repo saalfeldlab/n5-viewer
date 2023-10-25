@@ -431,13 +431,13 @@ public class N5Viewer {
 				}
 				else if( metadata instanceof N5SingleScaleMetadata )
 				{
-					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5SingleScaleMetadata)metadata );
+					final DefaultAxisMetadata axes = AxisUtils.defaultN5ViewerAxes( (N5SingleScaleMetadata)metadata );
 					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
 					unit = ((N5SingleScaleMetadata)metadata).unit();
 				}
 				else if( isN5ViewerMultiscale(metadata))
 				{
-					final DefaultAxisMetadata axes = MetadataSource.defaultN5ViewerAxes( (N5SingleScaleMetadata)(((N5MultiScaleMetadata)metadata).getChildrenMetadata()[0]) );
+					final DefaultAxisMetadata axes = AxisUtils.defaultN5ViewerAxes( (N5SingleScaleMetadata)(((N5MultiScaleMetadata)metadata).getChildrenMetadata()[0]) );
 					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
 					unit = unitFromAxes(axes.getAxes());
 				}
