@@ -68,7 +68,9 @@ import org.janelia.saalfeldlab.n5.universe.metadata.axes.DefaultAxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalSpatialMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.NgffSingleScaleAxesMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMultiScaleMetadata;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.InputActionBindings;
@@ -106,6 +108,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
@@ -441,12 +444,27 @@ public class N5Viewer {
 					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
 					unit = unitFromAxes(axes.getAxes());
 				}
+				else if( isCosemMultiscale(metadata))
+				{
+					final N5CosemMultiScaleMetadata cosemMulti = ((N5CosemMultiScaleMetadata)metadata);
+					final N5CosemMetadata cosemMeta = cosemMulti.getChildrenMetadata()[0];
+					imagejImg = AxisUtils.permuteForImagePlus(img, cosemMeta);
+					unit = cosemMeta.unit();
+				}
 				else
 				{
-					RandomAccessibleInterval< ? > imgTmp = img;
-					while( imgTmp.numDimensions() < 5 )
-						imgTmp = Views.addDimension(imgTmp, 0, 0 );
-					imagejImg = imgTmp;
+					final NgffSingleScaleAxesMetadata ngffMeta = isNgffMultiscale(metadata);
+					if( ngffMeta != null ) {
+						imagejImg = AxisUtils.permuteForImagePlus(img, ngffMeta);
+						unit = ngffMeta.unit();
+					}
+					else
+					{
+						RandomAccessibleInterval< ? > imgTmp = img;
+						while( imgTmp.numDimensions() < 5 )
+							imgTmp = Views.addDimension(imgTmp, 0, 0 );
+						imagejImg = imgTmp;
+					}
 				}
 				images[s] = imagejImg;
 
@@ -529,6 +547,45 @@ public class N5Viewer {
 		return false;
 	}
 
+	private static boolean isCosemMultiscale( final N5Metadata metadata )
+	{
+		if(metadata instanceof N5CosemMultiScaleMetadata )
+		{
+			final N5CosemMultiScaleMetadata ms = (N5CosemMultiScaleMetadata)metadata;
+			final N5CosemMetadata[] children = ms.getChildrenMetadata();
+			if( children.length > 0 )
+				return children[0] instanceof N5CosemMetadata;
+		}
+		return false;
+	}
+
+	private static NgffSingleScaleAxesMetadata isNgffMultiscale( final N5Metadata metadata )
+	{
+		if(metadata instanceof OmeNgffMetadata )
+		{
+			final OmeNgffMetadata ngff = (OmeNgffMetadata)metadata;
+			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
+
+			// TODO when do we not just take the first one?
+			final NgffSingleScaleAxesMetadata[] children = ms[0].getChildrenMetadata();
+			if( children.length > 0 )
+				if( children[0] instanceof NgffSingleScaleAxesMetadata)
+					return children[0];
+
+		}
+		else if(metadata instanceof OmeNgffMultiScaleMetadata )
+		{
+			final OmeNgffMultiScaleMetadata ms = (OmeNgffMultiScaleMetadata)metadata;
+			final NgffSingleScaleAxesMetadata[] children = ms.getChildrenMetadata();
+			if( children.length > 0 )
+				if( children[0] instanceof NgffSingleScaleAxesMetadata)
+					return children[0];
+
+		}
+
+		return null;
+	}
+
 	private static <T extends NumericType<T> & NativeType<T>, V extends NumericType<V> & NativeType<V>> List<Pair<Source<T>, Source<V>>> createSource(
 			final T type,
 			final String srcName,
@@ -546,6 +603,7 @@ public class N5Viewer {
 			for (int level = 0; level < images.length; ++level) {
 				channels[level] = Views.hyperSlice(images[level], 2, c);
 			}
+
 			final RandomAccessibleIntervalMipmapSource4D<T> source = new RandomAccessibleIntervalMipmapSource4D<>(
 					channels,
 					type,
