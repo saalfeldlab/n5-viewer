@@ -17,8 +17,8 @@ import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.ij.N5Exporter;
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
+import org.janelia.saalfeldlab.n5.ij.N5ScalePyramidExporter;
 import org.janelia.saalfeldlab.n5.metadata.imagej.ImagePlusLegacyMetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.imagej.N5ImagePlusMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
@@ -36,7 +36,6 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import ij.ImagePlus;
 import ij.gui.NewImage;
-import mpicbg.imglib.image.Image;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -59,7 +58,7 @@ public class BdvMetadataIoTests {
 		baseDir = new File( configUrl.getFile()).getParentFile();
 	}
 
-	public <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> void singleReadWriteParseTest(
+	public <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> void readWriteParseTest(
 			final ImagePlus imp,
 			final String outputPath,
 			final String dataset,
@@ -69,22 +68,14 @@ public class BdvMetadataIoTests {
 			final boolean testMeta,
 			final boolean testData ) throws IOException
 	{
-		final N5Exporter writer = new N5Exporter();
-		writer.setOptions( imp, outputPath, dataset, blockSizeString, metadataType, compressionType,
-				N5Exporter.OVERWRITE, "");
+		System.out.println( "dset: " + dataset );
+
+		final N5ScalePyramidExporter writer = new N5ScalePyramidExporter();
+		writer.setOptions( imp, outputPath, dataset, blockSizeString, true,
+				N5ScalePyramidExporter.DOWN_SAMPLE, metadataType, compressionType);
 		writer.run(); // run() closes the n5 writer
 
 		final String readerDataset = dataset;
-
-//		final String readerDataset;
-//		if( metadataType.equals( N5Importer.MetadataN5ViewerKey ))
-//			readerDataset = dataset + "/c0/s0";
-//		else if( metadataType.equals( N5Importer.MetadataN5CosemKey ) && imp.getNChannels() > 1 )
-//			readerDataset = dataset + "/c0";
-//		else
-//			readerDataset = dataset;
-//
-//		final String n5PathAndDataset = outputPath + readerDataset;
 
 		final N5Reader n5 = new N5Factory().openReader(outputPath);
 		final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(n5, Executors.newSingleThreadExecutor(), (x) -> true,
@@ -134,6 +125,7 @@ public class BdvMetadataIoTests {
 			assertTrue( String.format( "%s resolutions ", dataset ), resEqual );
 			assertTrue( String.format( "%s units ", dataset ),
 					unit.equals( imp.getCalibration().getUnit()));
+
 		}
 
 		if( testData )
@@ -157,6 +149,7 @@ public class BdvMetadataIoTests {
 		testMultiChannelHelper(N5Importer.MetadataN5ViewerKey);
 		testMultiChannelHelper(N5Importer.MetadataN5CosemKey);
 		testMultiChannelHelper(N5Importer.MetadataImageJKey);
+		testMultiChannelHelper(N5Importer.MetadataOmeZarrKey);
 	}
 
 	public void testMultiChannelHelper( final String metatype ) throws IOException
@@ -167,10 +160,10 @@ public class BdvMetadataIoTests {
 		final String blockSizeString = "16";
 		final String compressionString = "raw";
 
-		//
-		int nc = 3; nc += 0;
-		int nz = 1; nz += 0;
-		int nt = 1; nt += 0;
+		// add zero to avoid eclipse making these final
+		int nc = 1; nc += 0;
+		int nz = 4; nz += 0;
+		int nt = 5; nt += 0;
 
 		for( nc = 1; nc <= 3; nc += 2)
 		{
@@ -190,7 +183,7 @@ public class BdvMetadataIoTests {
 					imp.getCalibration().setUnit("mm");
 
 					final String dataset = String.format("/c%dz%dt%d", nc, nz, nt);
-					singleReadWriteParseTest( imp, n5RootPath, dataset, blockSizeString, metatype, compressionString, true, true );
+					readWriteParseTest( imp, n5RootPath, dataset, blockSizeString, metatype, compressionString, true, true );
 				}
 			}
 		}
