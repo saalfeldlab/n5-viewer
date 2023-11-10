@@ -68,8 +68,6 @@ public class BdvMetadataIoTests {
 			final boolean testMeta,
 			final boolean testData ) throws IOException
 	{
-		System.out.println( "dset: " + dataset );
-
 		final N5ScalePyramidExporter writer = new N5ScalePyramidExporter();
 		writer.setOptions( imp, outputPath, dataset, blockSizeString, true,
 				N5ScalePyramidExporter.DOWN_SAMPLE, metadataType, compressionType);
@@ -146,17 +144,20 @@ public class BdvMetadataIoTests {
 	@Test
 	public void testMultiChannel() throws IOException
 	{
-		testMultiChannelHelper(N5Importer.MetadataN5ViewerKey);
-		testMultiChannelHelper(N5Importer.MetadataN5CosemKey);
-		testMultiChannelHelper(N5Importer.MetadataImageJKey);
-		testMultiChannelHelper(N5Importer.MetadataOmeZarrKey);
+		for( final String suffix : new String[] { ".h5", ".n5", ".zarr" })
+		{
+			testMultiChannelHelper(N5Importer.MetadataN5ViewerKey, suffix);
+			testMultiChannelHelper(N5Importer.MetadataN5CosemKey, suffix);
+			testMultiChannelHelper(N5Importer.MetadataOmeZarrKey, suffix);
+			testMultiChannelHelper(N5Importer.MetadataImageJKey, suffix);
+		}
 	}
 
-	public void testMultiChannelHelper( final String metatype ) throws IOException
+	public void testMultiChannelHelper( final String metatype, final String suffix ) throws IOException
 	{
 		final int bitDepth = 8;
 
-		final String n5RootPath = baseDir + "/test_"+ metatype+"_dimCombos.n5";
+		final String n5RootPath = baseDir + "/test_"+ metatype+"_dimCombos" + suffix;
 		final String blockSizeString = "16";
 		final String compressionString = "raw";
 
