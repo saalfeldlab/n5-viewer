@@ -15,6 +15,9 @@ public class N5ViewerPlugin implements PlugIn {
 
 	final public static void main(final String... args) {
 
+//		// can also run directly from a url
+//		BdvHandle bdv = N5Viewer.show( "s3://janelia-cosem-datasets/jrc_mus-meissner-corpuscle-1/jrc_mus-meissner-corpuscle-1.n5?/em/fibsem-uint8" );
+
 		new ImageJ();
 		new N5ViewerPlugin().run("");
 	}

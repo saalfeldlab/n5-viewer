@@ -30,8 +30,10 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -46,11 +48,14 @@ import javax.swing.SwingUtilities;
 import org.janelia.saalfeldlab.control.mcu.MCUBDVControls;
 import org.janelia.saalfeldlab.control.mcu.XTouchMiniMCUControlPanel;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.bdv.tools.boundingbox.BoxCrop;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
+import org.janelia.saalfeldlab.n5.universe.N5Factory;
+import org.janelia.saalfeldlab.n5.universe.N5MetadataUtils;
 import org.janelia.saalfeldlab.n5.universe.metadata.GenericMetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadata;
@@ -192,89 +197,8 @@ public class N5Viewer {
 				selected.add(meta);
 		}
 
-		final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
-		numTimepoints = buildN5Sources(
-				dataSelection.n5,
-				selected,
-				sharedQueue,
-				converterSetups,
-				sourcesAndConverters,
-				options);
-
-		BdvHandle bdvHandle = null;
-		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
-			if (bdvHandle == null) {
-				if (wantFrame) {
-					// Create and show a BdvHandleFrame with the first source
-					bdvHandle = BdvFunctions.show(sourcesAndConverter, numTimepoints, options).getBdvHandle();
-				} else {
-					// Create a BdvHandlePanel, but don't show it
-					bdvHandle = new BdvHandlePanel(parentFrame, options);
-					// Add the first source to it
-					BdvFunctions.show(sourcesAndConverter, numTimepoints, options.addTo(bdvHandle));
-				}
-			} else {
-				// Subsequent sources are added to the existing handle
-				BdvFunctions.show(sourcesAndConverter, numTimepoints, options.addTo(bdvHandle));
-			}
-		}
-
-		this.bdv = bdvHandle;
-		if (bdv != null) {
-			final ViewerPanel viewerPanel = bdv.getViewerPanel();
-			if (viewerPanel != null) {
-				viewerPanel.setNumTimepoints(numTimepoints);
-				initCropController(sourcesAndConverters);
-				// Delay initTransform until the viewer is shown because it
-				// needs to have a size.
-				viewerPanel.addComponentListener(new ComponentAdapter() {
-
-					boolean needsInit = true;
-
-					@Override
-					public void componentShown(final ComponentEvent e) {
-
-						if (needsInit) {
-							InitializeViewerState.initTransform(viewerPanel);
-							needsInit = false;
-						}
-					}
-				});
-			}
-		}
-
-		if (bdv instanceof BdvHandleFrame) {
-			// add crop to menu bar
-			final BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
-			final ViewerFrame viewerFrame = bdvFrame.getBigDataViewer().getViewerFrame();
-			final JMenuBar menuBar = viewerFrame.getJMenuBar();
-			final ActionMap actionMap = viewerFrame.getKeybindings().getConcatenatedActionMap();
-
-			final JMenu toolsMenu = menuBar.getMenu(2);
-			final JMenuItem cropItem = new JMenuItem(actionMap.get("crop"));
-			cropItem.setText("Extract to ImageJ");
-			toolsMenu.add(cropItem);
-
-			/* create XTouchMini midi controller */
-			try {
-				final XTouchMiniMCUControlPanel controlPanel = XTouchMiniMCUControlPanel.build();
-				new MCUBDVControls(
-						bdv.getBdvHandle().getViewerPanel(),
-						controlPanel);
-
-				((JFrame)SwingUtilities.getWindowAncestor(bdv.getBdvHandle().getViewerPanel()))
-						.addWindowListener(new WindowAdapter() {
-
-							@Override
-							public void windowClosing(final WindowEvent e) {
-
-								controlPanel.close();
-							}
-
-						});
-
-			} catch (final Exception e) {}
-		}
+		final N5Reader n5 = dataSelection.n5;
+		this.bdv = show(n5, selected, wantFrame, parentFrame );
 	}
 
 	public <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, R extends N5Reader> void addData(
@@ -328,6 +252,139 @@ public class N5Viewer {
 		return selected;
 	}
 
+	public static BdvHandle show(final String uri) {
+
+		try {
+			return show(new N5URI(uri));
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public static BdvHandle show( final N5URI uri ) {
+
+		return show(
+				new N5Factory().openReader(uri.getContainerPath()),
+				uri.getGroupPath() != null ? uri.getGroupPath() : "/",
+				true, null);
+	}
+
+	public static BdvHandle show(String n5root, final String group) {
+
+		return show(new N5Factory().openReader(n5root), group, true, null);
+	}
+
+	public static BdvHandle show(N5Reader n5, final String group) {
+
+		return show(n5, group, true, null);
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(N5Reader n5, final String group, final boolean wantFrame, final Frame parentFrame) {
+
+		return show(n5, Collections.singletonList(N5MetadataUtils.parseMetadata(n5, group)), wantFrame, parentFrame);
+	}
+
+	public static BdvHandle show(N5Reader n5, List<N5Metadata> metadata) {
+
+		return show(n5, metadata, true, null);
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(N5Reader n5, List<N5Metadata> metadata, final boolean wantFrame, final Frame parentFrame) {
+
+		final DataSelection selection = new DataSelection(n5, metadata);
+		final SharedQueue sharedQueue = new SharedQueue(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
+		final List<ConverterSetup> converterSetups = new ArrayList<>();
+		final List<SourceAndConverter<T>> sourcesAndConverters = new ArrayList<>();
+
+		final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
+		int numTimepoints;
+		try {
+			numTimepoints = buildN5Sources(
+					n5,
+					selection,
+					sharedQueue,
+					converterSetups,
+					sourcesAndConverters,
+					options);
+
+		} catch (IOException e1) {
+			e1.printStackTrace();
+			return null;
+		}
+
+		BdvHandle bdvHandle = null;
+		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
+			if (wantFrame) {
+				// Create and show a BdvHandleFrame with the first source
+				bdvHandle = BdvFunctions.show(sourcesAndConverter, numTimepoints, options).getBdvHandle();
+			} else {
+				// Create a BdvHandlePanel, but don't show it
+				bdvHandle = new BdvHandlePanel(parentFrame, options);
+				// Add the first source to it
+				BdvFunctions.show(sourcesAndConverter, numTimepoints, options.addTo(bdvHandle));
+			}
+		}
+
+		BdvHandle bdv = bdvHandle;
+		if (bdv != null) {
+			final ViewerPanel viewerPanel = bdv.getViewerPanel();
+			if (viewerPanel != null) {
+				viewerPanel.setNumTimepoints(numTimepoints);
+				initCropController(bdv, sourcesAndConverters);
+				// Delay initTransform until the viewer is shown because it
+				// needs to have a size.
+				viewerPanel.addComponentListener(new ComponentAdapter() {
+
+					boolean needsInit = true;
+
+					@Override
+					public void componentShown(final ComponentEvent e) {
+
+						if (needsInit) {
+							InitializeViewerState.initTransform(viewerPanel);
+							needsInit = false;
+						}
+					}
+				});
+			}
+		}
+
+		if (bdv instanceof BdvHandleFrame) {
+			// add crop to menu bar
+			final BdvHandleFrame bdvFrame = (BdvHandleFrame)bdv;
+			final ViewerFrame viewerFrame = bdvFrame.getBigDataViewer().getViewerFrame();
+			final JMenuBar menuBar = viewerFrame.getJMenuBar();
+			final ActionMap actionMap = viewerFrame.getKeybindings().getConcatenatedActionMap();
+
+			final JMenu toolsMenu = menuBar.getMenu(2);
+			final JMenuItem cropItem = new JMenuItem(actionMap.get("crop"));
+			cropItem.setText("Extract to ImageJ");
+			toolsMenu.add(cropItem);
+
+			/* create XTouchMini midi controller */
+			try {
+				final XTouchMiniMCUControlPanel controlPanel = XTouchMiniMCUControlPanel.build();
+				new MCUBDVControls(
+						bdv.getBdvHandle().getViewerPanel(),
+						controlPanel);
+
+				((JFrame)SwingUtilities.getWindowAncestor(bdv.getBdvHandle().getViewerPanel()))
+						.addWindowListener(new WindowAdapter() {
+
+							@Override
+							public void windowClosing(final WindowEvent e) {
+
+								controlPanel.close();
+							}
+
+						});
+			} catch (final Exception e) {}
+		}
+
+		return bdv;
+	}
+
 	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
 			final N5Reader n5,
 			final DataSelection dataSelection,
@@ -362,6 +419,8 @@ public class N5Viewer {
 
 			final N5Metadata metadata = selectedMetadata.get(i);
 			final String srcName = metadata.getName();
+
+			// TODO: simplify this if/elseif block: much of these if cases can be combined
 			if (metadata instanceof N5SingleScaleMetadata) {
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata)metadata;
 				final String[] tmpDatasets = new String[]{singleScaleDataset.getPath()};
@@ -612,7 +671,7 @@ public class N5Viewer {
 					true);
 
 			// TODO fix generics
-			final Pair<Source<T>, Source<V>> pair = new ValuePair(
+			final ValuePair<Source<T>, Source<V>> pair = new ValuePair(
 					source,
 					source.asVolatile(sharedQueue));
 			sourcePairs.add(pair);
@@ -620,7 +679,8 @@ public class N5Viewer {
 		return sourcePairs;
 	}
 
-	private <T extends NumericType<T> & NativeType<T>> void initCropController(
+	private static <T extends NumericType<T> & NativeType<T>> void initCropController(
+			final BdvHandle bdv,
 			final List<? extends SourceAndConverter<T>> sourceAndConverers) {
 
 		final TriggerBehaviourBindings bindings = bdv.getBdvHandle().getTriggerbindings();
@@ -709,7 +769,6 @@ public class N5Viewer {
 	 *            list of {@link SourceAndConverter}s to which the source should
 	 *            be added.
 	 */
-	@SuppressWarnings({"rawtypes", "unchecked"})
 	private static <T> void addSourceToListsGenericType(
 			final Source<T> source,
 			final int setupId,
