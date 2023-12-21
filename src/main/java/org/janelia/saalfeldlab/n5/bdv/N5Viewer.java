@@ -315,13 +315,19 @@ public class N5Viewer {
 
 		BdvHandle bdvHandle = null;
 		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
-			if (wantFrame) {
-				// Create and show a BdvHandleFrame with the first source
-				bdvHandle = BdvFunctions.show(sourcesAndConverter, numTimepoints, options).getBdvHandle();
-			} else {
-				// Create a BdvHandlePanel, but don't show it
-				bdvHandle = new BdvHandlePanel(parentFrame, options);
-				// Add the first source to it
+			if (bdvHandle == null) {
+				if (wantFrame) {
+					// Create and show a BdvHandleFrame with the first source
+					bdvHandle = BdvFunctions.show(sourcesAndConverter, numTimepoints, options).getBdvHandle();
+				} else {
+					// Create a BdvHandlePanel, but don't show it
+					bdvHandle = new BdvHandlePanel(parentFrame, options);
+					// Add the first source to it
+					BdvFunctions.show(sourcesAndConverter, numTimepoints, options.addTo(bdvHandle));
+				}
+			}
+			else {
+				// Subsequent sources are added to the existing handle
 				BdvFunctions.show(sourcesAndConverter, numTimepoints, options.addTo(bdvHandle));
 			}
 		}
