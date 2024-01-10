@@ -498,7 +498,8 @@ public class N5Viewer {
 			String unit = "pixel";
 			for (int s = 0; s < images.length; ++s) {
 
-				final RandomAccessibleInterval<T> img = loadImage( n5, datasetsToOpen[s]);
+				@SuppressWarnings("unchecked")
+				final RandomAccessibleInterval<T> img = (RandomAccessibleInterval<T>)loadImage(n5, datasetsToOpen[s]);
 
 				final RandomAccessibleInterval< ? > imagejImg;
 				if (metadata instanceof AxisMetadata)
@@ -601,15 +602,15 @@ public class N5Viewer {
 	/*
 	 * If the image is of type {@link LabelMultisetType} to {@link UnsignedLongType}.
 	 */
-	protected static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> RandomAccessibleInterval<T> loadImage(
+	protected static <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<?> loadImage(
 			final N5Reader n5, final String dataset) {
 
-		final CachedCellImg<T, ?> img = N5Utils.openVolatile(n5, dataset);
-		final T t = Util.getTypeFromInterval(img);
+		final CachedCellImg<?, ?> img = N5Utils.openVolatile(n5, dataset);
+		final Object t = Util.getTypeFromInterval(img);
 		if( t instanceof LabelMultisetType ) {
 
-			return (CachedCellImg<T, ?>)convertLabelMultisetCache(
-					(CachedCellImg<LabelMultisetType, ?>)img);
+			final CachedCellImg<LabelMultisetType, ?> lmsImg = (CachedCellImg<LabelMultisetType, ?>)img;
+			return convertLabelMultisetCache(lmsImg);
 
 			// TODO compare to the below
 //			return (CachedCellImg<T, ?>)convertLabelMultisetLazy(
@@ -618,7 +619,7 @@ public class N5Viewer {
 //			return (RandomAccessibleInterval<T>)convertLabelMultisetVolatile(
 //					(CachedCellImg<LabelMultisetType, ?>)img);
 		}
-		return img;
+		return (RandomAccessibleInterval<T>)img;
 	}
 
 	private static RandomAccessibleInterval<VolatileUnsignedLongType> convertLabelMultisetVolatile( final CachedCellImg<LabelMultisetType,?> lmsImg ) {
