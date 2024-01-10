@@ -95,27 +95,38 @@ import bdv.util.BdvHandlePanel;
 import bdv.util.BdvOptions;
 import bdv.util.Prefs;
 import bdv.util.RandomAccessibleIntervalMipmapSource4D;
+import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerFrame;
 import bdv.viewer.ViewerPanel;
 import mpicbg.spim.data.sequence.FinalVoxelDimensions;
 import mpicbg.spim.data.sequence.VoxelDimensions;
+import net.imglib2.Cursor;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.algorithm.lazy.Lazy;
 import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.img.ReadOnlyCachedCellImgFactory;
+import net.imglib2.cache.img.ReadOnlyCachedCellImgOptions;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 /**
@@ -264,8 +275,7 @@ public class N5Viewer {
 
 	public static BdvHandle show( final N5URI uri ) {
 
-		return show(
-				new N5Factory().openReader(uri.getContainerPath()),
+		return show( new N5Factory().openReader(uri.getContainerPath()),
 				uri.getGroupPath() != null ? uri.getGroupPath() : "/",
 				true, null);
 	}
@@ -483,13 +493,13 @@ public class N5Viewer {
 			if (datasetsToOpen == null || datasetsToOpen.length == 0)
 				continue;
 
-
 			@SuppressWarnings("rawtypes")
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
 			String unit = "pixel";
 			for (int s = 0; s < images.length; ++s) {
 
-				final CachedCellImg<?, ?> img = N5Utils.openVolatile(n5, datasetsToOpen[s]);
+				final RandomAccessibleInterval<T> img = loadImage( n5, datasetsToOpen[s]);
+
 				final RandomAccessibleInterval< ? > imagejImg;
 				if (metadata instanceof AxisMetadata)
 				{
@@ -588,6 +598,80 @@ public class N5Viewer {
 		return numTimepoints;
 	}
 
+	/*
+	 * If the image is of type {@link LabelMultisetType} to {@link UnsignedLongType}.
+	 */
+	protected static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> RandomAccessibleInterval<T> loadImage(
+			final N5Reader n5, final String dataset) {
+
+		final CachedCellImg<T, ?> img = N5Utils.openVolatile(n5, dataset);
+		final T t = Util.getTypeFromInterval(img);
+		if( t instanceof LabelMultisetType ) {
+
+			return (CachedCellImg<T, ?>)convertLabelMultisetCache(
+					(CachedCellImg<LabelMultisetType, ?>)img);
+
+			// TODO compare to the below
+//			return (CachedCellImg<T, ?>)convertLabelMultisetLazy(
+//					(CachedCellImg<LabelMultisetType, ?>)img);
+
+//			return (RandomAccessibleInterval<T>)convertLabelMultisetVolatile(
+//					(CachedCellImg<LabelMultisetType, ?>)img);
+		}
+		return img;
+	}
+
+	private static RandomAccessibleInterval<VolatileUnsignedLongType> convertLabelMultisetVolatile( final CachedCellImg<LabelMultisetType,?> lmsImg ) {
+
+		// TODO this isn't working (VolatileViews throws a NPE), but have not yet investigated why
+		System.out.println( "convert volatile");
+		// see ViewCosem in n5-utils for something similar
+
+		RandomAccessibleInterval<Volatile<LabelMultisetType>> vimg = VolatileViews.wrapAsVolatile( lmsImg );
+		return Converters.convert2(vimg,
+				(a, b) -> {
+					b.set(a.get().argMax());
+					b.setValid(a.isValid());
+				},
+				VolatileUnsignedLongType::new);
+	}
+
+	private static CachedCellImg<UnsignedLongType, ?> convertLabelMultisetLazy(final CachedCellImg<LabelMultisetType, ?> lmsImg) {
+
+		// use Lazy.generate to convert and cache
+		final int[] cellDims = new int[lmsImg.numDimensions()];
+		lmsImg.getCellGrid().cellDimensions(cellDims);
+
+		return Lazy.generate(lmsImg, cellDims, new UnsignedLongType(),
+				AccessFlags.setOf(AccessFlags.VOLATILE),
+				x -> {
+					final IntervalView<LabelMultisetType> in = (IntervalView<LabelMultisetType>)Views.interval(lmsImg, x);
+					final Cursor<LabelMultisetType> inc = in.cursor();
+					final Cursor<UnsignedLongType> outc = Views.flatIterable(x).cursor();
+					while (outc.hasNext())
+						outc.next().set(inc.next().argMax());
+				});
+	}
+
+	private static CachedCellImg<UnsignedLongType, ?> convertLabelMultisetCache(final CachedCellImg<LabelMultisetType, ?> lmsImg) {
+
+		final int[] cellDims = new int[lmsImg.numDimensions()];
+		lmsImg.getCellGrid().cellDimensions(cellDims);
+
+		return new ReadOnlyCachedCellImgFactory()
+				.create(lmsImg.dimensionsAsLongArray(), new UnsignedLongType(),
+						out -> {
+							final IntervalView<LabelMultisetType> in = (IntervalView<LabelMultisetType>)Views.interval(lmsImg, out);
+							final Cursor<LabelMultisetType> inc = in.cursor();
+							final Cursor<UnsignedLongType> outc = out.cursor();
+							while (outc.hasNext())
+								outc.next().set(inc.next().argMax());
+						},
+						new ReadOnlyCachedCellImgOptions()
+								.cellDimensions(cellDims)
+								.volatileAccesses(true));
+	}
+
 	private static String unitFromAxes(Axis[] axes) {
 
 		final Optional<Axis> axisOpt = Arrays.stream(axes)
@@ -650,6 +734,7 @@ public class N5Viewer {
 		return null;
 	}
 
+	@SuppressWarnings("unchecked")
 	private static <T extends NumericType<T> & NativeType<T>, V extends NumericType<V> & NativeType<V>> List<Pair<Source<T>, Source<V>>> createSource(
 			final T type,
 			final String srcName,
@@ -661,20 +746,14 @@ public class N5Viewer {
 		final long nChannels = images[0].dimension(2);
 
 		final ArrayList<Pair<Source<T>, Source<V>>> sourcePairs = new ArrayList<>();
-		for ( int c = 0; c < nChannels; ++c )
-		{
+		for ( int c = 0; c < nChannels; ++c ) {
+
 			final RandomAccessibleInterval<T>[] channels = new RandomAccessibleInterval[images.length];
-			for (int level = 0; level < images.length; ++level) {
+			for (int level = 0; level < images.length; ++level)
 				channels[level] = Views.hyperSlice(images[level], 2, c);
-			}
 
 			final RandomAccessibleIntervalMipmapSource4D<T> source = new RandomAccessibleIntervalMipmapSource4D<>(
-					channels,
-					type,
-					transforms,
-					vd,
-					srcName,
-					true);
+					channels, type, transforms, vd, srcName, true);
 
 			// TODO fix generics
 			final ValuePair<Source<T>, Source<V>> pair = new ValuePair(
