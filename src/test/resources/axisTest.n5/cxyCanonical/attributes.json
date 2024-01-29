@@ -8,17 +8,17 @@
     "axes": [
       {
         "type": "channel",
-        "label": "c",
+        "name": "c",
         "unit": "none"
       },
       {
         "type": "space",
-        "label": "x",
+        "name": "x",
         "unit": "nm"
       },
       {
         "type": "space",
-        "label": "y",
+        "name": "y",
         "unit": "nm"
       }
     ],

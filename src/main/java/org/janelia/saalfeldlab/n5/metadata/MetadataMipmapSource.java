@@ -23,23 +23,33 @@ package org.janelia.saalfeldlab.n5.metadata;
 
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.N5Source;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 
+import bdv.util.RandomAccessibleIntervalMipmapSource;
+import mpicbg.spim.data.sequence.FinalVoxelDimensions;
+import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.util.Util;
 
-public class MetadataMipmapSource<T extends NumericType<T> & NativeType<T>> extends N5Source<T> {
+public class MetadataMipmapSource<T extends NumericType<T> & NativeType<T>> extends RandomAccessibleIntervalMipmapSource<T> {
 
 	private N5Reader n5;
 	private MultiscaleMetadata<?> metadata;
 
 	private int channelDim;
 	private int channelPos;
+
+	private static VoxelDimensions voxelDimensions(
+			final MultiscaleMetadata<?> metadata) {
+
+		final double[] unit = {1, 1, 1};
+		metadata.spatialTransform3d().apply(unit, unit);
+		return new FinalVoxelDimensions(metadata.unit(), unit);
+	}
 
 	public MetadataMipmapSource(
 			final N5Reader n5,
@@ -48,10 +58,12 @@ public class MetadataMipmapSource<T extends NumericType<T> & NativeType<T>> exte
 			final int channelPos) {
 
 		super(
-				getType(n5, metadata),
-				metadata.getName(),
 				getImgs(n5, metadata),
-				metadata.spatialTransforms3d());
+				getType(n5, metadata),
+				metadata.spatialTransforms3d(),
+				voxelDimensions(metadata),
+				metadata.getName(),
+				true);
 
 		this.n5 = n5;
 		this.metadata = metadata;

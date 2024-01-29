@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.metadata.imagej.ImagePlusLegacyMetadataParser;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
@@ -15,6 +16,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5ViewerMultiscaleMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser;
 
 import ij.ImageJ;
 
@@ -30,15 +32,17 @@ import ij.ImageJ;
 public class N5ViewerCreator {
 
 	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{
-			new org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser(),
-//    		new org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v03.OmeNgffMetadataParser(), // TODO test later
+			new OmeNgffMetadataParser(),
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),
 			new CanonicalMetadataParser(),
-			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser()
+			new N5ViewerMultichannelMetadata.N5ViewerMultichannelMetadataParser(),
+			new N5ViewerMultichannelMetadata.GenericMultichannelMetadataParser()
+
 	};
 
 	public static final N5MetadataParser<?>[] n5vParsers = new N5MetadataParser[]{
+			new ImagePlusLegacyMetadataParser(),
 			new N5CosemMetadataParser(),
 			new N5SingleScaleMetadataParser(),
 			new CanonicalMetadataParser(),

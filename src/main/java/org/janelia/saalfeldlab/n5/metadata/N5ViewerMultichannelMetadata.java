@@ -30,9 +30,11 @@ import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
+import org.janelia.saalfeldlab.n5.universe.metadata.GenericMetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
 
 public class N5ViewerMultichannelMetadata implements N5MetadataGroup<MultiscaleMetadata<?>> {
 
@@ -94,4 +96,25 @@ public class N5ViewerMultichannelMetadata implements N5MetadataGroup<MultiscaleM
 			return Optional.of(new N5ViewerMultichannelMetadata(node.getPath(), childMetadata));
 		}
 	}
+
+	public static class GenericMultichannelMetadataParser implements N5MetadataParser<GenericMetadataGroup<N5SingleScaleMetadata>> {
+
+		@Override
+		public Optional<GenericMetadataGroup<N5SingleScaleMetadata>> parseMetadata(final N5Reader n5, final N5TreeNode node) {
+
+			final Map<String, N5TreeNode> children = new HashMap<>();
+			for (final N5TreeNode childNode : node.childrenList()) {
+				if (channelPredicate.test(childNode.getNodeName()) && childNode.getMetadata() instanceof N5SingleScaleMetadata)
+					children.put(childNode.getNodeName(), childNode);
+			}
+
+			final N5SingleScaleMetadata[] childMetadata = children
+					.values()
+					.stream()
+					.map(N5TreeNode::getMetadata)
+					.toArray(N5SingleScaleMetadata[]::new);
+			return Optional.of(new GenericMetadataGroup<N5SingleScaleMetadata>(node.getPath(), childMetadata));
+		}
+	}
+
 }
