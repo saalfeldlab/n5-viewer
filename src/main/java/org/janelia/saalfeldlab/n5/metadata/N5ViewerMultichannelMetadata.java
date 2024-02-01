@@ -113,7 +113,11 @@ public class N5ViewerMultichannelMetadata implements N5MetadataGroup<MultiscaleM
 					.stream()
 					.map(N5TreeNode::getMetadata)
 					.toArray(N5SingleScaleMetadata[]::new);
-			return Optional.of(new GenericMetadataGroup<N5SingleScaleMetadata>(node.getPath(), childMetadata));
+
+			if (childMetadata.length == 0)
+				return Optional.empty();
+			else
+				return Optional.of(new GenericMetadataGroup<N5SingleScaleMetadata>(node.getPath(), childMetadata));
 		}
 	}
 
