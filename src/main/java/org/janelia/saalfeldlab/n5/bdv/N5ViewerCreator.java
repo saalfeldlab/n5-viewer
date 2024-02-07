@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.imagej.ImagePlusLegacyMetadataParser;
+import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
@@ -86,6 +87,30 @@ public class N5ViewerCreator {
 			final Consumer<Exception> exceptionHandler,
 			final Consumer<N5Viewer> viewerConsumer) {
 
+		openViewer( exceptionHandler, viewerConsumer, null, null );
+	}
+
+	/**
+	 * Display a data selection dialog, and open a viewer with the selected
+	 * data.
+	 *
+	 * @param exceptionHandler
+	 *            handler for any exceptions throw once the data has been
+	 *            selected
+	 * @param viewerConsumer
+	 *            consumer for the viewer that is created once the data has been
+	 *            selected
+	 * @param selectionConsumer
+	 *            consumer for the data selected in the dialog
+	 * @param cancelCallback
+	 *            consumer to be executed if the dialog is cancelled.
+	 */
+	public void openViewer(
+			final Consumer<Exception> exceptionHandler,
+			final Consumer<N5Viewer> viewerConsumer,
+			final Consumer<DataSelection> selectionConsumer,
+			final Consumer<Void> cancelConsumer) {
+
 		final ExecutorService exec = Executors.newFixedThreadPool(ij.Prefs.getThreads());
 		final DatasetSelectorDialog dialog = new DatasetSelectorDialog(
 				new N5Importer.N5ViewerReaderFun(),
@@ -95,14 +120,16 @@ public class N5ViewerCreator {
 				n5vParsers);
 
 		dialog.setLoaderExecutor(exec);
-
-//		dialog.setRecursiveFilterCallback( new N5ViewerDatasetFilter() );
 		dialog.setContainerPathUpdateCallback(x -> lastOpenedContainer = x);
 		dialog.setTreeRenderer(new N5ViewerTreeCellRenderer(false));
+		dialog.setCancelCallback(cancelConsumer);
 
 		dialog.run(selection -> {
 			try {
 				final N5Viewer n5Viewer = new N5Viewer(null, selection, true);
+				if (selectionConsumer != null) {
+					selectionConsumer.accept(selection);
+				}
 				if (viewerConsumer != null) {
 					viewerConsumer.accept(n5Viewer);
 				}
