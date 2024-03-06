@@ -114,7 +114,7 @@ public class N5ViewerCreator {
 		final ExecutorService exec = Executors.newFixedThreadPool(ij.Prefs.getThreads());
 		final DatasetSelectorDialog dialog = new DatasetSelectorDialog(
 				new N5Importer.N5ViewerReaderFun(),
-				x -> "",
+				new N5Importer.N5BasePathFun(),
 				lastOpenedContainer,
 				n5vGroupParsers,
 				n5vParsers);
