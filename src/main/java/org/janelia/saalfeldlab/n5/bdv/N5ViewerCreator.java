@@ -102,7 +102,7 @@ public class N5ViewerCreator {
 	 *            selected
 	 * @param selectionConsumer
 	 *            consumer for the data selected in the dialog
-	 * @param cancelCallback
+	 * @param cancelConsumer
 	 *            consumer to be executed if the dialog is cancelled.
 	 */
 	public void openViewer(
