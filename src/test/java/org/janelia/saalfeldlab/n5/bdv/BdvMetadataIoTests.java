@@ -52,10 +52,10 @@ public class BdvMetadataIoTests {
 	private File baseDir;
 
 	@Before
-	public void before()
-	{
-		final URL configUrl = BdvMetadataIoTests.class.getResource( "/plugins.config" );
-		baseDir = new File( configUrl.getFile()).getParentFile();
+	public void before() {
+
+		final URL configUrl = BdvMetadataIoTests.class.getResource("/plugins.config");
+		baseDir = new File(configUrl.getFile()).getParentFile();
 	}
 
 	public <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> void readWriteParseTest(
@@ -66,23 +66,25 @@ public class BdvMetadataIoTests {
 			final String metadataType,
 			final String compressionType,
 			final boolean testMeta,
-			final boolean testData ) throws IOException
-	{
+			final boolean testData) throws IOException {
+
 		final N5ScalePyramidExporter writer = new N5ScalePyramidExporter();
-		writer.setOptions( imp, outputPath, dataset, blockSizeString, true,
+		writer.setOptions(imp, outputPath, dataset, N5ScalePyramidExporter.AUTO_FORMAT, blockSizeString, true,
 				N5ScalePyramidExporter.DOWN_SAMPLE, metadataType, compressionType);
-		writer.run(); // run() closes the n5 writer
+
+		writer.setOverwrite(true); 	// overwrite on for this test
+		writer.run(); 				// run() closes the n5 writer
 
 		final String readerDataset = dataset;
 
 		final N5Reader n5 = new N5Factory().openReader(outputPath);
 		final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(n5, Executors.newSingleThreadExecutor(), (x) -> true,
-				Arrays.asList( N5ViewerCreator.n5vParsers ),
-				Arrays.asList( N5ViewerCreator.n5vGroupParsers ));
+				Arrays.asList(N5ViewerCreator.n5vParsers),
+				Arrays.asList(N5ViewerCreator.n5vGroupParsers));
 
 		final N5TreeNode root = datasetDiscoverer.discoverAndParseRecursive("");
 		final Optional<N5TreeNode> metaOpt = root.getDescendant(readerDataset);
-		if( !metaOpt.isPresent())
+		if (!metaOpt.isPresent())
 			fail("could not find metadata at: " + readerDataset);
 
 		final List<ConverterSetup> converterSetups = new ArrayList<>();
@@ -99,11 +101,11 @@ public class BdvMetadataIoTests {
 				sourcesAndConverters,
 				options);
 
-		assertEquals( String.format("channels for %s", dataset), imp.getNChannels(), sourcesAndConverters.size() );
-		assertEquals( String.format("time points for %s", dataset), imp.getNFrames(), numTimepoints );
+		assertEquals(String.format("channels for %s", dataset), imp.getNChannels(), sourcesAndConverters.size());
+		assertEquals(String.format("time points for %s", dataset), imp.getNFrames(), numTimepoints);
 
 		final Source<T> src0 = sourcesAndConverters.get(0).getSpimSource();
-		assertEquals( String.format("slices for %s", dataset), imp.getNSlices(),
+		assertEquals(String.format("slices for %s", dataset), imp.getNSlices(),
 				src0.getSource(0, 0).dimension(2));
 
 		final AffineTransform3D tform = new AffineTransform3D();
@@ -113,24 +115,22 @@ public class BdvMetadataIoTests {
 		final double rz = tform.get(2, 2);
 		final String unit = src0.getVoxelDimensions().unit();
 
-		if( testMeta )
-		{
-			final boolean resEqual =
-					rx == imp.getCalibration().pixelWidth &&
+		if (testMeta) {
+			final boolean resEqual = rx == imp.getCalibration().pixelWidth &&
 					ry == imp.getCalibration().pixelHeight &&
 					rz == imp.getCalibration().pixelDepth;
 
-			assertTrue( String.format( "%s resolutions ", dataset ), resEqual );
-			assertTrue( String.format( "%s units ", dataset ),
-					unit.equals( imp.getCalibration().getUnit()));
+			assertTrue(String.format("%s resolutions ", dataset), resEqual);
+			assertTrue(String.format("%s units ", dataset),
+					unit.equals(imp.getCalibration().getUnit()));
 
 		}
 
-		if( testData )
-		{
+		if (testData) {
 			final List<Source<T>> srcList = sourcesAndConverters.stream().map(sac -> sac.getSpimSource()).collect(Collectors.toList());
 			assertTrue(String.format("%s data ", dataset), sourceDataIdentical(imp, srcList));
 		}
+		n5.close();
 
 		// remove
 		final N5Writer n5w = new N5Factory().openWriter(outputPath);
@@ -142,10 +142,9 @@ public class BdvMetadataIoTests {
 	 * and ensure bdv sources are correctly read.
 	 */
 	@Test
-	public void testMultiChannel() throws IOException
-	{
-		for( final String suffix : new String[] { ".h5", ".n5", ".zarr" })
-		{
+	public void testMultiChannel() throws IOException {
+
+		for (final String suffix : new String[]{".h5", ".n5", ".zarr"}) {
 			testMultiChannelHelper(N5Importer.MetadataN5ViewerKey, suffix);
 			testMultiChannelHelper(N5Importer.MetadataN5CosemKey, suffix);
 			testMultiChannelHelper(N5Importer.MetadataOmeZarrKey, suffix);
@@ -153,45 +152,45 @@ public class BdvMetadataIoTests {
 		}
 	}
 
-	public void testMultiChannelHelper( final String metatype, final String suffix ) throws IOException
-	{
+	public void testMultiChannelHelper(final String metatype, final String suffix) throws IOException {
+
 		final int bitDepth = 8;
 
-		final String n5RootPath = baseDir + "/test_"+ metatype+"_dimCombos" + suffix;
+		final String n5RootPath = baseDir + "/test_" + metatype + "_dimCombos" + suffix;
 		final String blockSizeString = "16";
 		final String compressionString = "raw";
 
 		// add zero to avoid eclipse making these final
-		int nc = 1; nc += 0;
-		int nz = 4; nz += 0;
-		int nt = 5; nt += 0;
+		int nc = 1;
+		nc += 0;
+		int nz = 4;
+		nz += 0;
+		int nt = 5;
+		nt += 0;
 
-		for( nc = 1; nc <= 3; nc += 2)
-		{
-			for( nz = 1; nz <= 4; nz += 3)
-			{
-				for( nt = 1; nt <= 5; nt += 4)
-				{
+		for (nc = 1; nc <= 3; nc += 2) {
+			for (nz = 1; nz <= 4; nz += 3) {
+				for (nt = 1; nt <= 5; nt += 4) {
 					final int N = nc * nz * nt;
 					final ImagePlus imp = NewImage.createImage("test", 8, 6, N, bitDepth, NewImage.FILL_NOISE);
-					imp.setDimensions( nc, nz, nt );
+					imp.setDimensions(nc, nz, nt);
 					imp.getCalibration().pixelWidth = 0.5;
 					imp.getCalibration().pixelHeight = 0.6;
 
-					if( nz > 1 )
+					if (nz > 1)
 						imp.getCalibration().pixelDepth = 0.7;
 
 					imp.getCalibration().setUnit("mm");
 
 					final String dataset = String.format("/c%dz%dt%d", nc, nz, nt);
-					readWriteParseTest( imp, n5RootPath, dataset, blockSizeString, metatype, compressionString, true, true );
+					readWriteParseTest(imp, n5RootPath, dataset, blockSizeString, metatype, compressionString, true, true);
 				}
 			}
 		}
 	}
 
-	private static <T extends NumericType<T> & NativeType<T>> boolean sourceDataIdentical( final ImagePlus gt, final List<Source<T>> source )
-	{
+	private static <T extends NumericType<T> & NativeType<T>> boolean sourceDataIdentical(final ImagePlus gt, final List<Source<T>> source) {
+
 		@SuppressWarnings("unchecked")
 		final Img<T> imgRaw = (Img<T>)ImageJFunctions.wrap(gt);
 		final ImagePlusLegacyMetadataParser parser = new ImagePlusLegacyMetadataParser();
@@ -218,22 +217,20 @@ public class BdvMetadataIoTests {
 		return true;
 	}
 
-	public static < T extends NumericType< T > & NativeType< T > > boolean equal( final RandomAccessibleInterval<T> imgA, final RandomAccessibleInterval<T> imgB )
-	{
-		try {
-			final Cursor< T > c = Views.flatIterable(imgA).cursor();
-			final RandomAccess< T > r = imgB.randomAccess();
-			while( c.hasNext() )
-			{
-				c.fwd();
-				r.setPosition( c );
+	public static <T extends NumericType<T> & NativeType<T>> boolean equal(final RandomAccessibleInterval<T> imgA, final RandomAccessibleInterval<T> imgB) {
 
-				if( !c.get().valueEquals(r.get()))
+		try {
+			final Cursor<T> c = Views.flatIterable(imgA).cursor();
+			final RandomAccess<T> r = imgB.randomAccess();
+			while (c.hasNext()) {
+				c.fwd();
+				r.setPosition(c);
+
+				if (!c.get().valueEquals(r.get()))
 					return false;
 			}
 			return true;
-		}catch( final Exception e )
-		{
+		} catch (final Exception e) {
 			return false;
 		}
 	}
