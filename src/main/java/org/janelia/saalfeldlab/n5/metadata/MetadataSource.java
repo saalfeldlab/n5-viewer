@@ -92,11 +92,6 @@ public class MetadataSource<T extends NumericType<T> & NativeType<T>> implements
 		this.channelDimension = channelDim;
 		this.channelPos = channelPos;
 
-//		if( metadata instanceof AxisMetadata )
-//			inferDimensions((AxisMetadata) metadata, channelDim );
-//		else
-//			inferDimensions( defaultAxes( metadata ), channelDim );
-
 		if (metadata instanceof AxisMetadata)
 			axes = (AxisMetadata)metadata;
 		else
@@ -283,10 +278,15 @@ public class MetadataSource<T extends NumericType<T> & NativeType<T>> implements
 	 * Up to three space dimensions are allowed. One time dimension is allowed.
 	 * One channel dimension is allowed.
 	 *
+	 * Deprecated: use AxisMetadata directly instead.
+	 *
 	 * @param axes
 	 *            axis metadata
+	 * @param channel
+	 *            index of the channel dimension
 	 * @return are the axes valid, constrained as described above.
 	 */
+	@Deprecated
 	public boolean inferDimensions(final AxisMetadata axes, final int channel) {
 
 		final ArrayList<Integer> spaceDims = new ArrayList<>();

@@ -34,6 +34,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -50,12 +51,15 @@ import org.janelia.saalfeldlab.control.mcu.XTouchMiniMCUControlPanel;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.bdv.tools.boundingbox.BoxCrop;
+import org.janelia.saalfeldlab.n5.ij.N5Importer.N5ViewerReaderFun;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
+import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.universe.N5MetadataUtils;
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.GenericMetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadata;
@@ -300,6 +304,75 @@ public class N5Viewer {
 		return show(n5, metadata, true, null);
 	}
 
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final String[] uris, final BdvOptions options) {
+
+		return show(uris, options, true, null);
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final String[] uris, final BdvOptions options, final boolean wantFrame, final Frame parentFrame) {
+
+		final SharedQueue sharedQueue = new SharedQueue(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
+		final List<ConverterSetup> converterSetups = new ArrayList<>();
+		final List<SourceAndConverter<T>> sourcesAndConverters = new ArrayList<>();
+		int numTimepoints = 1;
+
+		// find unique containers in the uris and make a DataSelection for each
+		final HashMap<String,N5Reader> n5Readers = new HashMap<>();
+		final HashMap<N5Reader,List<String>> selectionsByContainer = new HashMap<>();
+
+		final N5ViewerReaderFun n5fun = new N5ViewerReaderFun();
+		for( String uri : uris )
+		{
+			N5URI n5uri;
+			try {
+				n5uri = new N5URI(uri);
+			} catch (URISyntaxException e) {
+				System.err.println("Could not parse url: " + uri);
+				continue;
+			}
+
+			if( !n5Readers.containsKey(n5uri.getContainerPath()))
+			{
+				// make a reader for this container and track it
+				final N5Reader n5 = n5fun.apply(n5uri.getContainerPath());
+				n5Readers.put(n5uri.getContainerPath(), n5);
+
+				// start a list of paths for this container
+				selectionsByContainer.put(n5, new ArrayList<>());
+				selectionsByContainer.get(n5).add(N5URI.normalizeGroupPath(n5uri.getGroupPath()));
+			}
+			else
+				selectionsByContainer.get(n5Readers.get(n5uri.getContainerPath()))
+						.add(N5URI.normalizeGroupPath(n5uri.getGroupPath()));
+		}
+
+		// if this is called, can assume metadata have not been parsed yet. so parse now - once for each container.
+		for( N5Reader n5 : selectionsByContainer.keySet())
+		{
+			final N5TreeNode containerRoot = N5DatasetDiscoverer.discover(n5,
+					Arrays.asList(N5ViewerCreator.n5vParsers),
+					Arrays.asList(N5ViewerCreator.n5vGroupParsers));
+
+			final List<N5Metadata> metadataList = selectionsByContainer.get(n5).stream()
+					.map(x -> {
+						return containerRoot.getDescendant(x).map(n -> n.getMetadata());
+					})
+					.filter(Optional::isPresent)
+					.map(Optional::get)
+					.collect(Collectors.toList());
+
+			final DataSelection selection = new DataSelection(n5, metadataList );
+			try {
+				numTimepoints = Math.max(numTimepoints,
+						buildN5Sources(n5, selection, sharedQueue, converterSetups, sourcesAndConverters, options));
+			} catch (IOException e) {
+				System.err.println("Could not load from: " + n5.getURI().toString());
+			}
+		}
+
+		return show(sourcesAndConverters, numTimepoints, options, wantFrame, parentFrame);
+	}
+
 	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(N5Reader n5, List<N5Metadata> metadata, final boolean wantFrame, final Frame parentFrame) {
 
 		final DataSelection selection = new DataSelection(n5, metadata);
@@ -322,6 +395,18 @@ public class N5Viewer {
 			e1.printStackTrace();
 			return null;
 		}
+
+		return show(sourcesAndConverters, numTimepoints, options, wantFrame, parentFrame);
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final List<SourceAndConverter<T>> sourcesAndConverters, final int numTimepoints,
+			final BdvOptions options) {
+
+		return show(sourcesAndConverters, numTimepoints, options, true, null);
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final List<SourceAndConverter<T>> sourcesAndConverters, final int numTimepoints,
+			final BdvOptions options, final boolean wantFrame, final Frame parentFrame) {
 
 		BdvHandle bdvHandle = null;
 		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
