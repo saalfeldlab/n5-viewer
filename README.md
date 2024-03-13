@@ -3,21 +3,37 @@ BigDataViewer-based tool for visualizing [N5](https://github.com/saalfeldlab/n5)
 
 ### Usage
 
-The plugin will be available soon through the [N5 update site](https://imagej.net/N5) in Fiji as *Plugins -> BigDataViewer -> N5 Viewer*.
+The plugin will be available in Fiji as *Plugins -> BigDataViewer -> HDF5/N5/Zarr/OME-NGFF Viewer*,
 See also the [N5 Fiji plugin](https://github.com/saalfeldlab/n5-ij).
 
 #### Storage options
-The plugin supports multiple storage options:
-* Filesystem (local/network drives)
-* Zarr (local drives)
-* HDF5
+The plugin supports multiple storage formats:
+* HDF5 (local file only)
+* N5 (local and cloud)
+* Zarr (local and cloud)
+
+and multiple storage backends:
+* Filesystem
 * Amazon Web Services S3
 * Google Cloud Storage
 
-#### Container structure
-The plugin allows to select which datasets to open from the N5 container tree. While almost any dataset can be opened as a BigDataViewer source, the plugin also tries to read the metadata from the corresponding `attributes.json` to determine the additional transformations, or treat a group as a multiscale source.
+#### Metadata and container 
 
-Currently, the plugin supports the following naming and metadata specification (compatible with the previous version of the plugin):
+The plugin allows to select which datasets to open from the container tree. While almost any dataset can be opened as a BigDataViewer source, the
+plugin also tries to read the metadata from the storage format to determine the additional transformations, or treat a group as a multiscale source.
+Supported metadata formats include:
+
+* [OME-NGFF v0.4](https://ngff.openmicroscopy.org/0.4/)
+* "N5 Viewer" described below.
+* [COSEM](https://github.com/janelia-cellmap/schemas/blob/master/multiscale.md#contemporary-new-proposed-cosem-style-ie-elaborated-ome-zarr-spec)
+
+
+#### "N5 Viewer" Metadata 
+
+Early versions of this plugin developed the following naming and metadata specification we call the "N5 Viewer" metadata.
+This plugin supports visualization of this format, and the [N5 Fiji plugins](https://github.com/saalfeldlab/n5-ij) support
+reading and writing of this metadata format. 
+
 ```
 └─ group
     ├─── s0 {} 
@@ -61,6 +77,9 @@ The local user credentials can be initialized as follows:
 
 The application has a built-in cropping tool for extracing parts of the dataset as a ImageJ image (can be converted to commonly supported formats such as TIFF series).
 
-Place the mouse pointer at the desired center position of the extracted image and hit `SPACE`. The dialog will pop up where you can specify the dimensions of the extracted image.
+Press `SPACE` or select the `Tools > Extract to ImageJ` menu options. A dialog will appear where you can specify the field of view and dimensions of the image you would like to extract.
+The field of view can be edited by clicking and draggging corners of the displayed bounding box, moving the sliders in the new dialog, or manually editing their values.
+If the image is multiscale, you can select which scale level to export using the drop down menu. If multiple channels or images are open, you can export either the current image only, 
+or all visible images,  using the "Images to export" drop down.
 
-The image is cropped <i>without</i> respect to the camera orientation, so the cropped image will always contain Z-slices.
+The image is cropped <i>without</i> respect to the camera orientation, so slices of the cropped image will always be the `Z` dimension.
