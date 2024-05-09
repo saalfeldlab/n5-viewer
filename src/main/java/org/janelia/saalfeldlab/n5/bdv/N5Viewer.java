@@ -118,6 +118,7 @@ import net.imglib2.cache.img.ReadOnlyCachedCellImgOptions;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.basictypeaccess.AccessFlags;
+import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelMultisetType;
@@ -190,14 +191,6 @@ public class N5Viewer {
 		Prefs.showScaleBar(true);
 
 		this.sharedQueue = new SharedQueue(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
-
-		// TODO: These setups are not used anymore, because BdvFunctions creates
-		// its own.
-		// They either need to be deleted from here or integrated somehow.
-		final List<ConverterSetup> converterSetups = new ArrayList<>();
-
-		final List<SourceAndConverter<T>> sourcesAndConverters = new ArrayList<>();
-
 		final List<N5Metadata> selected = new ArrayList<>();
 		for (final N5Metadata meta : dataSelection.metadata) {
 			if (meta instanceof N5ViewerMultichannelMetadata) {
@@ -271,7 +264,7 @@ public class N5Viewer {
 
 		try {
 			return show(new N5URI(uri));
-		} catch (URISyntaxException e) {
+		} catch (final URISyntaxException e) {
 			e.printStackTrace();
 		}
 		return null;
@@ -321,12 +314,12 @@ public class N5Viewer {
 		final HashMap<N5Reader,List<String>> selectionsByContainer = new HashMap<>();
 
 		final N5ViewerReaderFun n5fun = new N5ViewerReaderFun();
-		for( String uri : uris )
+		for( final String uri : uris )
 		{
 			N5URI n5uri;
 			try {
 				n5uri = new N5URI(uri);
-			} catch (URISyntaxException e) {
+			} catch (final URISyntaxException e) {
 				System.err.println("Could not parse url: " + uri);
 				continue;
 			}
@@ -347,7 +340,7 @@ public class N5Viewer {
 		}
 
 		// if this is called, can assume metadata have not been parsed yet. so parse now - once for each container.
-		for( N5Reader n5 : selectionsByContainer.keySet())
+		for( final N5Reader n5 : selectionsByContainer.keySet())
 		{
 			final N5TreeNode containerRoot = N5DatasetDiscoverer.discover(n5,
 					Arrays.asList(N5ViewerCreator.n5vParsers),
@@ -365,7 +358,7 @@ public class N5Viewer {
 			try {
 				numTimepoints = Math.max(numTimepoints,
 						buildN5Sources(n5, selection, sharedQueue, converterSetups, sourcesAndConverters, options));
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				System.err.println("Could not load from: " + n5.getURI().toString());
 			}
 		}
@@ -391,7 +384,7 @@ public class N5Viewer {
 					sourcesAndConverters,
 					options);
 
-		} catch (IOException e1) {
+		} catch (final IOException e1) {
 			e1.printStackTrace();
 			return null;
 		}
@@ -427,7 +420,7 @@ public class N5Viewer {
 			}
 		}
 
-		BdvHandle bdv = bdvHandle;
+		final BdvHandle bdv = bdvHandle;
 		if (bdv != null) {
 			final ViewerPanel viewerPanel = bdv.getViewerPanel();
 			if (viewerPanel != null) {
@@ -499,7 +492,7 @@ public class N5Viewer {
 				sharedQueue, converterSetups, sourcesAndConverters, options);
 	}
 
-	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, M extends AxisMetadata & N5Metadata> int buildN5Sources(
 			final N5Reader n5,
 			final List<N5Metadata> selectedMetadata,
 			final SharedQueue sharedQueue,
@@ -521,7 +514,8 @@ public class N5Viewer {
 			final N5Metadata metadata = selectedMetadata.get(i);
 			final String srcName = metadata.getName();
 
-			// TODO: simplify this if/elseif block: much of these if cases can be combined
+
+			// TODO: simplify this if/elseif block: much of these ifwall cases can be combined
 			if (metadata instanceof N5SingleScaleMetadata) {
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata)metadata;
 				final String[] tmpDatasets = new String[]{singleScaleDataset.getPath()};
@@ -589,7 +583,7 @@ public class N5Viewer {
 				final RandomAccessibleInterval< ? > imagejImg;
 				if (metadata instanceof AxisMetadata)
 				{
-					imagejImg = AxisUtils.permuteForImagePlus( img, (AxisMetadata)metadata );
+					imagejImg = AxisUtils.permuteForImagePlus(img, (M)metadata);
 					unit = unitFromAxes(((AxisMetadata)metadata).getAxes());
 				}
 				else if( metadata instanceof N5SingleScaleMetadata )
@@ -608,14 +602,14 @@ public class N5Viewer {
 				{
 					final N5CosemMultiScaleMetadata cosemMulti = ((N5CosemMultiScaleMetadata)metadata);
 					final N5CosemMetadata cosemMeta = cosemMulti.getChildrenMetadata()[0];
-					imagejImg = AxisUtils.permuteForImagePlus(img, cosemMeta);
+					imagejImg = permuteForImagePlus(img, transforms[s], cosemMeta);
 					unit = cosemMeta.unit();
 				}
 				else
 				{
 					final NgffSingleScaleAxesMetadata ngffMeta = isNgffMultiscale(metadata);
 					if( ngffMeta != null ) {
-						imagejImg = AxisUtils.permuteForImagePlus(img, ngffMeta);
+						imagejImg = permuteForImagePlus(img, transforms[s], ngffMeta);
 						unit = ngffMeta.unit();
 					}
 					else
@@ -650,8 +644,7 @@ public class N5Viewer {
 			@SuppressWarnings("unchecked")
 			final T type = (T)Util.getTypeFromInterval(images[0]);
 
-			// TODO this could / should be generalized
-			// resolutions
+			// this could / should be generalized
 			final double rx = transforms[0].get(0, 0);
 			final double ry = transforms[0].get(1, 1);
 			final double rz = transforms[0].get(2, 2);
@@ -684,6 +677,44 @@ public class N5Viewer {
 		return numTimepoints;
 	}
 
+	/**
+	 * Returns an image with dimensions in a canonical order XYCZY. Also
+	 * permutes the given pixel to physical transform in-place.
+	 *
+	 * @param <T>
+	 *            the type
+	 * @param img
+	 *            the image
+	 * @param transform
+	 *            the pixel to physical transfom
+	 * @param meta
+	 *            axis metadata
+	 * @return a possibly permuted image
+	 */
+	protected static <T, M extends N5Metadata, A extends AxisMetadata & N5Metadata> RandomAccessibleInterval<T> permuteForImagePlus(
+			final RandomAccessibleInterval<T> img,
+			AffineTransform3D transform,
+			final A meta) {
+
+		final int[] p = AxisUtils.findImagePlusPermutation(meta);
+		AxisUtils.fillPermutation(p);
+
+		RandomAccessibleInterval<T> imgTmp = img;
+		while (imgTmp.numDimensions() < 5)
+			imgTmp = Views.addDimension(imgTmp, 0, 0);
+
+		if (AxisUtils.isIdentityPermutation(p))
+			return imgTmp;
+
+		// update spatial transformation
+		// exchange rows and columns of permutation matrix appropriately
+		final int[] spatialPermutation = new int[]{p[0], p[1], p[3]};
+		final AffineGet permTform = AxisUtils.axisPermutationTransform(spatialPermutation);
+		transform.concatenate(permTform.inverse()).preConcatenate(permTform);
+
+		return AxisUtils.permute(imgTmp, AxisUtils.invertPermutation(p));
+	}
+
 	/*
 	 * If the image is of type {@link LabelMultisetType} to {@link UnsignedLongType}.
 	 */
@@ -704,16 +735,19 @@ public class N5Viewer {
 //			return (RandomAccessibleInterval<T>)convertLabelMultisetVolatile(
 //					(CachedCellImg<LabelMultisetType, ?>)img);
 		}
-		return (RandomAccessibleInterval<T>)img;
+
+		if (OmeNgffMultiScaleMetadata.fOrder(n5.getDatasetAttributes(dataset)))
+			return AxisUtils.reverseDimensions(img);
+		else
+			return (RandomAccessibleInterval<T>)img;
 	}
 
 	private static RandomAccessibleInterval<VolatileUnsignedLongType> convertLabelMultisetVolatile( final CachedCellImg<LabelMultisetType,?> lmsImg ) {
 
 		// TODO this isn't working (VolatileViews throws a NPE), but have not yet investigated why
-		System.out.println( "convert volatile");
 		// see ViewCosem in n5-utils for something similar
 
-		RandomAccessibleInterval<Volatile<LabelMultisetType>> vimg = VolatileViews.wrapAsVolatile( lmsImg );
+		final RandomAccessibleInterval<Volatile<LabelMultisetType>> vimg = VolatileViews.wrapAsVolatile( lmsImg );
 		return Converters.convert2(vimg,
 				(a, b) -> {
 					b.set(a.get().argMax());
@@ -793,10 +827,10 @@ public class N5Viewer {
 		return false;
 	}
 
-	private static NgffSingleScaleAxesMetadata isNgffMultiscale( final N5Metadata metadata )
-	{
-		if(metadata instanceof OmeNgffMetadata )
-		{
+	private static NgffSingleScaleAxesMetadata isNgffMultiscale(final N5Metadata metadata) {
+
+		if (metadata instanceof OmeNgffMetadata) {
+
 			final OmeNgffMetadata ngff = (OmeNgffMetadata)metadata;
 			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
 
