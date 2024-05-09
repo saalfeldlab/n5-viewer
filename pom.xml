@@ -131,14 +131,18 @@
 
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 
-		<n5.version>3.2.0</n5.version>
-		<n5-hdf5.version>2.2.0</n5-hdf5.version>
-		<n5-ij.version>4.1.3</n5-ij.version>
-		<n5-universe.version>1.4.3</n5-universe.version>
-		<n5-zstandard.version>1.0.2</n5-zstandard.version>
-		<n5-zarr.version>1.3.1</n5-zarr.version>
 		<bigdataviewer-core.version>10.4.13</bigdataviewer-core.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-34</bigdataviewer-vistools.version>
+
+		<n5.version>3.2.0</n5.version>
+		<n5-aws-s3.version>4.1.2</n5-aws-s3.version>
+		<n5-blosc.version>1.1.1</n5-blosc.version>
+		<n5-google-cloud.version>4.1.0</n5-google-cloud.version>
+		<n5-hdf5.version>2.2.0</n5-hdf5.version>
+		<n5-ij.version>4.1.4-SNAPSHOT</n5-ij.version>
+		<n5-universe.version>1.4.4-SNAPSHOT</n5-universe.version>
+		<n5-zarr.version>1.3.1</n5-zarr.version>
+		<n5-zstandard.version>1.0.2</n5-zstandard.version>
 	</properties>
 
 	<dependencies>
@@ -195,12 +199,24 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-google-cloud</artifactId>
-			<version>4.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-aws-s3</artifactId>
-			<version>4.1.2</version>
+		</dependency>
+
+		<!-- Test dependencies -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-universe</artifactId>
+			<version>${n5-universe.version}</version>
+			<classifier>tests</classifier>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
