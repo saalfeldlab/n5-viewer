@@ -87,6 +87,10 @@ public class BdvMetadataIoTests {
 		writer.setOverwrite(true); 	// overwrite on for this test
 		writer.run(); 				// run() closes the n5 writer
 
+		try {
+			Thread.sleep(20);
+		} catch (InterruptedException e) {}
+
 		final String readerDataset = dataset;
 
 		try( final N5Writer n5 = new N5Factory().openWriter(outputPath) ) {
@@ -200,6 +204,11 @@ public class BdvMetadataIoTests {
 
 					final String dataset = String.format("/c%dz%dt%d", nc, nz, nt);
 					readWriteParseTest(imp, n5RootPath, dataset, blockSizeString, metatype, compressionString, true, true);
+
+					try {
+						Thread.sleep(20);
+					} catch (InterruptedException e) {}
+
 				}
 			}
 		}
