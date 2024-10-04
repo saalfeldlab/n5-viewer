@@ -99,11 +99,11 @@ public class BdvMetadataIoTests {
 					Arrays.asList(N5ViewerCreator.n5vGroupParsers));
 
 			final N5TreeNode root = datasetDiscoverer.discoverAndParseRecursive("");
-			assertNotNull("root is null", root);
+			assertNotNull("Root node is null", root);
 
 			final Optional<N5TreeNode> metaOpt = root.getDescendant(readerDataset);
-			if (!metaOpt.isPresent())
-				fail("could not find metadata at: " + readerDataset);
+			assertTrue( String.format( "[%s] Could not find descendant node: %s ", outputPath, readerDataset ),
+					metaOpt.isPresent());
 
 			final List<ConverterSetup> converterSetups = new ArrayList<>();
 			final List<SourceAndConverter<T>> sourcesAndConverters = new ArrayList<>();
@@ -148,6 +148,8 @@ public class BdvMetadataIoTests {
 				final List<Source<T>> srcList = sourcesAndConverters.stream().map(sac -> sac.getSpimSource()).collect(Collectors.toList());
 				assertTrue(String.format("%s data ", dataset), sourceDataIdentical(imp, srcList));
 			}
+
+			n5.close();
 		}
 	}
 
