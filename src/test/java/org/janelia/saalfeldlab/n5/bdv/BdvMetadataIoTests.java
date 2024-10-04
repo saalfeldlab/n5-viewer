@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +26,9 @@ import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import bdv.cache.SharedQueue;
@@ -49,10 +51,10 @@ import net.imglib2.view.Views;
 
 public class BdvMetadataIoTests {
 
-	private File baseDir;
+	private static File baseDir;
 
-	@Before
-	public void before() {
+	@BeforeClass
+	public static void before() {
 
 		try {
 			baseDir = Files.createTempDirectory("n5-ij-tests-").toFile();
@@ -60,6 +62,12 @@ public class BdvMetadataIoTests {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	@AfterClass
+	public static void after() {
+
+//		baseDir.delete();
 	}
 
 	public <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> void readWriteParseTest(
@@ -83,11 +91,16 @@ public class BdvMetadataIoTests {
 
 		try( final N5Writer n5 = new N5Factory().openWriter(outputPath) ) {
 
-			final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(n5, Executors.newSingleThreadExecutor(), (x) -> true,
+			final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(
+					n5,
+					Executors.newSingleThreadExecutor(),
+					(x) -> true,
 					Arrays.asList(N5ViewerCreator.n5vParsers),
 					Arrays.asList(N5ViewerCreator.n5vGroupParsers));
 
 			final N5TreeNode root = datasetDiscoverer.discoverAndParseRecursive("");
+			assertNotNull("root is null", root);
+
 			final Optional<N5TreeNode> metaOpt = root.getDescendant(readerDataset);
 			if (!metaOpt.isPresent())
 				fail("could not find metadata at: " + readerDataset);
@@ -135,7 +148,6 @@ public class BdvMetadataIoTests {
 				final List<Source<T>> srcList = sourcesAndConverters.stream().map(sac -> sac.getSpimSource()).collect(Collectors.toList());
 				assertTrue(String.format("%s data ", dataset), sourceDataIdentical(imp, srcList));
 			}
-			n5.remove();
 		}
 	}
 
