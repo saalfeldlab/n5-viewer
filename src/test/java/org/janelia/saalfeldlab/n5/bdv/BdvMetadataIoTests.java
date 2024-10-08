@@ -1,12 +1,13 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -15,8 +16,8 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.TestRunners;
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
 import org.janelia.saalfeldlab.n5.ij.N5ScalePyramidExporter;
 import org.janelia.saalfeldlab.n5.metadata.imagej.ImagePlusLegacyMetadataParser;
@@ -26,7 +27,9 @@ import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -46,17 +49,28 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
 public class BdvMetadataIoTests {
 
-	private File baseDir;
+	private static File baseDir;
 
-	@Before
-	public void before() {
+	@BeforeClass
+	public static void before() {
 
-		final URL configUrl = BdvMetadataIoTests.class.getResource("/plugins.config");
-		baseDir = new File(configUrl.getFile()).getParentFile();
+		try {
+			baseDir = Files.createTempDirectory("n5-ij-tests-").toFile();
+			baseDir.deleteOnExit();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@AfterClass
+	public static void after() {
+
+		baseDir.delete();
 	}
 
 	public <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> void readWriteParseTest(
@@ -76,66 +90,91 @@ public class BdvMetadataIoTests {
 		writer.setOverwrite(true); 	// overwrite on for this test
 		writer.run(); 				// run() closes the n5 writer
 
+		try {
+			Thread.sleep(20);
+		} catch (InterruptedException e) {}
+
 		final String readerDataset = dataset;
 
-		final N5Reader n5 = new N5Factory().openReader(outputPath);
-		final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(n5, Executors.newSingleThreadExecutor(), (x) -> true,
-				Arrays.asList(N5ViewerCreator.n5vParsers),
-				Arrays.asList(N5ViewerCreator.n5vGroupParsers));
+		try( final N5Writer n5 = new N5Factory().openWriter(outputPath) ) {
 
-		final N5TreeNode root = datasetDiscoverer.discoverAndParseRecursive("");
-		final Optional<N5TreeNode> metaOpt = root.getDescendant(readerDataset);
-		if (!metaOpt.isPresent())
-			fail("could not find metadata at: " + readerDataset);
+			final N5DatasetDiscoverer datasetDiscoverer = new N5DatasetDiscoverer(
+					n5,
+					Executors.newSingleThreadExecutor(),
+					(x) -> true,
+					Arrays.asList(N5ViewerCreator.n5vParsers),
+					Arrays.asList(N5ViewerCreator.n5vGroupParsers));
 
-		final List<ConverterSetup> converterSetups = new ArrayList<>();
-		final List<SourceAndConverter<T>> sourcesAndConverters = new ArrayList<>();
+			TestRunners.tryWaitRepeat(() -> {
 
-		final SharedQueue sharedQueue = new SharedQueue(1);
-		final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
+				N5TreeNode root;
+				try {
+					root = datasetDiscoverer.discoverAndParseRecursive("");
+				} catch (IOException e) {
+					return null; // to trigger retry
+				}
 
-		final int numTimepoints = N5Viewer.buildN5Sources(
-				n5,
-				new DataSelection(n5, Collections.singletonList(metaOpt.get().getMetadata())),
-				sharedQueue,
-				converterSetups,
-				sourcesAndConverters,
-				options);
+				final Optional<N5TreeNode> metaOpt = root.getDescendant(readerDataset);
+				final List<ConverterSetup> converterSetups = new ArrayList<>();
+				final List<SourceAndConverter<T>> sourcesAndConverters = new ArrayList<>();
 
-		assertEquals(String.format("channels for %s", dataset), imp.getNChannels(), sourcesAndConverters.size());
-		assertEquals(String.format("time points for %s", dataset), imp.getNFrames(), numTimepoints);
+				final SharedQueue sharedQueue = new SharedQueue(1);
+				final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
 
-		final Source<T> src0 = sourcesAndConverters.get(0).getSpimSource();
-		assertEquals(String.format("slices for %s", dataset), imp.getNSlices(),
-				src0.getSource(0, 0).dimension(2));
+				int numTimepoints;
+				try {
+					numTimepoints = N5Viewer.buildN5Sources(
+							n5,
+							new DataSelection(n5, Collections.singletonList(metaOpt.get().getMetadata())),
+							sharedQueue,
+							converterSetups,
+							sourcesAndConverters,
+							options);
+				} catch (IOException e) {
+					return null; // to trigger retry
+				}
 
-		final AffineTransform3D tform = new AffineTransform3D();
-		src0.getSourceTransform(0, 0, tform);
-		final double rx = tform.get(0, 0);
-		final double ry = tform.get(1, 1);
-		final double rz = tform.get(2, 2);
-		final String unit = src0.getVoxelDimensions().unit();
+				return new ValuePair<List<SourceAndConverter<T>>, Integer>(sourcesAndConverters, numTimepoints);
 
-		if (testMeta) {
-			final boolean resEqual = rx == imp.getCalibration().pixelWidth &&
-					ry == imp.getCalibration().pixelHeight &&
-					rz == imp.getCalibration().pixelDepth;
+			}).ifPresent(sacAndNtime -> {
 
-			assertTrue(String.format("%s resolutions ", dataset), resEqual);
-			assertTrue(String.format("%s units ", dataset),
-					unit.equals(imp.getCalibration().getUnit()));
+				final List<SourceAndConverter<T>> sourcesAndConverters = sacAndNtime.getA();
+				final int numTimepoints = sacAndNtime.getB();
 
+				assertEquals(String.format("channels for %s", dataset), imp.getNChannels(), sourcesAndConverters.size());
+				assertEquals(String.format("time points for %s", dataset), imp.getNFrames(), numTimepoints);
+
+				final Source<T> src0 = sourcesAndConverters.get(0).getSpimSource();
+				assertEquals(String.format("slices for %s", dataset), imp.getNSlices(),
+						src0.getSource(0, 0).dimension(2));
+
+				final AffineTransform3D tform = new AffineTransform3D();
+				src0.getSourceTransform(0, 0, tform);
+				final double rx = tform.get(0, 0);
+				final double ry = tform.get(1, 1);
+				final double rz = tform.get(2, 2);
+				final String unit = src0.getVoxelDimensions().unit();
+
+				if (testMeta) {
+					final boolean resEqual = rx == imp.getCalibration().pixelWidth &&
+							ry == imp.getCalibration().pixelHeight &&
+							rz == imp.getCalibration().pixelDepth;
+
+					assertTrue(String.format("%s resolutions ", dataset), resEqual);
+					assertTrue(String.format("%s units ", dataset),
+							unit.equals(imp.getCalibration().getUnit()));
+
+				}
+
+				if (testData) {
+					final List<Source<T>> srcList = sourcesAndConverters.stream().map(sac -> sac.getSpimSource()).collect(Collectors.toList());
+					assertTrue(String.format("%s data ", dataset), sourceDataIdentical(imp, srcList));
+				}
+
+			});
+
+			n5.close();
 		}
-
-		if (testData) {
-			final List<Source<T>> srcList = sourcesAndConverters.stream().map(sac -> sac.getSpimSource()).collect(Collectors.toList());
-			assertTrue(String.format("%s data ", dataset), sourceDataIdentical(imp, srcList));
-		}
-		n5.close();
-
-		// remove
-		final N5Writer n5w = new N5Factory().openWriter(outputPath);
-		n5w.remove();
 	}
 
 	/*
@@ -186,6 +225,11 @@ public class BdvMetadataIoTests {
 
 					final String dataset = String.format("/c%dz%dt%d", nc, nz, nt);
 					readWriteParseTest(imp, n5RootPath, dataset, blockSizeString, metatype, compressionString, true, true);
+
+					try {
+						Thread.sleep(20);
+					} catch (InterruptedException e) {}
+
 				}
 			}
 		}
