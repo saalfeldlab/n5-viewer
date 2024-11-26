@@ -70,6 +70,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
@@ -543,6 +544,12 @@ public class N5Viewer {
 						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
+			} else if (metadata instanceof SpatialMultiscaleMetadata) {
+				final SpatialMultiscaleMetadata multiScaleDataset = (SpatialMultiscaleMetadata)metadata;
+				final MultiscaleDatasets msd = MultiscaleDatasets
+						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
+				datasetsToOpen = msd.getPaths();
+				transforms = msd.getTransforms();
 			} else if (metadata instanceof N5CosemMultiScaleMetadata) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata)metadata;
 				final MultiscaleDatasets msd = MultiscaleDatasets
@@ -829,7 +836,8 @@ public class N5Viewer {
 
 	private static NgffSingleScaleAxesMetadata isNgffMultiscale(final N5Metadata metadata) {
 
-		if (metadata instanceof OmeNgffMetadata) {
+		if (metadata instanceof OmeNgffMetadata)
+		{
 
 			final OmeNgffMetadata ngff = (OmeNgffMetadata)metadata;
 			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
@@ -839,7 +847,19 @@ public class N5Viewer {
 			if( children.length > 0 )
 				if( children[0] instanceof NgffSingleScaleAxesMetadata)
 					return children[0];
+		}
+		else if (metadata instanceof org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadata )
+		{
 
+			final org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadata ngff = 
+					(org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadata) metadata;
+			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
+
+			// TODO when do we not just take the first one?
+			final NgffSingleScaleAxesMetadata[] children = ms[0].getChildrenMetadata();
+			if( children.length > 0 )
+				if( children[0] instanceof NgffSingleScaleAxesMetadata)
+					return children[0];
 		}
 		else if(metadata instanceof OmeNgffMultiScaleMetadata )
 		{

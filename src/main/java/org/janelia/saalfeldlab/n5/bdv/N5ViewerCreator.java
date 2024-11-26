@@ -33,6 +33,7 @@ import ij.ImageJ;
 public class N5ViewerCreator {
 
 	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{
+			new org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadataParser(),
 			new OmeNgffMetadataParser(),
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),
