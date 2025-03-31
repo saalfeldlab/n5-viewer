@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5ViewerMultiscaleMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v06.OmeNgffV06MetadataParser;
 
 import ij.ImageJ;
 
@@ -33,7 +34,8 @@ import ij.ImageJ;
 public class N5ViewerCreator {
 
 	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{
-			new org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadataParser(),
+			new OmeNgffV06MetadataParser(),
+			new org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05MetadataParser(),
 			new OmeNgffMetadataParser(),
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),

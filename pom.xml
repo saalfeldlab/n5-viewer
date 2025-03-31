@@ -142,7 +142,7 @@
 		<n5-ij.version>4.2.6-SNAPSHOT</n5-ij.version>
 		<n5-google-cloud.version>4.1.2-SNAPSHOT</n5-google-cloud.version>
 		<n5-zarr.version>1.3.6-SNAPSHOT</n5-zarr.version>
-		<n5-universe.version>1.6.1-SNAPSHOT</n5-universe.version>
+		<n5-universe.version>2.3.1-SNAPSHOT</n5-universe.version>
 
 	</properties>
 
