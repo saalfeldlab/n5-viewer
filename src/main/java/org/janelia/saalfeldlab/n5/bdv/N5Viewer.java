@@ -656,7 +656,7 @@ public class N5Viewer {
 //			}
 
 			@SuppressWarnings("unchecked")
-			final T type = (T)Util.getTypeFromInterval(images[0]);
+			final T type = (T)images[0].getType();
 
 			// this could / should be generalized
 			final double rx = transforms[0].get(0, 0);
