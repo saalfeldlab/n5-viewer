@@ -516,7 +516,6 @@ public class N5Viewer {
 			final N5Metadata metadata = selectedMetadata.get(i);
 			final String srcName = metadata.getName();
 
-
 			// TODO: simplify this if/elseif block: much of these ifwall cases can be combined
 			if (metadata instanceof N5SingleScaleMetadata) {
 				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata)metadata;
@@ -855,19 +854,23 @@ public class N5Viewer {
 				if( children[0] instanceof NgffSingleScaleAxesMetadata)
 					return children[0];
 		}
-		else if (metadata instanceof org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata )
+		else if (metadata instanceof org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v06dev2.OmeNgffV06dev2MultiScaleMetadata )
 		{
 
-			final org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata ngff = 
-					(org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata) metadata;
-			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
-
-			// TODO when do we not just take the first one?
-			final NgffSingleScaleAxesMetadata[] children = ms[0].getChildrenMetadata();
-			if( children.length > 0 )
-				if( children[0] instanceof NgffSingleScaleAxesMetadata)
-					return children[0];
 		}
+//		else if (metadata instanceof org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadata )
+//		{
+//
+//			final org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadata ngff = 
+//					(org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffMetadata) metadata;
+//			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
+//
+//			// TODO when do we not just take the first one?
+//			final NgffSingleScaleAxesMetadata[] children = ms[0].getChildrenMetadata();
+//			if( children.length > 0 )
+//				if( children[0] instanceof NgffSingleScaleAxesMetadata)
+//					return children[0];
+//		}
 		else if(metadata instanceof OmeNgffMultiScaleMetadata )
 		{
 			final OmeNgffMultiScaleMetadata ms = (OmeNgffMultiScaleMetadata)metadata;
