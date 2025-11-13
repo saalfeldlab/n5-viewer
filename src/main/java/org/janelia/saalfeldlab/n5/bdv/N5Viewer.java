@@ -80,6 +80,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalSpatialMe
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.NgffSingleScaleAxesMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.InputActionBindings;
@@ -543,6 +544,12 @@ public class N5Viewer {
 						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
+			} else if (metadata instanceof OmeNgffV05Metadata) {
+				final OmeNgffV05Metadata multiScaleDataset = (OmeNgffV05Metadata)metadata;
+				final MultiscaleDatasets msd = MultiscaleDatasets
+						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
+				datasetsToOpen = msd.getPaths();
+				transforms = msd.getTransforms();
 			} else if (metadata instanceof N5CosemMultiScaleMetadata) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata)metadata;
 				final MultiscaleDatasets msd = MultiscaleDatasets
@@ -722,7 +729,7 @@ public class N5Viewer {
 			final N5Reader n5, final String dataset) {
 
 		final CachedCellImg<?, ?> img = N5Utils.openVolatile(n5, dataset);
-		final Object t = Util.getTypeFromInterval(img);
+		final Object t = img.getType();
 		if( t instanceof LabelMultisetType ) {
 
 			final CachedCellImg<LabelMultisetType, ?> lmsImg = (CachedCellImg<LabelMultisetType, ?>)img;
