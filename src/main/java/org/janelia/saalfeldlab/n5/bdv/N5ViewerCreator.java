@@ -1,15 +1,20 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+
+import javax.swing.JTree;
 
 import org.janelia.saalfeldlab.n5.ij.N5Importer;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.metadata.imagej.ImagePlusLegacyMetadataParser;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
+import org.janelia.saalfeldlab.n5.ui.N5SwingTreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5GenericSingleScaleMetadataParser;
@@ -34,8 +39,8 @@ import ij.ImageJ;
 public class N5ViewerCreator {
 
 	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{
-			new OmeNgffMetadataParser(),
 			new OmeNgffV05MetadataParser(),
+			new OmeNgffMetadataParser(),
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),
 			new CanonicalMetadataParser(),
@@ -51,6 +56,8 @@ public class N5ViewerCreator {
 			new CanonicalMetadataParser(),
 			new N5GenericSingleScaleMetadataParser()
 	};
+
+	private DatasetSelectorDialog dialog;
 
 	private String lastOpenedContainer = "";
 
@@ -114,7 +121,7 @@ public class N5ViewerCreator {
 			final Consumer<Void> cancelConsumer) {
 
 		final ExecutorService exec = Executors.newFixedThreadPool(ij.Prefs.getThreads());
-		final DatasetSelectorDialog dialog = new DatasetSelectorDialog(
+		dialog = new DatasetSelectorDialog(
 				new N5Importer.N5ViewerReaderFun(),
 				new N5Importer.N5BasePathFun(),
 				lastOpenedContainer,
@@ -140,4 +147,39 @@ public class N5ViewerCreator {
 			}
 		});
 	}
+
+	public void runWithDialog(final String pathToContainer, final List<String> selectThisSubPath) {
+
+		lastOpenedContainer = pathToContainer;
+		dialog = null;
+		openViewer((e) -> e.printStackTrace());
+		if (dialog == null) {
+			throw new RuntimeException("The \"Open N5\" didn't come up when it should.");
+		} else {
+			dialog.detectDatasets();
+			if (selectThisSubPath != null) {
+				boolean isDiscoveryFinished = dialog.waitUntilDiscoveryIsFinished(60000);
+				if (isDiscoveryFinished)
+					selectTreeItem(selectThisSubPath);
+			}
+		}
+	}
+
+	private void selectTreeItem(final List<String> itemPath) {
+
+		final JTree t = dialog.getJTree();
+		int currRow = 0;
+		for (String subPath : itemPath) {
+			for (int r = currRow; r < t.getRowCount(); ++r, ++currRow) {
+				N5SwingTreeNode n = (N5SwingTreeNode)t.getPathForRow(r).getLastPathComponent();
+				if (n.getNodeName().equals(subPath)) {
+					t.expandRow(r);
+					t.setSelectionRow(r);
+					++currRow;
+					break;
+				}
+			}
+		}
+	}
+
 }
