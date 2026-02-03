@@ -165,6 +165,19 @@ public class N5ViewerCreator {
 		}
 	}
 
+	public void runWithDialog( final String pathToContainer )
+	{
+		runWithDialog( pathToContainer, Throwable::printStackTrace );
+	}
+
+	public void runWithDialog( final String pathToContainer, final Consumer< Exception > exceptionHandler )
+	{
+		lastOpenedContainer = pathToContainer;
+		dialog = null;
+		openViewer( exceptionHandler );
+		dialog.openContainer( pathToContainer );
+	}
+
 	private void selectTreeItem(final List<String> itemPath) {
 
 		final JTree t = dialog.getJTree();
