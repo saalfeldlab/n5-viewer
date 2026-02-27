@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
+import org.janelia.saalfeldlab.n5.universe.StorageFormat;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.NgffTests;
 import org.junit.After;
@@ -83,11 +84,10 @@ public class N5vAxisPermutationTests {
 	@Test
 	public void testPermutations() throws IOException {
 
-		final N5Writer zarr = new N5Factory().openWriter(containerUri.toString());
+		final N5Writer zarr = new N5Factory().openWriter(StorageFormat.ZARR2, containerUri.toString());
 		// don't check every axis permutation, but some relevant ones, and some strange ones
 		final String[] names = new String[]{
 
-				// TODO five still don't work
 				"xyz", "zyx", "yzx",
 				"xyc", "xcy", "cyx",
 				"xyt", "xty", "tyx",
@@ -144,10 +144,6 @@ public class N5vAxisPermutationTests {
 
 		final AffineTransform3D tform = new AffineTransform3D();
 		src.getSourceTransform(0, 0, tform);
-
-		// System.out.println("");
-		// System.out.println("" + sourcesAndConverters.size());
-		// System.out.println("");
 
 		// test
 		assertEquals(dset + "size x", NgffTests.NX, dims[0]);
