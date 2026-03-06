@@ -848,6 +848,18 @@ public class N5Viewer {
 					return children[0];
 
 		}
+		else if (metadata instanceof OmeNgffV05Metadata) {
+
+			final OmeNgffV05Metadata ngff = (OmeNgffV05Metadata)metadata;
+			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
+
+			// TODO when do we not just take the first one?
+			final NgffSingleScaleAxesMetadata[] children = ms[0].getChildrenMetadata();
+			if( children.length > 0 )
+				if( children[0] instanceof NgffSingleScaleAxesMetadata)
+					return children[0];
+
+		}
 		else if(metadata instanceof OmeNgffMultiScaleMetadata )
 		{
 			final OmeNgffMultiScaleMetadata ms = (OmeNgffMultiScaleMetadata)metadata;
