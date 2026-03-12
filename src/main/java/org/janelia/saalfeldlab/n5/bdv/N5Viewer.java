@@ -743,10 +743,7 @@ public class N5Viewer {
 //					(CachedCellImg<LabelMultisetType, ?>)img);
 		}
 
-		if (OmeNgffMultiScaleMetadata.fOrder(n5.getDatasetAttributes(dataset)))
-			return AxisUtils.reverseDimensions(img);
-		else
-			return (RandomAccessibleInterval<T>)img;
+		return (RandomAccessibleInterval<T>)img;
 	}
 
 	private static RandomAccessibleInterval<VolatileUnsignedLongType> convertLabelMultisetVolatile( final CachedCellImg<LabelMultisetType,?> lmsImg ) {
