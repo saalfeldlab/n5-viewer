@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.n5.bdv;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,8 +21,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5ViewerMultiscaleMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMetadataParser;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05MetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser;
 
 import ij.ImageJ;
 
@@ -39,7 +37,6 @@ import ij.ImageJ;
 public class N5ViewerCreator {
 
 	public static final N5MetadataParser<?>[] n5vGroupParsers = new N5MetadataParser[]{
-			new OmeNgffV05MetadataParser(),
 			new OmeNgffMetadataParser(),
 			new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 			new N5ViewerMultiscaleMetadataParser(),

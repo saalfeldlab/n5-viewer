@@ -77,10 +77,9 @@ import org.janelia.saalfeldlab.n5.universe.metadata.axes.DefaultAxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalSpatialMetadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.NgffSingleScaleAxesMetadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.InputActionBindings;
@@ -544,12 +543,6 @@ public class N5Viewer {
 						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
 				datasetsToOpen = msd.getPaths();
 				transforms = msd.getTransforms();
-			} else if (metadata instanceof OmeNgffV05Metadata) {
-				final OmeNgffV05Metadata multiScaleDataset = (OmeNgffV05Metadata)metadata;
-				final MultiscaleDatasets msd = MultiscaleDatasets
-						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
-				datasetsToOpen = msd.getPaths();
-				transforms = msd.getTransforms();
 			} else if (metadata instanceof N5CosemMultiScaleMetadata) {
 				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata)metadata;
 				final MultiscaleDatasets msd = MultiscaleDatasets
@@ -840,27 +833,6 @@ public class N5Viewer {
 
 			// TODO when do we not just take the first one?
 			final NgffSingleScaleAxesMetadata[] children = ms[0].getChildrenMetadata();
-			if( children.length > 0 )
-				if( children[0] instanceof NgffSingleScaleAxesMetadata)
-					return children[0];
-
-		}
-		else if (metadata instanceof OmeNgffV05Metadata) {
-
-			final OmeNgffV05Metadata ngff = (OmeNgffV05Metadata)metadata;
-			final OmeNgffMultiScaleMetadata[] ms = ngff.multiscales;
-
-			// TODO when do we not just take the first one?
-			final NgffSingleScaleAxesMetadata[] children = ms[0].getChildrenMetadata();
-			if( children.length > 0 )
-				if( children[0] instanceof NgffSingleScaleAxesMetadata)
-					return children[0];
-
-		}
-		else if(metadata instanceof OmeNgffMultiScaleMetadata )
-		{
-			final OmeNgffMultiScaleMetadata ms = (OmeNgffMultiScaleMetadata)metadata;
-			final NgffSingleScaleAxesMetadata[] children = ms.getChildrenMetadata();
 			if( children.length > 0 )
 				if( children[0] instanceof NgffSingleScaleAxesMetadata)
 					return children[0];
