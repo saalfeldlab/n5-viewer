@@ -512,8 +512,10 @@ public class N5Viewer {
 			AffineTransform3D[] transforms = null;
 
 			final N5Metadata metadata = selectedMetadata.get(i);
-			final String srcName = metadata.getName();
-
+			String srcName = metadata.getName();
+			if( srcName == null || srcName.isEmpty()) {
+				srcName = n5.getURI().toString().replaceFirst("/$", "").replaceFirst(".*/", "");
+			}
 
 			// TODO: simplify this if/elseif block: much of these ifwall cases can be combined
 			if (metadata instanceof N5SingleScaleMetadata) {
@@ -860,8 +862,9 @@ public class N5Viewer {
 			for (int level = 0; level < images.length; ++level)
 				channels[level] = Views.hyperSlice(images[level], 2, c);
 
+			final String channelName = nChannels > 1 ? srcName + "_ch" + c : srcName;
 			final RandomAccessibleIntervalMipmapSource4D<T> source = new RandomAccessibleIntervalMipmapSource4D<>(
-					channels, type, transforms, vd, srcName, true);
+					channels, type, transforms, vd, channelName, true);
 
 			// TODO fix generics
 			final ValuePair<Source<T>, Source<V>> pair = new ValuePair(
