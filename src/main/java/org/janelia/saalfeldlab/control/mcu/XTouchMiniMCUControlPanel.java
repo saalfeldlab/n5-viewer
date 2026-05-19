@@ -1,6 +1,3 @@
-/**
- *
- */
 package org.janelia.saalfeldlab.control.mcu;
 
 import javax.sound.midi.InvalidMidiDataException;

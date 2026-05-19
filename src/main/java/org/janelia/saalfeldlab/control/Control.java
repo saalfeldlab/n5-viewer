@@ -1,6 +1,3 @@
-/**
- *
- */
 package org.janelia.saalfeldlab.control;
 
 import java.util.Set;
