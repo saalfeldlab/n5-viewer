@@ -10,6 +10,7 @@ import org.janelia.saalfeldlab.n5.ui.N5SwingTreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffSceneMetadata;
 
 public class N5ViewerTreeCellRenderer extends N5DatasetTreeCellRenderer {
 
@@ -53,6 +54,12 @@ public class N5ViewerTreeCellRenderer extends N5DatasetTreeCellRenderer {
 				else
 					multiChannelString = "";
 
+				final String sceneString;
+				if (meta instanceof NgffSceneMetadata)
+					sceneString = "scene";
+				else
+					sceneString = "";
+
 				setText(
 						String
 								.join(
@@ -64,6 +71,7 @@ public class N5ViewerTreeCellRenderer extends N5DatasetTreeCellRenderer {
 												getParameterString(node),
 												multiChannelString,
 												multiscaleString,
+												sceneString,
 												")",
 												memSizeString,
 												"</html>"
