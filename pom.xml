@@ -136,17 +136,16 @@
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 
 		<bigdataviewer-core.version>10.6.1</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-36</bigdataviewer-vistools.version>
 
-		<n5.version>4.0.0</n5.version>
-		<n5-aws-s3.version>5.0.0</n5-aws-s3.version>
+		<n5.version>4.0.1</n5.version>
+		<n5-aws-s3.version>5.0.1</n5-aws-s3.version>
 		<n5-blosc.version>2.0.0</n5-blosc.version>
 		<n5-google-cloud.version>6.0.0</n5-google-cloud.version>
 		<n5-hdf5.version>3.0.0</n5-hdf5.version>
-		<n5-ij.version>5.0.0</n5-ij.version>
+		<n5-ij.version>5.0.1-SNAPSHOT</n5-ij.version>
 		<n5-imglib2.version>8.0.0</n5-imglib2.version>
-		<n5-universe.version>3.0.0</n5-universe.version>
-		<n5-zarr.version>2.0.0</n5-zarr.version>
+		<n5-universe.version>3.1.0-SNAPSHOT</n5-universe.version>
+		<n5-zarr.version>2.0.1</n5-zarr.version>
 		<n5-zstandard.version>2.0.0</n5-zstandard.version>
 
 	</properties>
@@ -159,10 +158,6 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>bigdataviewer-vistools</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
