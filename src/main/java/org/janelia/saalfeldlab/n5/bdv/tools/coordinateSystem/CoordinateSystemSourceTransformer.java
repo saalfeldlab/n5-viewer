@@ -117,8 +117,11 @@ public class CoordinateSystemSourceTransformer {
 
 		for (final String localSpaceName : candidateLocalSpaceNames) {
 			final Optional<TransformPath> transformPath = graph.path(localSpaceName, coordinateSystemName);
-			if (transformPath.isPresent())
-				Common.toAffine3D(n5, graph, transformPath.get().flatTransforms());
+			if (transformPath.isPresent()) {
+				final AffineTransform3D resolved = Common.toAffine3D(n5, graph, transformPath.get().flatTransforms());
+				if (resolved != null)
+					return resolved;
+			}
 		}
 		return null;
 	}
