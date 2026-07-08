@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.bdv.tools.coordinateSystem.CoordinateSystemContext;
+import org.janelia.saalfeldlab.n5.bdv.tools.coordinateSystem.CoordinateSystemSourceTransformer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.MetadataSource;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
@@ -23,6 +25,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.CoordinateSystem;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.DefaultAxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalSpatialMetadata;
@@ -31,6 +34,10 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffScene;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.Common;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformGraph;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformPath;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.transformations.CoordinateTransform;
 
 import bdv.BigDataViewer;
 import bdv.cache.SharedQueue;
@@ -153,19 +160,494 @@ public class N5VSources {
 
 		final OmeNgffMetadataParser parser = new OmeNgffMetadataParser(n5);
 		final List<N5Metadata> selectedMetadata = new ArrayList<>();
-		final String[] paths = coordinateSystemName == null ? scene.getPaths() : scene.getPaths(coordinateSystemName);
-		for (final String path : paths) {
-			final String resolvedPath = (basePath == null || basePath.isEmpty())
-					? path : basePath + "/" + path;
-			parser.parseMetadata(n5, resolvedPath).ifPresent(selectedMetadata::add);
+		final List<String> selectedPaths = new ArrayList<>();
+		for (final String path : scene.getPaths()) {
+			final String resolvedPath = (basePath == null || basePath.isEmpty()) ? path : basePath + "/" + path;
+			parser.parseMetadata(n5, resolvedPath).ifPresent(m -> {
+				selectedMetadata.add(m);
+				selectedPaths.add(path);
+			});
 		}
 
-		return buildN5Sources(n5, selectedMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
+		final List<AffineTransform3D> extraTransforms = coordinateSystemName == null
+				? null
+				: buildExtraTransforms(n5, scene, basePath, coordinateSystemName, selectedPaths);
+
+		return buildN5Sources(n5, selectedMetadata, extraTransforms, sharedQueue, converterSetups, sourcesAndConverters, options);
+	}
+
+	/**
+	 * Builds sources for every path referenced by {@code scene}, and installs a
+	 * {@link CoordinateSystemSourceTransformer} on the given {@link CoordinateSystemContext}
+	 * so the sources can later be re-transformed into a different coordinate system
+	 * (see {@link CoordinateSystemSourceTransformer#transformTo(String)}). The sources are
+	 * initially transformed into the context's
+	 * {@link CoordinateSystemContext#getSelectedCoordinateSystemName() selected
+	 * coordinate system}.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param scene
+	 *            the scene whose referenced paths should be turned into sources
+	 * @param basePath
+	 *            the path {@code scene}'s paths are relative to (may be null or empty)
+	 * @param context
+	 *            the context (built from {@code scene}) onto which the transformer is
+	 *            installed
+	 * @param sharedQueue
+	 *            the shared queue
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup}s to which sources should be added
+	 * @param sourcesAndConverters
+	 *            list of {@link SourceAndConverter}s to which sources should be added
+	 * @param options
+	 *            bdv options
+	 * @return the number of timepoints among the built sources
+	 */
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
+			final N5Reader n5,
+			final NgffScene scene,
+			final String basePath,
+			final CoordinateSystemContext context,
+			final SharedQueue sharedQueue,
+			final List<ConverterSetup> converterSetups,
+			final List<SourceAndConverter<T>> sourcesAndConverters,
+			final BdvOptions options ) throws IOException {
+
+		final OmeNgffMetadataParser parser = new OmeNgffMetadataParser(n5);
+		final List<N5Metadata> selectedMetadata = new ArrayList<>();
+		final List<String> selectedPaths = new ArrayList<>();
+		for (final String path : scene.getPaths()) {
+			final String resolvedPath = (basePath == null || basePath.isEmpty()) ? path : basePath + "/" + path;
+			parser.parseMetadata(n5, resolvedPath).ifPresent(m -> {
+				selectedMetadata.add(m);
+				selectedPaths.add(path);
+			});
+		}
+
+		// build sources without a precomputed transformation; the initial transform
+		// is expressed below as the transformer's first transformTo(...) call
+		final List<List<TransformedSource<?>>> transformedSourcesByMetadata = new ArrayList<>();
+		final int numTimepoints = buildN5Sources(n5, selectedMetadata, (List<AffineTransform3D>)null,
+				transformedSourcesByMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
+
+		// each dataset's local space(s) come from the scene's transforms
+		final List<List<String>> localSpaceNamesByMetadata = new ArrayList<>();
+		for (final String path : selectedPaths)
+			localSpaceNamesByMetadata.add(scene.localSpaceNames(path));
+
+		installTransformer(n5, context, transformedSourcesByMetadata, localSpaceNamesByMetadata);
+
+		return numTimepoints;
+	}
+
+	/**
+	 * Builds sources for the given {@code selectedMetadata}, and installs a
+	 * {@link CoordinateSystemSourceTransformer} on the given {@link CoordinateSystemContext}
+	 * so the sources can later be re-transformed into a different coordinate system.
+	 * The scene-free counterpart of
+	 * {@link #buildN5Sources(N5Reader, NgffScene, String, CoordinateSystemContext, SharedQueue, List, List, BdvOptions)}:
+	 * each {@link OmeNgffMetadata} dataset is transformed out of its own local space
+	 * ({@code coordinateSystems[0]}), routed through the context's graph (built
+	 * from that dataset's own coordinate systems and transforms, see
+	 * {@link CoordinateSystemContext#fromMultiscale(OmeNgffMultiScaleMetadata)}),
+	 * rather than through an {@link NgffScene}. The sources are initially transformed
+	 * into the context's
+	 * {@link CoordinateSystemContext#getSelectedCoordinateSystemName() selected
+	 * coordinate system}.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param selectedMetadata
+	 *            the metadata for which sources should be built
+	 * @param context
+	 *            the context (built from a multiscale dataset) onto which the
+	 *            transformer is installed
+	 * @param sharedQueue
+	 *            the shared queue
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup}s to which sources should be added
+	 * @param sourcesAndConverters
+	 *            list of {@link SourceAndConverter}s to which sources should be added
+	 * @param options
+	 *            bdv options
+	 * @return the number of timepoints among the built sources
+	 */
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
+			final N5Reader n5,
+			final List<N5Metadata> selectedMetadata,
+			final CoordinateSystemContext context,
+			final SharedQueue sharedQueue,
+			final List<ConverterSetup> converterSetups,
+			final List<SourceAndConverter<T>> sourcesAndConverters,
+			final BdvOptions options ) throws IOException {
+
+		// build sources without a precomputed transform; the initial transform
+		// is expressed below as the transformer's first transformTo(...) call
+		final List<List<TransformedSource<?>>> transformedSourcesByMetadata = new ArrayList<>();
+		final int numTimepoints = buildN5Sources(n5, selectedMetadata, (List<AffineTransform3D>)null,
+				transformedSourcesByMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
+
+		// each dataset's local space is its own coordinateSystems[0]
+		final List<List<String>> localSpaceNamesByMetadata = new ArrayList<>();
+		for (final N5Metadata metadata : selectedMetadata)
+			localSpaceNamesByMetadata.add(localSpaceNames(metadata));
+
+		installTransformer(n5, context, transformedSourcesByMetadata, localSpaceNamesByMetadata);
+
+		return numTimepoints;
+	}
+
+	/**
+	 * Assembles a {@link CoordinateSystemSourceTransformer} from per-dataset
+	 * {@link TransformedSource}s (index {@code i} = the sources built for one
+	 * dataset) and per-dataset local coordinate-system names (index {@code i} =
+	 * the space(s) that dataset can be transformed out of), installs it on
+	 * {@code context}, and applies the initial transform to the context's
+	 * selected coordinate system. Does nothing if the context has no graph.
+	 *
+	 * @param n5
+	 *            the reader (retained by the transformer)
+	 * @param context
+	 *            the context onto which the transformer is installed
+	 * @param transformedSourcesByMetadata
+	 *            the transformed sources, grouped per dataset
+	 * @param localSpaceNamesByMetadata
+	 *            the local coordinate-system names, per dataset (index-aligned
+	 *            with {@code transformedSourcesByMetadata})
+	 */
+	private static void installTransformer(
+			final N5Reader n5,
+			final CoordinateSystemContext context,
+			final List<List<TransformedSource<?>>> transformedSourcesByMetadata,
+			final List<List<String>> localSpaceNamesByMetadata) {
+
+		final TransformGraph graph = context.getGraph();
+		if (graph == null)
+			return;
+
+		final List<CoordinateSystemSourceTransformer.Binding> bindings = new ArrayList<>();
+		for (int i = 0; i < transformedSourcesByMetadata.size(); ++i)
+			bindings.add(new CoordinateSystemSourceTransformer.Binding(
+					transformedSourcesByMetadata.get(i),
+					localSpaceNamesByMetadata.get(i)));
+
+		final CoordinateSystemSourceTransformer transformer = new CoordinateSystemSourceTransformer(n5, graph, bindings);
+		context.setAligner(transformer);
+
+		final String coordinateSystemName = context.getSelectedCoordinateSystemName();
+		if (coordinateSystemName != null)
+			transformer.transformTo(coordinateSystemName);
+	}
+
+	/**
+	 * The local coordinate-system name(s) a dataset can be transformed out of: for an
+	 * {@link OmeNgffMetadata}, the name of its own {@code coordinateSystems[0]}
+	 * (the space its per-level pixel-to-physical transforms output to); for any
+	 * other metadata type, none (it has no multiscale-level coordinate systems).
+	 *
+	 * @param metadata
+	 *            the dataset metadata
+	 * @return the local coordinate-system names for {@code metadata}
+	 */
+	private static List<String> localSpaceNames(final N5Metadata metadata) {
+
+		final List<String> names = new ArrayList<>();
+		if (metadata instanceof OmeNgffMetadata) {
+			final CoordinateSystem[] coordinateSystems = ((OmeNgffMetadata)metadata).multiscales[0].getCoordinateSystems();
+			if (coordinateSystems != null && coordinateSystems.length > 0)
+				names.add(coordinateSystems[0].getName());
+		}
+		return names;
+	}
+
+	/**
+	 * For each of the given (scene-relative) dataset {@code paths}, finds the
+	 * {@link AffineTransform3D} that maps that dataset's own coordinate
+	 * system into {@code coordinateSystemName}, via the {@link TransformGraph}
+	 * built from {@code scene}. If no such transform can be found for a
+	 * dataset, a warning is printed to {@link System#err} and {@code null} is
+	 * returned for that dataset (its native transform is left unchanged).
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param scene
+	 *            the scene
+	 * @param basePath
+	 *            the path that {@code scene}'s paths are relative to (may be null or empty)
+	 * @param coordinateSystemName
+	 *            the name of the target coordinate system
+	 * @param paths
+	 *            the (scene-relative) dataset paths to resolve
+	 * @return a list, parallel to {@code paths}, of the transform into
+	 *         {@code coordinateSystemName} for each dataset (or {@code null}
+	 *         for a dataset that could not be connected to it)
+	 */
+	private static List<AffineTransform3D> buildExtraTransforms(
+			final N5Reader n5,
+			final NgffScene scene,
+			final String basePath,
+			final String coordinateSystemName,
+			final List<String> paths) {
+
+		final TransformGraph graph = scene.getGraph(n5, basePath);
+
+		final List<AffineTransform3D> extraTransforms = new ArrayList<>();
+		for (final String path : paths) {
+
+			AffineTransform3D extra = null;
+			for (final String localSpaceName : scene.localSpaceNames(path)) {
+				final Optional<TransformPath> transformPath = graph.path(localSpaceName, coordinateSystemName);
+				if (transformPath.isPresent()) {
+					extra = Common.toAffine3D(n5, graph, transformPath.get().flatTransforms());
+					break;
+				}
+			}
+
+			if (extra == null)
+				System.err.println("N5VSources: no transformation found from \"" + path
+						+ "\" to coordinate system \"" + coordinateSystemName
+						+ "\"; leaving its native transform unchanged.");
+
+			extraTransforms.add(extra);
+		}
+		return extraTransforms;
+	}
+
+	/**
+	 * Returns the per-scale-level {@link AffineTransform3D}s of
+	 * {@code multiScaleDataset}, each taking that scale level into
+	 * {@code coordinateSystemName} rather than just the dataset's own
+	 * (local) space. Unlike {@link #buildExtraTransforms(N5Reader, NgffScene, String, String, List)},
+	 * this does not consult an {@link NgffScene} -- the extra transform (see
+	 * {@link #extraTransformFromMultiscale}) is resolved purely from what
+	 * {@code multiScaleDataset} itself declares, so it works for any
+	 * multiscale dataset whether or not it's referenced by a scene.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param multiScaleDataset
+	 *            the multiscale dataset
+	 * @param coordinateSystemName
+	 *            the name of the target coordinate system, or {@code null} to
+	 *            just return {@code multiScaleDataset}'s native per-level
+	 *            transforms unchanged
+	 * @return the per-scale-level transforms into {@code coordinateSystemName}
+	 */
+	public static AffineTransform3D[] spatialTransforms3d(
+			final N5Reader n5,
+			final OmeNgffMultiScaleMetadata multiScaleDataset,
+			final String coordinateSystemName) {
+
+		final AffineTransform3D[] nativeTransforms = multiScaleDataset.spatialTransforms3d();
+		if (coordinateSystemName == null)
+			return nativeTransforms;
+
+		final Optional<AffineTransform3D> extraTransform = extraTransformFromMultiscale(n5, multiScaleDataset, coordinateSystemName);
+		if (!extraTransform.isPresent()) {
+			System.err.println("N5VSources: no transformation found from \"" + multiScaleDataset.getPath()
+					+ "\" to coordinate system \"" + coordinateSystemName + "\"; leaving native transforms unchanged.");
+			return nativeTransforms;
+		}
+
+		final AffineTransform3D[] transforms = new AffineTransform3D[nativeTransforms.length];
+		for (int i = 0; i < nativeTransforms.length; i++) {
+			transforms[i] = nativeTransforms[i].copy();
+			transforms[i].preConcatenate(extraTransform.get());
+		}
+		return transforms;
+	}
+
+	/**
+	 * Finds the {@link AffineTransform3D} that maps {@code multiScaleDataset}'s
+	 * own (local) coordinate system into {@code coordinateSystemName}, via a
+	 * {@link TransformGraph} built purely from what {@code multiScaleDataset}
+	 * itself declares -- its own {@link CoordinateSystem}s and
+	 * multiscale-level "additional" {@link CoordinateTransform}s (e.g. a
+	 * {@code physical -> rotated} transform) -- without consulting an
+	 * {@link NgffScene}.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param multiScaleDataset
+	 *            the multiscale dataset
+	 * @param coordinateSystemName
+	 *            the name of the target coordinate system
+	 * @return the transform into {@code coordinateSystemName}, or empty if
+	 *         {@code multiScaleDataset} declares no coordinate systems, or
+	 *         none of them can reach {@code coordinateSystemName}
+	 */
+	private static Optional<AffineTransform3D> extraTransformFromMultiscale(
+			final N5Reader n5,
+			final OmeNgffMultiScaleMetadata multiScaleDataset,
+			final String coordinateSystemName) {
+
+		final CoordinateSystem[] coordinateSystems = multiScaleDataset.getCoordinateSystems();
+		if (coordinateSystems == null || coordinateSystems.length == 0)
+			return Optional.empty();
+
+		final TransformGraph graph = multiScaleDataset.getGraph();
+
+		// the dataset's own per-level transforms all output to this (local) space
+		final String localSpaceName = coordinateSystems[0].getName();
+		return graph.path(localSpaceName, coordinateSystemName).map(
+				p -> Common.toAffine3D(n5, graph, p.flatTransforms()));
 	}
 
 	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, M extends AxisMetadata & N5Metadata> int buildN5Sources(
 			final N5Reader n5,
 			final List<N5Metadata> selectedMetadata,
+			final SharedQueue sharedQueue,
+			final List<ConverterSetup> converterSetups,
+			final List<SourceAndConverter<T>> sourcesAndConverters,
+			final BdvOptions options ) throws IOException {
+
+		return buildN5Sources(n5, selectedMetadata, (List<AffineTransform3D>)null, sharedQueue, converterSetups, sourcesAndConverters, options);
+	}
+
+	/**
+	 * Builds sources for the given list of {@link N5Metadata}, transforming any
+	 * {@link OmeNgffMetadata} entries into {@code coordinateSystemName} (via
+	 * {@link #extraTransformFromMultiscale}, so no {@link NgffScene} is
+	 * required -- unlike {@link #buildN5Sources(N5Reader, NgffScene, String, String, SharedQueue, List, List, BdvOptions)}).
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param selectedMetadata
+	 *            the metadata for which sources should be built
+	 * @param coordinateSystemName
+	 *            the name of the coordinate system to transform {@link OmeNgffMetadata}
+	 *            entries into, or {@code null} for native transforms
+	 * @param sharedQueue
+	 *            the shared queue
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup}s to which sources should be added
+	 * @param sourcesAndConverters
+	 *            list of {@link SourceAndConverter}s to which sources should be added
+	 * @param options
+	 *            bdv options
+	 * @return the number of timepoints among the built sources
+	 */
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, M extends AxisMetadata & N5Metadata> int buildN5Sources(
+			final N5Reader n5,
+			final List<N5Metadata> selectedMetadata,
+			final String coordinateSystemName,
+			final SharedQueue sharedQueue,
+			final List<ConverterSetup> converterSetups,
+			final List<SourceAndConverter<T>> sourcesAndConverters,
+			final BdvOptions options ) throws IOException {
+
+		final List<AffineTransform3D> extraTransforms = coordinateSystemName == null
+				? null
+				: buildExtraTransforms(n5, selectedMetadata, coordinateSystemName);
+
+		return buildN5Sources(n5, selectedMetadata, extraTransforms, sharedQueue, converterSetups, sourcesAndConverters, options);
+	}
+
+	/**
+	 * For each of the given {@code selectedMetadata} entries, finds the
+	 * {@link AffineTransform3D} that maps that dataset's own coordinate
+	 * system into {@code coordinateSystemName} (see
+	 * {@link #extraTransformFromMultiscale}). Only {@link OmeNgffMetadata}
+	 * entries are considered; other metadata types have no multiscale-level
+	 * {@code coordinateSystems} concept, so they always get {@code null}
+	 * (unchanged native transform). If no transform can be found for a
+	 * dataset, a warning is printed to {@link System#err} and {@code null} is
+	 * returned for that dataset.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param selectedMetadata
+	 *            the metadata to resolve
+	 * @param coordinateSystemName
+	 *            the name of the target coordinate system
+	 * @return a list, parallel to {@code selectedMetadata}, of the transform
+	 *         into {@code coordinateSystemName} for each dataset (or
+	 *         {@code null} for a dataset that could not be connected to it,
+	 *         or isn't an {@link OmeNgffMetadata})
+	 */
+	private static List<AffineTransform3D> buildExtraTransforms(
+			final N5Reader n5,
+			final List<N5Metadata> selectedMetadata,
+			final String coordinateSystemName) {
+
+		final List<AffineTransform3D> extraTransforms = new ArrayList<>();
+		for (final N5Metadata metadata : selectedMetadata) {
+
+			AffineTransform3D extra = null;
+			if (metadata instanceof OmeNgffMetadata) {
+				final OmeNgffMetadata omeMeta = (OmeNgffMetadata)metadata;
+				extra = extraTransformFromMultiscale(n5, omeMeta.multiscales[0], coordinateSystemName).orElse(null);
+			}
+
+			if (extra == null)
+				System.err.println("N5VSources: no transformation found from \"" + metadata.getPath()
+						+ "\" to coordinate system \"" + coordinateSystemName
+						+ "\"; leaving its native transform unchanged.");
+
+			extraTransforms.add(extra);
+		}
+		return extraTransforms;
+	}
+
+	/**
+	 * Builds sources for the given list of {@link N5Metadata}, optionally
+	 * concatenating an extra {@link AffineTransform3D} onto each dataset's
+	 * source transform.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param selectedMetadata
+	 *            the metadata for which sources should be built
+	 * @param extraTransforms
+	 *            per-{@code selectedMetadata}-entry extra transform to
+	 *            concatenate onto the built source(s), or {@code null} if
+	 *            none should be applied. Individual entries may also be
+	 *            {@code null}, in which case no extra transform is applied
+	 *            for that dataset. Must be the same size as
+	 *            {@code selectedMetadata} when non-null.
+	 * @param sharedQueue
+	 *            the shared queue
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup}s to which sources should be added
+	 * @param sourcesAndConverters
+	 *            list of {@link SourceAndConverter}s to which sources should be added
+	 * @param options
+	 *            bdv options
+	 * @return the number of timepoints among the built sources
+	 */
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, M extends AxisMetadata & N5Metadata> int buildN5Sources(
+			final N5Reader n5,
+			final List<N5Metadata> selectedMetadata,
+			final List<AffineTransform3D> extraTransforms,
+			final SharedQueue sharedQueue,
+			final List<ConverterSetup> converterSetups,
+			final List<SourceAndConverter<T>> sourcesAndConverters,
+			final BdvOptions options ) throws IOException {
+
+		return buildN5Sources(n5, selectedMetadata, extraTransforms, null,
+				sharedQueue, converterSetups, sourcesAndConverters, options);
+	}
+
+	/**
+	 * As {@link #buildN5Sources(N5Reader, List, List, SharedQueue, List, List, BdvOptions)},
+	 * but additionally records the built {@link TransformedSource}s grouped by
+	 * their originating {@code selectedMetadata} entry, so they can later be
+	 * re-transformed (see {@link CoordinateSystemSourceTransformer}).
+	 *
+	 * @param transformedSourcesByMetadata
+	 *            if non-null, populated with one list per {@code selectedMetadata}
+	 *            entry (parallel to it, in the same order) of the
+	 *            {@link TransformedSource}s built for that entry (one per
+	 *            channel; empty for entries that produced no transformed
+	 *            sources). Any existing contents are added to.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, M extends AxisMetadata & N5Metadata> int buildN5Sources(
+			final N5Reader n5,
+			final List<N5Metadata> selectedMetadata,
+			final List<AffineTransform3D> extraTransforms,
+			final List<List<TransformedSource<?>>> transformedSourcesByMetadata,
 			final SharedQueue sharedQueue,
 			final List<ConverterSetup> converterSetups,
 			final List<SourceAndConverter<T>> sourcesAndConverters,
@@ -242,8 +724,12 @@ public class N5VSources {
 				transforms = new AffineTransform3D[]{new AffineTransform3D()};
 			}
 
-			if (datasetsToOpen == null || datasetsToOpen.length == 0)
+			if (datasetsToOpen == null || datasetsToOpen.length == 0) {
+				// keep transformedSourcesByMetadata parallel to selectedMetadata
+				if (transformedSourcesByMetadata != null)
+					transformedSourcesByMetadata.add(new ArrayList<>());
 				continue;
+			}
 
 			@SuppressWarnings("rawtypes")
 			final RandomAccessibleInterval[] images = new RandomAccessibleInterval[datasetsToOpen.length];
@@ -332,8 +818,21 @@ public class N5VSources {
 					sharedQueue,
 					new FinalVoxelDimensions(unit, rx, ry, rz));
 
+			final AffineTransform3D extraTransform = extraTransforms == null ? null : extraTransforms.get(i);
+			final int startIndex = sourcesAndConverters.size();
 			for (final Pair<Source<T>, Source<V>> sourcePair : sourcePairs) {
-				addSourceToListsGenericType(sourcePair.getA(), sourcePair.getB(), i + 1, converterSetups, sourcesAndConverters);
+				addSourceToListsGenericType(sourcePair.getA(), sourcePair.getB(), extraTransform, i + 1, converterSetups, sourcesAndConverters);
+			}
+
+			// capture the TransformedSources just built for this metadata entry
+			if (transformedSourcesByMetadata != null) {
+				final List<TransformedSource<?>> built = new ArrayList<>();
+				for (int si = startIndex; si < sourcesAndConverters.size(); ++si) {
+					final Source<?> spimSource = sourcesAndConverters.get(si).getSpimSource();
+					if (spimSource instanceof TransformedSource)
+						built.add((TransformedSource<?>)spimSource);
+				}
+				transformedSourcesByMetadata.add(built);
 			}
 		}
 
@@ -483,7 +982,7 @@ public class N5VSources {
 			final List<ConverterSetup> converterSetups,
 			final List<SourceAndConverter<T>> sources) {
 
-		addSourceToListsGenericType(source, null, setupId, converterSetups, sources);
+		addSourceToListsGenericType(source, null, null, setupId, converterSetups, sources);
 	}
 
 	/**
@@ -494,6 +993,11 @@ public class N5VSources {
 	 *
 	 * @param source
 	 *            source to add.
+	 * @param volatileSource
+	 *            corresponding volatile source.
+	 * @param extraTransform
+	 *            extra transform to concatenate onto the source's transform,
+	 *            or {@code null} if none should be applied.
 	 * @param setupId
 	 *            id of the new source for use in {@code SetupAssignments}.
 	 * @param converterSetups
@@ -507,6 +1011,7 @@ public class N5VSources {
 	private static <T, V extends Volatile<T>> void addSourceToListsGenericType(
 			final Source<T> source,
 			final Source<V> volatileSource,
+			final AffineTransform3D extraTransform,
 			final int setupId,
 			final List<ConverterSetup> converterSetups,
 			final List<SourceAndConverter<T>> sources) {
@@ -516,6 +1021,7 @@ public class N5VSources {
 			addSourceToListsNumericType(
 					(Source)source,
 					(Source)volatileSource,
+					extraTransform,
 					setupId,
 					converterSetups,
 					(List)sources);
@@ -533,6 +1039,9 @@ public class N5VSources {
 	 *            source to add.
 	 * @param volatileSource
 	 *            corresponding volatile source.
+	 * @param extraTransform
+	 *            extra transform to concatenate onto the source's transform,
+	 *            or {@code null} if none should be applied.
 	 * @param setupId
 	 *            id of the new source for use in {@code SetupAssignments}.
 	 * @param converterSetups
@@ -545,6 +1054,7 @@ public class N5VSources {
 	private static <T extends NumericType<T>, V extends Volatile<T> & NumericType<V>> void addSourceToListsNumericType(
 			final Source<T> source,
 			final Source<V> volatileSource,
+			final AffineTransform3D extraTransform,
 			final int setupId,
 			final List<ConverterSetup> converterSetups,
 			final List<SourceAndConverter<T>> sources) {
@@ -557,6 +1067,9 @@ public class N5VSources {
 				createConverterToARGB(source.getType()),
 				vsoc);
 		final SourceAndConverter<T> tsoc = wrapWithTransformedSource(soc);
+
+		if (extraTransform != null)
+			((TransformedSource<T>)tsoc.getSpimSource()).setFixedTransform(extraTransform);
 
 		converterSetups.add(BigDataViewer.createConverterSetup(tsoc, setupId));
 		sources.add(tsoc);

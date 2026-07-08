@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.n5.bdv;
 
 
 import java.awt.Frame;
+import java.awt.Insets;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
@@ -28,8 +29,9 @@ import org.janelia.saalfeldlab.control.mcu.XTouchMiniMCUControlPanel;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.bdv.tools.boundingbox.BoxCrop;
+import org.janelia.saalfeldlab.n5.bdv.tools.coordinateSystem.CoordinateSystemCard;
+import org.janelia.saalfeldlab.n5.bdv.tools.coordinateSystem.CoordinateSystemContext;
 import org.janelia.saalfeldlab.n5.ij.N5Importer.N5ViewerReaderFun;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
@@ -42,7 +44,6 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup;
 
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
@@ -61,31 +62,16 @@ import bdv.util.BdvHandleFrame;
 import bdv.util.BdvHandlePanel;
 import bdv.util.BdvOptions;
 import bdv.util.Prefs;
-import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerFrame;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.Cursor;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.algorithm.lazy.Lazy;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.img.ReadOnlyCachedCellImgFactory;
-import net.imglib2.cache.img.ReadOnlyCachedCellImgOptions;
-import net.imglib2.converter.Converters;
-import net.imglib2.img.basictypeaccess.AccessFlags;
-import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.NumericType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.type.volatiles.VolatileUnsignedLongType;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.Views;
 
 /**
  * {@link BigDataViewer}-based application for viewing N5 datasets.
@@ -348,11 +334,38 @@ public class N5Viewer {
 	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final List<SourceAndConverter<T>> sourcesAndConverters, final int numTimepoints,
 			final BdvOptions options) {
 
-		return show(sourcesAndConverters, numTimepoints, options, true, null);
+		return show(sourcesAndConverters, numTimepoints, options, true, null, null);
+	}
+
+	/**
+	 * Shows the given sources and, when {@code context} is non-null, adds a
+	 * side-panel card listing the detected coordinate-system names.
+	 *
+	 * @param sourcesAndConverters
+	 *            the sources to show
+	 * @param numTimepoints
+	 *            the number of timepoints
+	 * @param options
+	 *            bdv options
+	 * @param context
+	 *            the coordinate-system context backing the coordinate-systems
+	 *            card, or {@code null} for no card
+	 * @return the bdv handle
+	 */
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final List<SourceAndConverter<T>> sourcesAndConverters, final int numTimepoints,
+			final BdvOptions options, final CoordinateSystemContext context) {
+
+		return show(sourcesAndConverters, numTimepoints, options, true, null, context);
 	}
 
 	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final List<SourceAndConverter<T>> sourcesAndConverters, final int numTimepoints,
 			final BdvOptions options, final boolean wantFrame, final Frame parentFrame) {
+
+		return show(sourcesAndConverters, numTimepoints, options, wantFrame, parentFrame, null);
+	}
+
+	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final List<SourceAndConverter<T>> sourcesAndConverters, final int numTimepoints,
+			final BdvOptions options, final boolean wantFrame, final Frame parentFrame, final CoordinateSystemContext context) {
 
 		BdvHandle bdvHandle = null;
 		for (final SourceAndConverter<?> sourcesAndConverter : sourcesAndConverters) {
@@ -429,7 +442,38 @@ public class N5Viewer {
 			} catch (final Exception e) {}
 		}
 
+		if (bdv != null && context != null)
+			addCoordinateSystemsCard(bdv, context);
+
 		return bdv;
+	}
+
+	/**
+	 * Adds the read-only coordinate-systems card to the viewer's side panel and
+	 * reveals the (initially collapsed) side panel. Runs on the EDT.
+	 *
+	 * @param bdv
+	 *            the viewer handle
+	 * @param context
+	 *            the context whose coordinate-system names are listed
+	 */
+	private static void addCoordinateSystemsCard(final BdvHandle bdv, final CoordinateSystemContext context) {
+
+		SwingUtilities.invokeLater(() -> {
+			final Runnable repaint = () -> {
+				final ViewerPanel viewerPanel = bdv.getViewerPanel();
+				if (viewerPanel != null)
+					viewerPanel.requestRepaint();
+			};
+			final CoordinateSystemCard card = new CoordinateSystemCard(context, repaint);
+			bdv.getCardPanel().addCard(
+					CoordinateSystemCard.CARD_KEY,
+					CoordinateSystemCard.CARD_TITLE,
+					card,
+					true,
+					new Insets(0, 0, 0, 0));
+			bdv.getSplitPanel().setCollapsed(false);
+		});
 	}
 
 	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
@@ -452,6 +496,41 @@ public class N5Viewer {
 			final BdvOptions options ) throws IOException {
 
 		return N5VSources.buildN5Sources(n5, selectedMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
+	}
+
+	/**
+	 * Builds sources for the given list of {@link N5Metadata}, aligning any
+	 * {@link org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata}
+	 * entries into {@code coordinateSystemName} (see
+	 * {@link N5VSources#buildN5Sources(N5Reader, List, String, SharedQueue, List, List, BdvOptions)}).
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param selectedMetadata
+	 *            the metadata for which sources should be built
+	 * @param coordinateSystemName
+	 *            the name of the coordinate system to align into, or
+	 *            {@code null} for no alignment (native transforms)
+	 * @param sharedQueue
+	 *            the shared queue
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup}s to which sources should be added
+	 * @param sourcesAndConverters
+	 *            list of {@link SourceAndConverter}s to which sources should be added
+	 * @param options
+	 *            bdv options
+	 * @return the number of timepoints among the built sources
+	 */
+	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, M extends AxisMetadata & N5Metadata> int buildN5Sources(
+			final N5Reader n5,
+			final List<N5Metadata> selectedMetadata,
+			final String coordinateSystemName,
+			final SharedQueue sharedQueue,
+			final List<ConverterSetup> converterSetups,
+			final List<SourceAndConverter<T>> sourcesAndConverters,
+			final BdvOptions options ) throws IOException {
+
+		return N5VSources.buildN5Sources(n5, selectedMetadata, coordinateSystemName, sharedQueue, converterSetups, sourcesAndConverters, options);
 	}
 
 	private static <T extends NumericType<T> & NativeType<T>> void initCropController(
