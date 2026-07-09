@@ -305,30 +305,62 @@ public class N5Viewer {
 		return show(sourcesAndConverters, numTimepoints, options, wantFrame, parentFrame);
 	}
 
+	/**
+	 * Shows the given metadata, detecting the coordinate systems it declares
+	 * (see {@link CoordinateSystemContext#fromMetadata(List)}). When more than
+	 * one is found, the sources are built so that they can be re-transformed, and
+	 * a coordinate-systems card is added to the side panel from which the user
+	 * selects the coordinate system to view them in.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param metadata
+	 *            the metadata to show
+	 * @param wantFrame
+	 *            if true, use BdvHandleFrame and display a window. If false, use
+	 *            a BdvHandlePanel and do not display anything.
+	 * @param parentFrame
+	 *            parent frame, can be null
+	 * @return the bdv handle
+	 */
 	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(N5Reader n5, List<N5Metadata> metadata, final boolean wantFrame, final Frame parentFrame) {
 
-		final DataSelection selection = new DataSelection(n5, metadata);
+		final List<N5Metadata> selected = unwrapMultichannelSelections(new DataSelection(n5, metadata));
 		final SharedQueue sharedQueue = new SharedQueue(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
 		final List<ConverterSetup> converterSetups = new ArrayList<>();
 		final List<SourceAndConverter<T>> sourcesAndConverters = new ArrayList<>();
 
+		// detect the coordinate systems the metadata itself declares; when there
+		// are several, build through the context so the card's selection can
+		// re-transform the sources (a null context builds them as before)
+		final CoordinateSystemContext context = CoordinateSystemContext.fromMetadata(selected);
+
 		final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
 		int numTimepoints;
 		try {
-			numTimepoints = buildN5Sources(
-					n5,
-					selection,
-					sharedQueue,
-					converterSetups,
-					sourcesAndConverters,
-					options);
+			numTimepoints = context != null
+					? N5VSources.buildN5Sources(
+							n5,
+							selected,
+							context,
+							sharedQueue,
+							converterSetups,
+							sourcesAndConverters,
+							options)
+					: buildN5Sources(
+							n5,
+							selected,
+							sharedQueue,
+							converterSetups,
+							sourcesAndConverters,
+							options);
 
 		} catch (final IOException e1) {
 			e1.printStackTrace();
 			return null;
 		}
 
-		return show(sourcesAndConverters, numTimepoints, options, wantFrame, parentFrame);
+		return show(sourcesAndConverters, numTimepoints, options, wantFrame, parentFrame, context);
 	}
 
 	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(final List<SourceAndConverter<T>> sourcesAndConverters, final int numTimepoints,
@@ -496,41 +528,6 @@ public class N5Viewer {
 			final BdvOptions options ) throws IOException {
 
 		return N5VSources.buildN5Sources(n5, selectedMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
-	}
-
-	/**
-	 * Builds sources for the given list of {@link N5Metadata}, aligning any
-	 * {@link org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata}
-	 * entries into {@code coordinateSystemName} (see
-	 * {@link N5VSources#buildN5Sources(N5Reader, List, String, SharedQueue, List, List, BdvOptions)}).
-	 *
-	 * @param n5
-	 *            the reader
-	 * @param selectedMetadata
-	 *            the metadata for which sources should be built
-	 * @param coordinateSystemName
-	 *            the name of the coordinate system to align into, or
-	 *            {@code null} for no alignment (native transforms)
-	 * @param sharedQueue
-	 *            the shared queue
-	 * @param converterSetups
-	 *            list of {@link ConverterSetup}s to which sources should be added
-	 * @param sourcesAndConverters
-	 *            list of {@link SourceAndConverter}s to which sources should be added
-	 * @param options
-	 *            bdv options
-	 * @return the number of timepoints among the built sources
-	 */
-	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>, M extends AxisMetadata & N5Metadata> int buildN5Sources(
-			final N5Reader n5,
-			final List<N5Metadata> selectedMetadata,
-			final String coordinateSystemName,
-			final SharedQueue sharedQueue,
-			final List<ConverterSetup> converterSetups,
-			final List<SourceAndConverter<T>> sourcesAndConverters,
-			final BdvOptions options ) throws IOException {
-
-		return N5VSources.buildN5Sources(n5, selectedMetadata, coordinateSystemName, sharedQueue, converterSetups, sourcesAndConverters, options);
 	}
 
 	private static <T extends NumericType<T> & NativeType<T>> void initCropController(

@@ -6,7 +6,9 @@ import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.bdv.N5VSources;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.CoordinateSystem;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffScene;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformGraph;
@@ -89,6 +91,45 @@ public class CoordinateSystemContext {
 				: namesFromCoordinateSystems(multiscale == null ? null : multiscale.getCoordinateSystems());
 		final String selected = firstCoordinateSystemName(multiscale == null ? null : multiscale.getCoordinateSystems());
 		return new CoordinateSystemContext(graph, names, selected);
+	}
+
+	/**
+	 * Detects the coordinate systems declared by the given discovered
+	 * {@code metadata}, returning a context for them, or {@code null} if there is
+	 * nothing for a card to offer -- that is, if no entry is an
+	 * {@link OmeNgffMetadata}, or the first one that is declares fewer than two
+	 * coordinate systems (with only its own local space there is no alternative
+	 * to select).
+	 * <p>
+	 * Only the first {@link OmeNgffMetadata} entry backs the context, since a
+	 * context has a single graph; datasets each carrying their own disjoint graph
+	 * cannot be resolved against one another. Relating several datasets to a
+	 * shared coordinate system is what an {@link NgffScene} is for -- use
+	 * {@link #fromScene(N5Reader, NgffScene, String)} in that case.
+	 *
+	 * @param metadata
+	 *            the discovered dataset metadata
+	 * @return the context, or {@code null} if no coordinate systems are offered
+	 */
+	public static CoordinateSystemContext fromMetadata(final List<? extends N5Metadata> metadata) {
+
+		if (metadata == null)
+			return null;
+
+		for (final N5Metadata m : metadata) {
+
+			if (!(m instanceof OmeNgffMetadata))
+				continue;
+
+			final OmeNgffMultiScaleMetadata[] multiscales = ((OmeNgffMetadata)m).multiscales;
+			if (multiscales == null || multiscales.length == 0)
+				continue;
+
+			final CoordinateSystemContext context = fromMultiscale(multiscales[0]);
+			if (context.getCoordinateSystemNames().size() > 1)
+				return context;
+		}
+		return null;
 	}
 
 	/**
