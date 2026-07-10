@@ -5,12 +5,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.bdv.N5VSources;
+import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.CoordinateSystem;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffScene;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffSceneMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformGraph;
 
 /**
@@ -95,41 +96,77 @@ public class CoordinateSystemContext {
 
 	/**
 	 * Detects the coordinate systems declared by the given discovered
-	 * {@code metadata}, returning a context for them, or {@code null} if there is
-	 * nothing for a card to offer -- that is, if no entry is an
-	 * {@link OmeNgffMetadata}, or the first one that is declares fewer than two
-	 * coordinate systems (with only its own local space there is no alternative
-	 * to select).
+	 * {@code metadata}, returning a context for them, or {@code null} if no entry
+	 * names any coordinate system (so there would be nothing to show).
 	 * <p>
-	 * Only the first {@link OmeNgffMetadata} entry backs the context, since a
-	 * context has a single graph; datasets each carrying their own disjoint graph
-	 * cannot be resolved against one another. Relating several datasets to a
-	 * shared coordinate system is what an {@link NgffScene} is for -- use
-	 * {@link #fromScene(N5Reader, NgffScene, String)} in that case.
+	 * A context is returned even when only one coordinate system is named, and even
+	 * when the transform graph could not be resolved. Naming the coordinate system
+	 * the sources are shown in is worth doing on its own; with a single name there
+	 * is simply nothing to select, and with no graph no
+	 * {@link CoordinateSystemSourceTransformer} is installed and the card is
+	 * read-only.
+	 * <p>
+	 * An {@link NgffSceneMetadata} entry is preferred, and backs the context via
+	 * {@link #fromScene(N5Reader, NgffScene, String)}: a scene relates several
+	 * datasets through shared coordinate systems, so its graph spans all of them.
+	 * Failing that, the first {@link OmeNgffMetadata} entry backs the context via
+	 * {@link #fromMultiscale(OmeNgffMultiScaleMetadata)}. Only one entry can back
+	 * it either way, since a context has a single graph, and datasets each
+	 * carrying their own disjoint graph cannot be resolved against one another.
 	 *
+	 * @param n5
+	 *            the reader, used to resolve a scene's external datasets
 	 * @param metadata
 	 *            the discovered dataset metadata
-	 * @return the context, or {@code null} if no coordinate systems are offered
+	 * @return the context, or {@code null} if no coordinate systems were named
 	 */
-	public static CoordinateSystemContext fromMetadata(final List<? extends N5Metadata> metadata) {
+	public static CoordinateSystemContext fromMetadata(final N5Reader n5, final List<? extends N5Metadata> metadata) {
 
 		if (metadata == null)
 			return null;
 
-		for (final N5Metadata m : metadata) {
+		for (final N5Metadata m : metadata)
+			if (m instanceof NgffSceneMetadata) {
+				final NgffSceneMetadata sceneMetadata = (NgffSceneMetadata)m;
+				final CoordinateSystemContext context = fromScene(
+						n5, sceneMetadata.getScene(), basePathOf(sceneMetadata));
+				if (namesAnything(context))
+					return context;
+			}
 
-			if (!(m instanceof OmeNgffMetadata))
-				continue;
+		for (final N5Metadata m : metadata)
+			if (m instanceof OmeNgffMetadata) {
+				final OmeNgffMultiScaleMetadata[] multiscales = ((OmeNgffMetadata)m).multiscales;
+				if (multiscales == null || multiscales.length == 0)
+					continue;
 
-			final OmeNgffMultiScaleMetadata[] multiscales = ((OmeNgffMetadata)m).multiscales;
-			if (multiscales == null || multiscales.length == 0)
-				continue;
+				final CoordinateSystemContext context = fromMultiscale(multiscales[0]);
+				if (namesAnything(context))
+					return context;
+			}
 
-			final CoordinateSystemContext context = fromMultiscale(multiscales[0]);
-			if (context.getCoordinateSystemNames().size() > 1)
-				return context;
-		}
 		return null;
+	}
+
+	/**
+	 * Whether {@code context} has at least one coordinate system to name. Data with
+	 * no coordinate systems at all (non-NGFF, say) gets no card.
+	 */
+	private static boolean namesAnything(final CoordinateSystemContext context) {
+
+		return !context.getCoordinateSystemNames().isEmpty();
+	}
+
+	/**
+	 * The path a scene's dataset references are relative to. {@link NgffScene}
+	 * resolves them as {@code basePath + "/" + path}, so a root-level scene must
+	 * yield {@code ""} rather than {@code "/"} -- otherwise the references come
+	 * out as {@code "//CBCT"}.
+	 */
+	private static String basePathOf(final NgffSceneMetadata sceneMetadata) {
+
+		final String path = sceneMetadata.getPath();
+		return path == null ? "" : N5URI.normalizeGroupPath(path);
 	}
 
 	/**
@@ -189,6 +226,11 @@ public class CoordinateSystemContext {
 		try {
 			return scene.getGraph(n5, basePath);
 		} catch (final Exception e) {
+			// without the graph the card can still name the scene's coordinate
+			// systems, but nothing can be transformed into them; say why
+			System.err.println("CoordinateSystemContext: could not resolve the transform graph of the scene at \""
+					+ basePath + "\"; the coordinate systems card will be read-only.");
+			e.printStackTrace();
 			return null;
 		}
 	}
@@ -201,6 +243,9 @@ public class CoordinateSystemContext {
 		try {
 			return multiscale.getGraph();
 		} catch (final Exception e) {
+			System.err.println("CoordinateSystemContext: could not resolve the transform graph of the multiscale dataset at \""
+					+ multiscale.getPath() + "\"; the coordinate systems card will be read-only.");
+			e.printStackTrace();
 			return null;
 		}
 	}

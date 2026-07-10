@@ -36,12 +36,13 @@ import org.janelia.saalfeldlab.n5.metadata.N5ViewerMultichannelMetadata;
 import org.janelia.saalfeldlab.n5.ui.DataSelection;
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
-import org.janelia.saalfeldlab.n5.universe.N5MetadataUtils;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.GenericMetadataGroup;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffSceneParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffScene;
 
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.canonical.CanonicalMultichannelMetadata;
@@ -226,9 +227,35 @@ public class N5Viewer {
 		return show(n5, group, true, null);
 	}
 
+	/**
+	 * Shows whatever is at {@code group}, discovering its metadata with n5-viewer's
+	 * own parsers ({@link N5ViewerCreator#n5vParsers}) rather than the defaults in
+	 * {@link org.janelia.saalfeldlab.n5.universe.N5MetadataUtils}, which do not
+	 * include {@link OmeNgffSceneParser} and so cannot recognize an
+	 * {@link NgffScene}.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param group
+	 *            the group to show
+	 * @param wantFrame
+	 *            if true, use BdvHandleFrame and display a window. If false, use
+	 *            a BdvHandlePanel and do not display anything.
+	 * @param parentFrame
+	 *            parent frame, can be null
+	 * @return the bdv handle
+	 */
 	public static <T extends NumericType<T> & NativeType<T>> BdvHandle show(N5Reader n5, final String group, final boolean wantFrame, final Frame parentFrame) {
 
-		return show(n5, Collections.singletonList(N5MetadataUtils.parseMetadata(n5, group)), wantFrame, parentFrame);
+		final N5TreeNode root = N5DatasetDiscoverer.discover(n5,
+				Arrays.asList(N5ViewerCreator.n5vParsers),
+				Arrays.asList(N5ViewerCreator.n5vGroupParsers));
+
+		final N5Metadata metadata = root == null
+				? null
+				: root.getDescendant(group).map(N5TreeNode::getMetadata).orElse(null);
+
+		return show(n5, Collections.singletonList(metadata), wantFrame, parentFrame);
 	}
 
 	public static BdvHandle show(N5Reader n5, List<N5Metadata> metadata) {
@@ -307,10 +334,10 @@ public class N5Viewer {
 
 	/**
 	 * Shows the given metadata, detecting the coordinate systems it declares
-	 * (see {@link CoordinateSystemContext#fromMetadata(List)}). When more than
-	 * one is found, the sources are built so that they can be re-transformed, and
-	 * a coordinate-systems card is added to the side panel from which the user
-	 * selects the coordinate system to view them in.
+	 * (see {@link CoordinateSystemContext#fromMetadata(N5Reader, List)}). When any
+	 * are found, the sources are built so that they can be re-transformed, and a
+	 * coordinate-systems card is added to the side panel naming them, from which
+	 * the user selects the coordinate system to view the sources in.
 	 *
 	 * @param n5
 	 *            the reader
@@ -333,27 +360,14 @@ public class N5Viewer {
 		// detect the coordinate systems the metadata itself declares; when there
 		// are several, build through the context so the card's selection can
 		// re-transform the sources (a null context builds them as before)
-		final CoordinateSystemContext context = CoordinateSystemContext.fromMetadata(selected);
+		final CoordinateSystemContext context = CoordinateSystemContext.fromMetadata(n5, selected);
 
 		final BdvOptions options = BdvOptions.options().frameTitle("N5 Viewer");
 		int numTimepoints;
 		try {
 			numTimepoints = context != null
-					? N5VSources.buildN5Sources(
-							n5,
-							selected,
-							context,
-							sharedQueue,
-							converterSetups,
-							sourcesAndConverters,
-							options)
-					: buildN5Sources(
-							n5,
-							selected,
-							sharedQueue,
-							converterSetups,
-							sourcesAndConverters,
-							options);
+					? N5VSources.buildN5Sources( n5, selected, context, sharedQueue, converterSetups, sourcesAndConverters, options)
+					: buildN5Sources( n5, selected, sharedQueue, converterSetups, sourcesAndConverters, options);
 
 		} catch (final IOException e1) {
 			e1.printStackTrace();

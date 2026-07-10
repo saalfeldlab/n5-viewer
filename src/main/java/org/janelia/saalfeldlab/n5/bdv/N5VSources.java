@@ -6,10 +6,12 @@ import static bdv.BigDataViewer.wrapWithTransformedSource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.bdv.tools.coordinateSystem.CoordinateSystemContext;
 import org.janelia.saalfeldlab.n5.bdv.tools.coordinateSystem.CoordinateSystemSourceTransformer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -34,6 +36,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffScene;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffSceneMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformGraph;
 
 import bdv.BigDataViewer;
@@ -126,55 +129,33 @@ public class N5VSources {
 			final List<SourceAndConverter<T>> sourcesAndConverters,
 			final BdvOptions options ) throws IOException {
 
-		final OmeNgffMetadataParser parser = new OmeNgffMetadataParser(n5);
-		final List<N5Metadata> selectedMetadata = new ArrayList<>();
-		final List<String> selectedPaths = new ArrayList<>();
-		for (final String path : scene.getPaths()) {
-			final String resolvedPath = (basePath == null || basePath.isEmpty()) ? path : basePath + "/" + path;
-			parser.parseMetadata(n5, resolvedPath).ifPresent(m -> {
-				selectedMetadata.add(m);
-				selectedPaths.add(path);
-			});
-		}
-
-		// sources are built in their native transform; the initial alignment is
-		// expressed below as the transformer's first transformTo(...) call
-		final List<List<TransformedSource<?>>> transformedSourcesByMetadata = new ArrayList<>();
-		final int numTimepoints = buildN5Sources(n5, selectedMetadata,
-				transformedSourcesByMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
-
-		// each dataset's local space(s) come from the scene's transforms
-		final List<List<String>> localSpaceNamesByMetadata = new ArrayList<>();
-		for (final String path : selectedPaths)
-			localSpaceNamesByMetadata.add(scene.localSpaceNames(path));
-
-		installTransformer(n5, context, transformedSourcesByMetadata, localSpaceNamesByMetadata);
-
-		return numTimepoints;
+		return buildN5Sources(n5,
+				Collections.singletonList(new NgffSceneMetadata(basePath == null ? "" : basePath, scene)),
+				context, sharedQueue, converterSetups, sourcesAndConverters, options);
 	}
 
 	/**
 	 * Builds sources for the given {@code selectedMetadata}, and installs a
 	 * {@link CoordinateSystemSourceTransformer} on the given {@link CoordinateSystemContext}
 	 * so the sources can later be re-transformed into a different coordinate system.
-	 * The scene-free counterpart of
-	 * {@link #buildN5Sources(N5Reader, NgffScene, String, CoordinateSystemContext, SharedQueue, List, List, BdvOptions)}:
-	 * each {@link OmeNgffMetadata} dataset is transformed out of its own local space
-	 * ({@code coordinateSystems[0]}), routed through the context's graph (built
-	 * from that dataset's own coordinate systems and transforms, see
-	 * {@link CoordinateSystemContext#fromMultiscale(OmeNgffMultiScaleMetadata)}),
-	 * rather than through an {@link NgffScene}. The sources are initially transformed
-	 * into the context's
+	 * The sources are initially transformed into the context's
 	 * {@link CoordinateSystemContext#getSelectedCoordinateSystemName() selected
 	 * coordinate system}.
+	 * <p>
+	 * Any {@link NgffSceneMetadata} entry is expanded into the datasets it
+	 * references (see {@link #plan}), so a scene and a plain multiscale dataset are
+	 * built the same way. They differ only in the local space each source is
+	 * transformed out of, which {@code plan} records: for a scene, the
+	 * path-qualified name the scene relates the dataset by ({@code CBCT/physical});
+	 * otherwise the dataset's own {@code coordinateSystems[0]}
+	 * ({@code physical}).
 	 *
 	 * @param n5
 	 *            the reader
 	 * @param selectedMetadata
 	 *            the metadata for which sources should be built
 	 * @param context
-	 *            the context (built from a multiscale dataset) onto which the
-	 *            transformer is installed
+	 *            the context onto which the transformer is installed
 	 * @param sharedQueue
 	 *            the shared queue
 	 * @param converterSetups
@@ -194,20 +175,88 @@ public class N5VSources {
 			final List<SourceAndConverter<T>> sourcesAndConverters,
 			final BdvOptions options ) throws IOException {
 
+		final BuildPlan plan = plan(n5, selectedMetadata);
+
 		// sources are built in their native transform; the initial alignment is
 		// expressed below as the transformer's first transformTo(...) call
 		final List<List<TransformedSource<?>>> transformedSourcesByMetadata = new ArrayList<>();
-		final int numTimepoints = buildN5Sources(n5, selectedMetadata,
+		final int numTimepoints = buildN5Sources(n5, plan.metadata,
 				transformedSourcesByMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
 
-		// each dataset's local space is its own coordinateSystems[0]
-		final List<List<String>> localSpaceNamesByMetadata = new ArrayList<>();
-		for (final N5Metadata metadata : selectedMetadata)
-			localSpaceNamesByMetadata.add(localSpaceNames(metadata));
-
-		installTransformer(n5, context, transformedSourcesByMetadata, localSpaceNamesByMetadata);
+		installTransformer(n5, context, transformedSourcesByMetadata, plan.localSpaceNames);
 
 		return numTimepoints;
+	}
+
+	/**
+	 * The datasets to build sources for, and -- parallel to them -- the
+	 * coordinate-system name(s) each can be transformed out of.
+	 */
+	private static class BuildPlan {
+
+		final List<N5Metadata> metadata = new ArrayList<>();
+
+		final List<List<String>> localSpaceNames = new ArrayList<>();
+
+		void add(final N5Metadata m, final List<String> names) {
+
+			metadata.add(m);
+			localSpaceNames.add(names);
+		}
+	}
+
+	/**
+	 * Resolves {@code selectedMetadata} into the datasets that sources can actually
+	 * be built from, pairing each with the coordinate-system name(s) it can be
+	 * transformed out of.
+	 * <p>
+	 * An {@link NgffSceneMetadata} is not a dataset -- it names the paths it
+	 * relates -- so it is replaced by the {@link OmeNgffMetadata} parsed at each of
+	 * those paths. The scene's own transforms then supply that dataset's local
+	 * space name, which is path-qualified ({@code CBCT/physical}) to match the
+	 * nodes of the scene's graph. A dataset arriving on its own instead supplies
+	 * its own {@code coordinateSystems[0]}, which is not qualified
+	 * ({@code physical}) -- matching the nodes of the graph built from that
+	 * dataset alone. Getting this pairing wrong leaves every source unable to
+	 * reach the selected coordinate system, and hence reset to identity.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param selectedMetadata
+	 *            the metadata to resolve
+	 * @return the datasets to build, and their local coordinate-system names
+	 */
+	private static BuildPlan plan(final N5Reader n5, final List<N5Metadata> selectedMetadata) {
+
+		final BuildPlan plan = new BuildPlan();
+		OmeNgffMetadataParser parser = null;
+
+		for (final N5Metadata metadata : selectedMetadata) {
+
+			if (!(metadata instanceof NgffSceneMetadata)) {
+				plan.add(metadata, localSpaceNames(metadata));
+				continue;
+			}
+
+			if (parser == null)
+				parser = new OmeNgffMetadataParser(n5);
+
+			final NgffSceneMetadata sceneMetadata = (NgffSceneMetadata)metadata;
+			final NgffScene scene = sceneMetadata.getScene();
+			final String basePath = N5URI.normalizeGroupPath(sceneMetadata.getPath());
+
+			for (final String path : scene.getPaths()) {
+				final String resolvedPath = basePath.isEmpty() ? path : basePath + "/" + path;
+				final Optional<N5Metadata> referenced = parser.parseMetadata(n5, resolvedPath)
+						.map(m -> (N5Metadata)m);
+				if (referenced.isPresent())
+					plan.add(referenced.get(), scene.localSpaceNames(path));
+				else
+					System.err.println("N5VSources: scene at \"" + sceneMetadata.getPath()
+							+ "\" references \"" + path + "\", which has no ome-ngff metadata; skipping it.");
+			}
+		}
+		return plan;
 	}
 
 	/**
@@ -274,7 +323,11 @@ public class N5VSources {
 	}
 
 	/**
-	 * Builds sources for the given list of {@link N5Metadata}.
+	 * Builds sources for the given list of {@link N5Metadata}, without a
+	 * {@link CoordinateSystemContext}, so no coordinate-system card and no
+	 * re-transforming. Any {@link NgffSceneMetadata} entry is still expanded into
+	 * the datasets it references (see {@link #plan}); those sources are simply left
+	 * in their native transforms.
 	 *
 	 * @param n5
 	 *            the reader
@@ -298,7 +351,7 @@ public class N5VSources {
 			final List<SourceAndConverter<T>> sourcesAndConverters,
 			final BdvOptions options ) throws IOException {
 
-		return buildN5Sources(n5, selectedMetadata, (List<List<TransformedSource<?>>>)null,
+		return buildN5Sources(n5, plan(n5, selectedMetadata).metadata, (List<List<TransformedSource<?>>>)null,
 				sharedQueue, converterSetups, sourcesAndConverters, options);
 	}
 
