@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>43.0.0</version>
+		<version>45.1.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -143,9 +143,9 @@
 		<n5-google-cloud.version>6.0.0</n5-google-cloud.version>
 		<n5-hdf5.version>3.0.0</n5-hdf5.version>
 		<n5-ij.version>5.0.1-SNAPSHOT</n5-ij.version>
-		<n5-imglib2.version>8.0.0</n5-imglib2.version>
-		<n5-universe.version>3.1.0-SNAPSHOT</n5-universe.version>
-		<n5-zarr.version>2.0.1</n5-zarr.version>
+		<n5-imglib2.version>8.0.1</n5-imglib2.version>
+		<n5-universe.version>4.0.0-SNAPSHOT</n5-universe.version>
+		<n5-zarr.version>2.0.2</n5-zarr.version>
 		<n5-zstandard.version>2.0.0</n5-zstandard.version>
 
 	</properties>

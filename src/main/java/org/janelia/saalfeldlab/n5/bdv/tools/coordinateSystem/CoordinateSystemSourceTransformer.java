@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.Optional;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.Common;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformGraph;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformPath;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v06.Common;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v06.graph.TransformGraph;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v06.graph.TransformPath;
 
 import bdv.tools.transformation.TransformedSource;
 import net.imglib2.realtransform.AffineTransform3D;
