@@ -37,7 +37,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataPars
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffScene;
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.scene.NgffSceneMetadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformGraph;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v06.graph.TransformGraph;
 
 import bdv.BigDataViewer;
 import bdv.cache.SharedQueue;
