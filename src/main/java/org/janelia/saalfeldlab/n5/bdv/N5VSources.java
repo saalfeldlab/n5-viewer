@@ -71,13 +71,14 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Pair;
-import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 public class N5VSources {
-	
+
+	static final String[] imagePlusAxisOrder = new String[] {"x", "y", "c", "z", "t" };
+
 	public static <T extends NumericType<T> & NativeType<T>, V extends Volatile<T> & NumericType<V>> int buildN5Sources(
 			final N5Reader n5,
 			final DataSelection dataSelection,
@@ -136,19 +137,18 @@ public class N5VSources {
 
 	/**
 	 * Builds sources for the given {@code selectedMetadata}, and installs a
-	 * {@link CoordinateSystemSourceTransformer} on the given {@link CoordinateSystemContext}
-	 * so the sources can later be re-transformed into a different coordinate system.
-	 * The sources are initially transformed into the context's
+	 * {@link CoordinateSystemSourceTransformer} on the given
+	 * {@link CoordinateSystemContext} so the sources can later be
+	 * re-transformed into a different coordinate system. The sources are
+	 * initially transformed into the context's
 	 * {@link CoordinateSystemContext#getSelectedCoordinateSystemName() selected
 	 * coordinate system}.
 	 * <p>
 	 * Any {@link NgffSceneMetadata} entry is expanded into the datasets it
-	 * references (see {@link #plan}), so a scene and a plain multiscale dataset are
-	 * built the same way. They differ only in the local space each source is
-	 * transformed out of, which {@code plan} records: for a scene, the
-	 * path-qualified name the scene relates the dataset by ({@code CBCT/physical});
-	 * otherwise the dataset's own {@code coordinateSystems[0]}
-	 * ({@code physical}).
+	 * references, so a scene and a plain multiscale dataset are built the same
+	 * way. They differ only in the local space each source is transformed out
+	 * of, which records: for a scene, the path-qualified name the scene records
+	 * or the dataset's own {@code coordinateSystems[0]}
 	 *
 	 * @param n5
 	 *            the reader
@@ -159,9 +159,11 @@ public class N5VSources {
 	 * @param sharedQueue
 	 *            the shared queue
 	 * @param converterSetups
-	 *            list of {@link ConverterSetup}s to which sources should be added
+	 *            list of {@link ConverterSetup}s to which sources should be
+	 *            added
 	 * @param sourcesAndConverters
-	 *            list of {@link SourceAndConverter}s to which sources should be added
+	 *            list of {@link SourceAndConverter}s to which sources should be
+	 *            added
 	 * @param options
 	 *            bdv options
 	 * @return the number of timepoints among the built sources
@@ -175,24 +177,24 @@ public class N5VSources {
 			final List<SourceAndConverter<T>> sourcesAndConverters,
 			final BdvOptions options ) throws IOException {
 
-		final BuildPlan plan = plan(n5, selectedMetadata);
+		final ExpandedSelection expanded = expandSelections(n5, selectedMetadata);
 
 		// sources are built in their native transform; the initial alignment is
 		// expressed below as the transformer's first transformTo(...) call
 		final List<List<TransformedSource<?>>> transformedSourcesByMetadata = new ArrayList<>();
-		final int numTimepoints = buildN5Sources(n5, plan.metadata,
+		final int numTimepoints = buildN5Sources(n5, expanded.metadata,
 				transformedSourcesByMetadata, sharedQueue, converterSetups, sourcesAndConverters, options);
 
-		installTransformer(n5, context, transformedSourcesByMetadata, plan.localSpaceNames);
+		installTransformer(n5, context, transformedSourcesByMetadata, expanded.localSpaceNames);
 
 		return numTimepoints;
 	}
 
 	/**
-	 * The datasets to build sources for, and -- parallel to them -- the
+	 * The datasets to build sources for, and the
 	 * coordinate-system name(s) each can be transformed out of.
 	 */
-	private static class BuildPlan {
+	private static class ExpandedSelection {
 
 		final List<N5Metadata> metadata = new ArrayList<>();
 
@@ -206,57 +208,88 @@ public class N5VSources {
 	}
 
 	/**
-	 * Resolves {@code selectedMetadata} into the datasets that sources can actually
-	 * be built from, pairing each with the coordinate-system name(s) it can be
-	 * transformed out of.
-	 * <p>
-	 * An {@link NgffSceneMetadata} is not a dataset -- it names the paths it
-	 * relates -- so it is replaced by the {@link OmeNgffMetadata} parsed at each of
-	 * those paths. The scene's own transforms then supply that dataset's local
-	 * space name, which is path-qualified ({@code CBCT/physical}) to match the
-	 * nodes of the scene's graph. A dataset arriving on its own instead supplies
-	 * its own {@code coordinateSystems[0]}, which is not qualified
-	 * ({@code physical}) -- matching the nodes of the graph built from that
-	 * dataset alone. Getting this pairing wrong leaves every source unable to
-	 * reach the selected coordinate system, and hence reset to identity.
+	 * Applies {@link #expandSelection(N5Reader, N5Metadata, List)} to each selected
+	 * entry, keeping every resulting dataset paired with its local coordinate-system
+	 * name(s).
 	 *
-	 * @param n5
-	 *            the reader
-	 * @param selectedMetadata
-	 *            the metadata to resolve
-	 * @return the datasets to build, and their local coordinate-system names
+	 * @param n5               the reader
+	 * @param selectedMetadata the selected metadata to expand
+	 * @return the datasets to build sources from, and their local coordinate-system names
 	 */
-	private static BuildPlan plan(final N5Reader n5, final List<N5Metadata> selectedMetadata) {
+	private static ExpandedSelection expandSelections(final N5Reader n5, final List<N5Metadata> selectedMetadata) {
 
-		final BuildPlan plan = new BuildPlan();
-		OmeNgffMetadataParser parser = null;
-
+		final ExpandedSelection expandedSelection = new ExpandedSelection();
 		for (final N5Metadata metadata : selectedMetadata) {
 
-			if (!(metadata instanceof NgffSceneMetadata)) {
-				plan.add(metadata, localSpaceNames(metadata));
-				continue;
-			}
-
-			if (parser == null)
-				parser = new OmeNgffMetadataParser(n5);
-
-			final NgffSceneMetadata sceneMetadata = (NgffSceneMetadata)metadata;
-			final NgffScene scene = sceneMetadata.getScene();
-			final String basePath = N5URI.normalizeGroupPath(sceneMetadata.getPath());
-
-			for (final String path : scene.getPaths()) {
-				final String resolvedPath = basePath.isEmpty() ? path : basePath + "/" + path;
-				final Optional<N5Metadata> referenced = parser.parseMetadata(n5, resolvedPath)
-						.map(m -> (N5Metadata)m);
-				if (referenced.isPresent())
-					plan.add(referenced.get(), scene.localSpaceNames(path));
-				else
-					System.err.println("N5VSources: scene at \"" + sceneMetadata.getPath()
-							+ "\" references \"" + path + "\", which has no ome-ngff metadata; skipping it.");
-			}
+			final List<List<String>> localSpaceNames = new ArrayList<>();
+			final List<N5Metadata> expanded = expandSelection(n5, metadata, localSpaceNames);
+			for (int k = 0; k < expanded.size(); ++k)
+				expandedSelection.add(expanded.get(k), localSpaceNames.get(k));
 		}
-		return plan;
+		return expandedSelection;
+	}
+
+	/**
+	 * Expands a selected metadata entry into the datasets that sources can be built
+	 * from.
+	 * <p>
+	 * For example, an {@link NgffSceneMetadata} cannot be opened in isolation, but
+	 * names a set of paths. This method replaces it with the
+	 * {@link OmeNgffMetadata} parsed at each of those paths (resolved against the
+	 * scene's own path). Any other metadata is a dataset already and is returned as
+	 * a single-element list.
+	 * <p>
+	 * Each returned entry's {@link N5Metadata#getPath() path} is a distinct,
+	 * independently-loadable dataset. Scene references that have no OME-ngff
+	 * metadata are logged and skipped.
+	 *
+	 * @param n5       the reader
+	 * @param metadata the selected metadata to expand
+	 * @return the datasets {@code metadata} expands into
+	 */
+	public static List<N5Metadata> expandSelection(final N5Reader n5, final N5Metadata metadata) {
+
+		return expandSelection(n5, metadata, null);
+	}
+
+	/**
+	 * Backs {@link #expandSelection(N5Reader, N5Metadata)} and {@link #expandSelections}. When
+	 * {@code localSpaceNamesOut} is non-null it is filled, parallel to the returned list,
+	 * with the coordinate-system name(s) each expanded dataset can be transformed out of:
+	 * for a scene source, the path-qualified name the scene relates it by
+	 * ({@code CBCT/physical}); for a dataset on its own, its own {@code coordinateSystems[0]}
+	 * ({@code physical}). A name of the wrong form matches no graph node, so its sources
+	 * reset to identity. Callers that only need the datasets pass {@code null}.
+	 */
+	private static List<N5Metadata> expandSelection(final N5Reader n5, final N5Metadata metadata,
+			final List<List<String>> localSpaceNamesOut) {
+
+		final List<N5Metadata> expanded = new ArrayList<>();
+		if (!(metadata instanceof NgffSceneMetadata)) {
+			expanded.add(metadata);
+			if (localSpaceNamesOut != null)
+				localSpaceNamesOut.add(localSpaceNames(metadata));
+			return expanded;
+		}
+
+		final NgffSceneMetadata sceneMetadata = (NgffSceneMetadata)metadata;
+		final NgffScene scene = sceneMetadata.getScene();
+		final String basePath = N5URI.normalizeGroupPath(sceneMetadata.getPath());
+		final OmeNgffMetadataParser parser = new OmeNgffMetadataParser(n5);
+
+		for (final String path : scene.getPaths()) {
+			final String resolvedPath = basePath.isEmpty() ? path : basePath + "/" + path;
+			final Optional<N5Metadata> referenced = parser.parseMetadata(n5, resolvedPath)
+					.map(m -> (N5Metadata)m);
+			if (referenced.isPresent()) {
+				expanded.add(referenced.get());
+				if (localSpaceNamesOut != null)
+					localSpaceNamesOut.add(scene.localSpaceNames(path));
+			} else
+				System.err.println("N5VSources: scene at \"" + sceneMetadata.getPath()
+						+ "\" references \"" + path + "\", which has no ome-ngff metadata; skipping it.");
+		}
+		return expanded;
 	}
 
 	/**
@@ -326,7 +359,7 @@ public class N5VSources {
 	 * Builds sources for the given list of {@link N5Metadata}, without a
 	 * {@link CoordinateSystemContext}, so no coordinate-system card and no
 	 * re-transforming. Any {@link NgffSceneMetadata} entry is still expanded into
-	 * the datasets it references (see {@link #plan}); those sources are simply left
+	 * the datasets it references (see {@link #expandSelections}); those sources are simply left
 	 * in their native transforms.
 	 *
 	 * @param n5
@@ -351,7 +384,7 @@ public class N5VSources {
 			final List<SourceAndConverter<T>> sourcesAndConverters,
 			final BdvOptions options ) throws IOException {
 
-		return buildN5Sources(n5, plan(n5, selectedMetadata).metadata, (List<List<TransformedSource<?>>>)null,
+		return buildN5Sources(n5, expandSelections(n5, selectedMetadata).metadata, (List<List<TransformedSource<?>>>)null,
 				sharedQueue, converterSetups, sourcesAndConverters, options);
 	}
 
@@ -395,63 +428,18 @@ public class N5VSources {
 			AffineTransform3D[] transforms = null;
 
 			final N5Metadata metadata = selectedMetadata.get(i);
-			String srcName = metadata.getName();
-			if( srcName == null || srcName.isEmpty()) {
-				srcName = n5.getURI().toString().replaceFirst("/$", "").replaceFirst(".*/", "");
-			}
+			final String srcName = sourceBaseName(n5, metadata);
 
-			// TODO: simplify this if/elseif block: much of these ifwall cases can be combined
-			if (metadata instanceof N5SingleScaleMetadata) {
-				final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata)metadata;
-				final String[] tmpDatasets = new String[]{singleScaleDataset.getPath()};
-				final AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{
-						singleScaleDataset.spatialTransform3d()};
-
-				final MultiscaleDatasets msd = MultiscaleDatasets.sort(tmpDatasets, tmpTransforms);
-				datasetsToOpen = msd.getPaths();
-				transforms = msd.getTransforms();
-			} else if (metadata instanceof N5MultiScaleMetadata) {
-				final N5MultiScaleMetadata multiScaleDataset = (N5MultiScaleMetadata)metadata;
-				datasetsToOpen = multiScaleDataset.getPaths();
-				transforms = multiScaleDataset.spatialTransforms3d();
-			} else if (metadata instanceof N5CosemMetadata) {
-				final N5CosemMetadata singleScaleCosemDataset = (N5CosemMetadata)metadata;
-				datasetsToOpen = new String[]{singleScaleCosemDataset.getPath()};
-				transforms = new AffineTransform3D[]{singleScaleCosemDataset.spatialTransform3d()};
-			} else if (metadata instanceof CanonicalSpatialMetadata) {
-				final CanonicalSpatialMetadata canonicalDataset = (CanonicalSpatialMetadata)metadata;
-				datasetsToOpen = new String[]{canonicalDataset.getPath()};
-				transforms = new AffineTransform3D[]{canonicalDataset.getSpatialTransform().spatialTransform3d()};
-			} else if (metadata instanceof OmeNgffMetadata) {
-				final OmeNgffMetadata multiScaleDataset = (OmeNgffMetadata)metadata;
-				final MultiscaleDatasets msd = MultiscaleDatasets
-						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
-				datasetsToOpen = msd.getPaths();
-				transforms = msd.getTransforms();
-			} else if (metadata instanceof N5CosemMultiScaleMetadata) {
-				final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata)metadata;
-				final MultiscaleDatasets msd = MultiscaleDatasets
-						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
-				datasetsToOpen = msd.getPaths();
-				transforms = msd.getTransforms();
-			} else if (metadata instanceof CanonicalMultiscaleMetadata) {
-				final CanonicalMultiscaleMetadata multiScaleDataset = (CanonicalMultiscaleMetadata)metadata;
-				final MultiscaleDatasets msd = MultiscaleDatasets
-						.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
-				datasetsToOpen = msd.getPaths();
-				transforms = msd.getTransforms();
-			} else if (metadata instanceof SpatialMetadata) {
-
-				datasetsToOpen = new String[]{metadata.getPath()};
-				transforms = new AffineTransform3D[]{ ((SpatialMetadata)metadata).spatialTransform3d() };
-			} else if (metadata instanceof N5DatasetMetadata) {
+			final DatasetsAndTransforms dt = datasetsAndTransforms(metadata);
+			if (dt != null) {
+				datasetsToOpen = dt.datasets;
+				transforms = dt.transforms;
+			} else {
+				// non-spatial dataset metadata is shown via MetadataSources instead
 				final List<MetadataSource<?>> addTheseSources = MetadataSource
 						.buildMetadataSources(n5, (N5DatasetMetadata)metadata);
 				if (addTheseSources != null)
 					additionalSources.addAll(addTheseSources);
-			} else {
-				datasetsToOpen = new String[]{metadata.getPath()};
-				transforms = new AffineTransform3D[]{new AffineTransform3D()};
 			}
 
 			if (datasetsToOpen == null || datasetsToOpen.length == 0) {
@@ -466,53 +454,14 @@ public class N5VSources {
 			String unit = "pixel";
 			for (int s = 0; s < images.length; ++s) {
 
-				@SuppressWarnings("unchecked")
-				final RandomAccessibleInterval<T> img = (RandomAccessibleInterval<T>)loadImage(n5, datasetsToOpen[s]);
+				final RandomAccessibleInterval<?> img = loadImage(n5, datasetsToOpen[s]);
 
-				final RandomAccessibleInterval< ? > imagejImg;
-				if (metadata instanceof AxisMetadata)
-				{
-					imagejImg = AxisUtils.permuteForImagePlus(img, (M)metadata);
-					unit = unitFromAxes(((AxisMetadata)metadata).getAxes());
-				}
-				else if( metadata instanceof N5SingleScaleMetadata )
-				{
-					final DefaultAxisMetadata axes = AxisUtils.defaultN5ViewerAxes( (N5SingleScaleMetadata)metadata );
-					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
-					unit = ((N5SingleScaleMetadata)metadata).unit();
-				}
-				else if( isN5ViewerMultiscale(metadata))
-				{
-					final DefaultAxisMetadata axes = AxisUtils.defaultN5ViewerAxes( (N5SingleScaleMetadata)(((N5MultiScaleMetadata)metadata).getChildrenMetadata()[0]) );
-					imagejImg = AxisUtils.permuteForImagePlus( img, axes );
-					unit = unitFromAxes(axes.getAxes());
-				}
-				else if( isCosemMultiscale(metadata))
-				{
-					final N5CosemMultiScaleMetadata cosemMulti = ((N5CosemMultiScaleMetadata)metadata);
-					final N5CosemMetadata cosemMeta = cosemMulti.getChildrenMetadata()[0];
-					imagejImg = permuteForImagePlus(img, transforms[s], cosemMeta);
-					unit = cosemMeta.unit();
-				}
-				else
-				{
-					final NgffSingleScaleAxesMetadata ngffMeta = isNgffMultiscale(metadata);
-					if( ngffMeta != null ) {
-						imagejImg = permuteForImagePlus(img, transforms[s], ngffMeta);
-						unit = ngffMeta.unit();
-					}
-					else
-					{
-						RandomAccessibleInterval< ? > imgTmp = img;
-						while( imgTmp.numDimensions() < 5 )
-							imgTmp = Views.addDimension(imgTmp, 0, 0 );
-						imagejImg = imgTmp;
-					}
-				}
-				images[s] = imagejImg;
+				final CanonicalImage canonical = permuteToCanonical(img, transforms[s], metadata);
+				images[s] = canonical.img;
+				unit = canonical.unit;
 
-				is2D &= imagejImg.dimension(3) == 1;
-				numTimepoints = (int)Math.max(numTimepoints, imagejImg.dimension(4));
+				is2D &= canonical.img.dimension(3) == 1;
+				numTimepoints = (int)Math.max(numTimepoints, canonical.img.dimension(4));
 			}
 
 			// TODO: Ideally, the volatile views should use a caching strategy
@@ -530,8 +479,7 @@ public class N5VSources {
 //				vimages[s] = VolatileViews.wrapAsVolatile(images[s], sharedQueue, cacheHints);
 //			}
 
-			@SuppressWarnings("unchecked")
-			final T type = (T)Util.getTypeFromInterval(images[0]);
+			final T type = (T)images[0].getType();
 
 			// this could / should be generalized
 			final double rx = transforms[0].get(0, 0);
@@ -539,7 +487,6 @@ public class N5VSources {
 			final double rz = transforms[0].get(2, 2);
 
 			/* there still can be many channels */
-			@SuppressWarnings("unchecked")
 			final List<Pair<Source<T>, Source<V>>> sourcePairs = createSource(
 					type,
 					srcName,
@@ -565,7 +512,7 @@ public class N5VSources {
 			}
 		}
 
-		for (final MetadataSource src : additionalSources) {
+		for (@SuppressWarnings("rawtypes") final MetadataSource src : additionalSources) {
 			if (src.numTimePoints() > numTimepoints)
 				numTimepoints = src.numTimePoints();
 
@@ -582,6 +529,7 @@ public class N5VSources {
 	/*
 	 * If the image is of type {@link LabelMultisetType} to {@link UnsignedLongType}.
 	 */
+	@SuppressWarnings("unchecked")
 	private static <T extends NumericType<T> & NativeType<T>> RandomAccessibleInterval<?> loadImage(
 			final N5Reader n5, final String dataset) {
 
@@ -591,19 +539,11 @@ public class N5VSources {
 
 			final CachedCellImg<LabelMultisetType, ?> lmsImg = (CachedCellImg<LabelMultisetType, ?>)img;
 			return convertLabelMultisetCache(lmsImg);
-
-			// TODO compare to the below
-//			return (CachedCellImg<T, ?>)convertLabelMultisetLazy(
-//					(CachedCellImg<LabelMultisetType, ?>)img);
-
-//			return (RandomAccessibleInterval<T>)convertLabelMultisetVolatile(
-//					(CachedCellImg<LabelMultisetType, ?>)img);
 		}
 
 		return (RandomAccessibleInterval<T>)img;
 	}
 
-	
 	@SuppressWarnings("unchecked")
 	private static <T extends NumericType<T> & NativeType<T>, V extends NumericType<V> & NativeType<V>> List<Pair<Source<T>, Source<V>>> createSource(
 			final T type,
@@ -622,7 +562,7 @@ public class N5VSources {
 			for (int level = 0; level < images.length; ++level)
 				channels[level] = Views.hyperSlice(images[level], 2, c);
 
-			final String channelName = nChannels > 1 ? srcName + "_ch" + c : srcName;
+			final String channelName = channelSourceName(srcName, c, nChannels);
 			final RandomAccessibleIntervalMipmapSource4D<T> source = new RandomAccessibleIntervalMipmapSource4D<>(
 					channels, type, transforms, vd, channelName, true);
 
@@ -633,6 +573,230 @@ public class N5VSources {
 			sourcePairs.add(pair);
 		}
 		return sourcePairs;
+	}
+
+	/**
+	 * Returns the names of the sources that {@link #buildN5Sources} would create for
+	 * {@code metadata}, in order. 
+	 * <p>
+	 * A single metadata entry can map to several sources through:
+	 * <ul>
+	 * <li>a metadata group (e.g. multichannel) expands to one entry per
+	 * child</li>
+	 * <li>a single dataset with a channel axis of length {@code N} expands to
+	 * {@code N} channel sources.</li>
+	 * </ul>
+	 * Because both this method and the build share the same helpers
+	 * ({@link #datasetsAndTransforms}, {@link #permuteToCanonical},
+	 * {@link #sourceBaseName}, {@link #channelSourceName}), the names and their count
+	 * always match what actually gets built.
+	 * <p>
+	 * Determining the channel count opens the finest-scale image lazily,
+	 * it reads array metadata but no pixel data.
+	 *
+	 * @param n5
+	 *            the reader
+	 * @param metadata
+	 *            the metadata to inspect
+	 * @return the ordered source names this metadata would produce; or empty
+	 */
+	public static List<String> sourceNamesFor(final N5Reader n5, final N5Metadata metadata) {
+
+		final List<String> names = new ArrayList<>();
+		for (final N5Metadata leaf : N5Viewer.unwrapMultichannelSelections(
+				new DataSelection(n5, Collections.singletonList(metadata))))
+			leafSourceNames(n5, leaf, names);
+		return names;
+	}
+
+	/**
+	 * Appends the source names that a single (already group-unwrapped) metadata entry
+	 * would produce. Mirrors the per-entry logic in {@link #buildN5Sources}.
+	 */
+	private static void leafSourceNames(final N5Reader n5, final N5Metadata metadata, final List<String> names) {
+
+		final DatasetsAndTransforms dt = datasetsAndTransforms(metadata);
+		if (dt == null) {
+			// non-spatial dataset metadata → one MetadataSource per built source (no channel split)
+			final List<MetadataSource<?>> built = MetadataSource.buildMetadataSources(n5, (N5DatasetMetadata)metadata);
+			if (built != null)
+				for (final MetadataSource<?> src : built)
+					names.add(src.getName());
+			return;
+		}
+
+		final String base = sourceBaseName(n5, metadata);
+		final long nChannels = channelCount(n5, metadata, dt);
+		for (long c = 0; c < nChannels; ++c)
+			names.add(channelSourceName(base, c, nChannels));
+	}
+
+	/**
+	 * The number of channel sources a single dataset expands into: the length of the
+	 * channel axis after permuting the finest-scale image to the canonical XYCZT order
+	 * (dimension 2), exactly as {@link #createSource} slices it.
+	 */
+	private static long channelCount(final N5Reader n5, final N5Metadata metadata, final DatasetsAndTransforms dt) {
+
+		final RandomAccessibleInterval<?> img = loadImage(n5, dt.datasets[0]);
+		// the transform is permuted in place for some metadata types; pass a throwaway
+		return permuteToCanonical(img, new AffineTransform3D(), metadata).img.dimension(2);
+	}
+
+	/**
+	 * The base source name for {@code metadata}: its {@link N5Metadata#getName() name},
+	 * or the container's leaf name when the metadata has none.
+	 */
+	private static String sourceBaseName(final N5Reader n5, final N5Metadata metadata) {
+
+		String srcName = metadata.getName();
+		if (srcName == null || srcName.isEmpty())
+			srcName = n5.getURI().toString().replaceFirst("/$", "").replaceFirst(".*/", "");
+		return srcName;
+	}
+
+	/**
+	 * The name of channel {@code channel} of a source with base name {@code baseName};
+	 * single-channel sources keep the base name, multi-channel sources get a
+	 * {@code _ch<channel>} suffix.
+	 */
+	static String channelSourceName(final String baseName, final long channel, final long nChannels) {
+
+		return nChannels > 1 ? baseName + "_ch" + channel : baseName;
+	}
+
+	/** The finest-scale dataset paths and their pixel-to-physical transforms for a metadata entry. */
+	private static class DatasetsAndTransforms {
+
+		final String[] datasets;
+		final AffineTransform3D[] transforms;
+
+		DatasetsAndTransforms(final String[] datasets, final AffineTransform3D[] transforms) {
+			this.datasets = datasets;
+			this.transforms = transforms;
+		}
+	}
+
+	/** A canonically-ordered (XYCZT) image and the physical unit derived alongside it. */
+	private static class CanonicalImage {
+
+		final RandomAccessibleInterval<?> img;
+		final String unit;
+
+		CanonicalImage(final RandomAccessibleInterval<?> img, final String unit) {
+			this.img = img;
+			this.unit = unit;
+		}
+	}
+
+	/**
+	 * Resolves the datasets to open and their transforms for a metadata entry, mirroring
+	 * the metadata-type dispatch in {@link #buildN5Sources}. Returns {@code null} for
+	 * non-spatial {@link N5DatasetMetadata}, which the build shows via
+	 * {@link MetadataSource}s instead.
+	 */
+	private static DatasetsAndTransforms datasetsAndTransforms(final N5Metadata metadata) {
+
+		if (metadata instanceof N5SingleScaleMetadata) {
+			final N5SingleScaleMetadata singleScaleDataset = (N5SingleScaleMetadata)metadata;
+			final String[] tmpDatasets = new String[]{singleScaleDataset.getPath()};
+			final AffineTransform3D[] tmpTransforms = new AffineTransform3D[]{
+					singleScaleDataset.spatialTransform3d()};
+
+			final MultiscaleDatasets msd = MultiscaleDatasets.sort(tmpDatasets, tmpTransforms);
+			return new DatasetsAndTransforms(msd.getPaths(), msd.getTransforms());
+		} else if (metadata instanceof N5MultiScaleMetadata) {
+			final N5MultiScaleMetadata multiScaleDataset = (N5MultiScaleMetadata)metadata;
+			return new DatasetsAndTransforms(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
+		} else if (metadata instanceof N5CosemMetadata) {
+			final N5CosemMetadata singleScaleCosemDataset = (N5CosemMetadata)metadata;
+			return new DatasetsAndTransforms(new String[]{singleScaleCosemDataset.getPath()},
+					new AffineTransform3D[]{singleScaleCosemDataset.spatialTransform3d()});
+		} else if (metadata instanceof CanonicalSpatialMetadata) {
+			final CanonicalSpatialMetadata canonicalDataset = (CanonicalSpatialMetadata)metadata;
+			return new DatasetsAndTransforms(new String[]{canonicalDataset.getPath()},
+					new AffineTransform3D[]{canonicalDataset.getSpatialTransform().spatialTransform3d()});
+		} else if (metadata instanceof OmeNgffMetadata) {
+			final OmeNgffMetadata multiScaleDataset = (OmeNgffMetadata)metadata;
+			final MultiscaleDatasets msd = MultiscaleDatasets
+					.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
+			return new DatasetsAndTransforms(msd.getPaths(), msd.getTransforms());
+		} else if (metadata instanceof N5CosemMultiScaleMetadata) {
+			final N5CosemMultiScaleMetadata multiScaleDataset = (N5CosemMultiScaleMetadata)metadata;
+			final MultiscaleDatasets msd = MultiscaleDatasets
+					.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
+			return new DatasetsAndTransforms(msd.getPaths(), msd.getTransforms());
+		} else if (metadata instanceof CanonicalMultiscaleMetadata) {
+			final CanonicalMultiscaleMetadata multiScaleDataset = (CanonicalMultiscaleMetadata)metadata;
+			final MultiscaleDatasets msd = MultiscaleDatasets
+					.sort(multiScaleDataset.getPaths(), multiScaleDataset.spatialTransforms3d());
+			return new DatasetsAndTransforms(msd.getPaths(), msd.getTransforms());
+		} else if (metadata instanceof SpatialMetadata) {
+			return new DatasetsAndTransforms(new String[]{metadata.getPath()},
+					new AffineTransform3D[]{ ((SpatialMetadata)metadata).spatialTransform3d() });
+		} else if (metadata instanceof N5DatasetMetadata) {
+			return null;
+		} else {
+			return new DatasetsAndTransforms(new String[]{metadata.getPath()},
+					new AffineTransform3D[]{new AffineTransform3D()});
+		}
+	}
+
+	/**
+	 * Permutes {@code img} into the canonical XYCZT dimension order, choosing
+	 * the axis interpretation from {@code metadata} exactly as
+	 * {@link #buildN5Sources} does, and returns it together with the physical
+	 * unit. For COSEM/NGFF metadata {@code transform} is permuted in place to
+	 * match.
+	 */
+	@SuppressWarnings("unchecked")
+	private static <A extends AxisMetadata & N5Metadata> CanonicalImage permuteToCanonical(
+			final RandomAccessibleInterval<?> img,
+			final AffineTransform3D transform,
+			final N5Metadata metadata) {
+
+		final RandomAccessibleInterval<?> imagejImg;
+		String unit = "pixel";
+		if (metadata instanceof AxisMetadata)
+		{
+			imagejImg = AxisUtils.permute(img, (A)metadata, imagePlusAxisOrder);
+			unit = unitFromAxes(((AxisMetadata)metadata).getAxes());
+		}
+		else if( metadata instanceof N5SingleScaleMetadata )
+		{
+			final DefaultAxisMetadata axes = AxisUtils.defaultN5ViewerAxes( (N5SingleScaleMetadata)metadata );
+			imagejImg = AxisUtils.permute( img, axes, imagePlusAxisOrder );
+			unit = ((N5SingleScaleMetadata)metadata).unit();
+		}
+		else if( isN5ViewerMultiscale(metadata))
+		{
+			final DefaultAxisMetadata axes = AxisUtils.defaultN5ViewerAxes( (N5SingleScaleMetadata)(((N5MultiScaleMetadata)metadata).getChildrenMetadata()[0]) );
+			imagejImg = AxisUtils.permute( img, axes, imagePlusAxisOrder );
+			unit = unitFromAxes(axes.getAxes());
+		}
+		else if( isCosemMultiscale(metadata))
+		{
+			final N5CosemMultiScaleMetadata cosemMulti = ((N5CosemMultiScaleMetadata)metadata);
+			final N5CosemMetadata cosemMeta = cosemMulti.getChildrenMetadata()[0];
+			imagejImg = permuteForImagePlus(img, transform, cosemMeta);
+			unit = cosemMeta.unit();
+		}
+		else
+		{
+			final NgffSingleScaleAxesMetadata ngffMeta = isNgffMultiscale(metadata);
+			if( ngffMeta != null ) {
+				imagejImg = permuteForImagePlus(img, transform, ngffMeta);
+				unit = ngffMeta.unit();
+			}
+			else
+			{
+				RandomAccessibleInterval< ? > imgTmp = img;
+				while( imgTmp.numDimensions() < 5 )
+					imgTmp = Views.addDimension(imgTmp, 0, 0 );
+				imagejImg = imgTmp;
+			}
+		}
+		return new CanonicalImage(imagejImg, unit);
 	}
 
 	private static String unitFromAxes(Axis[] axes) {
@@ -811,7 +975,7 @@ public class N5VSources {
 			AffineTransform3D transform,
 			final A meta) {
 
-		final int[] p = AxisUtils.findImagePlusPermutation(meta);
+		final int[] p = AxisUtils.findPermutationByName(meta, imagePlusAxisOrder);
 		AxisUtils.fillPermutation(p);
 
 		RandomAccessibleInterval<T> imgTmp = img;
