@@ -52,6 +52,8 @@ public class BdvMetadataIoTests {
 
 	private File baseDir;
 
+	static final String[] imagePlusAxisOrder = new String[] {"x", "y", "c", "z", "t" };
+
 	@Before
 	public void before() {
 
@@ -203,7 +205,7 @@ public class BdvMetadataIoTests {
 			return false;
 		}
 
-		final RandomAccessibleInterval<T> img = AxisUtils.permuteForImagePlus(imgRaw, meta);
+		final RandomAccessibleInterval<T> img = AxisUtils.permute(imgRaw, meta, imagePlusAxisOrder);
 
 		final int nc = gt.getNChannels();
 		final int nt = gt.getNFrames();
