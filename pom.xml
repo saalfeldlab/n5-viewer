@@ -128,7 +128,7 @@
 		<license.skipUpdateLicense>true</license.skipUpdateLicense>
 		<license.skipUpdateProjectLicense>true</license.skipUpdateProjectLicense>
 
-		<scijava.jvm.version>8</scijava.jvm.version>
+		<scijava.jvm.version>11</scijava.jvm.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
