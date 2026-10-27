@@ -102,14 +102,14 @@ public class N5SourceFromMetadataTest {
 		final int nt3 = 1;
 
 		final String xlationBase = "include \"n5\";\n"
-				+ "def genAxes( $lbls; $unit ): axesFromLabels( $lbls ;\"mm\") | "
+				+ "def genAxes( $lbls; $unit ): axesFromLabels( $lbls ; $unit ) | "
 				+ "map(. += {\"name\":.label} | del(.label));\n"
 				+ "\n"
 				+ "def setMeta: identityAsFlatAffine(6) as $id | \n"
 				+ " . + arrayUnitAxisToTransform( $id;\n"
 				+ "	     \"mm\"; \n"
 				+ "	     genAxes( %s ;\"mm\"));\n"
-				+ "addPaths | getSubTree(\"%s\") |= (.attributes |= setMeta)";
+				+ "addPaths | getSubTree(\"%s\") |= setAttrs(setMeta)";
 
 		checkTranslatedSizes(String.format(xlationBase, axisOrder1, dataset), dataset, nt1, sz1, "1");
 		checkTranslatedSizes(String.format(xlationBase, axisOrder2, dataset), dataset, nt2, sz2, "2");

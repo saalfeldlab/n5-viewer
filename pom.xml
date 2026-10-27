@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>43.0.0</version>
+		<version>44.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -128,8 +128,6 @@
 		<license.skipUpdateLicense>true</license.skipUpdateLicense>
 		<license.skipUpdateProjectLicense>true</license.skipUpdateProjectLicense>
 
-		<scijava.jvm.version>8</scijava.jvm.version>
-
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 
@@ -138,15 +136,15 @@
 		<bigdataviewer-core.version>10.6.1</bigdataviewer-core.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-36</bigdataviewer-vistools.version>
 
-		<n5.version>4.0.0</n5.version>
-		<n5-aws-s3.version>5.0.0</n5-aws-s3.version>
+		<n5.version>4.0.3-SNAPSHOT</n5.version>
+		<n5-aws-s3.version>5.1.1-SNAPSHOT</n5-aws-s3.version>
 		<n5-blosc.version>2.0.0</n5-blosc.version>
-		<n5-google-cloud.version>6.0.0</n5-google-cloud.version>
-		<n5-hdf5.version>3.0.0</n5-hdf5.version>
-		<n5-ij.version>5.0.0</n5-ij.version>
+		<n5-google-cloud.version>6.0.2-SNAPSHOT</n5-google-cloud.version>
+		<n5-hdf5.version>3.0.1-SNAPSHOT</n5-hdf5.version>
+		<n5-ij.version>5.0.1-SNAPSHOT</n5-ij.version>
 		<n5-imglib2.version>8.0.0</n5-imglib2.version>
-		<n5-universe.version>3.0.0</n5-universe.version>
-		<n5-zarr.version>2.0.0</n5-zarr.version>
+		<n5-universe.version>3.1.1-SNAPSHOT</n5-universe.version>
+		<n5-zarr.version>2.0.2-SNAPSHOT</n5-zarr.version>
 		<n5-zstandard.version>2.0.0</n5-zstandard.version>
 
 	</properties>
