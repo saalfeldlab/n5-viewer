@@ -39,12 +39,17 @@ public class N5ViewerTreeCellRenderer extends N5DatasetTreeCellRenderer {
 			final N5Metadata meta = node.getMetadata();
 			if (meta != null) {
 				final String memStr = memString(node);
-				final String memSizeString = memStr.isEmpty() ? "" : " (" + memStr + ")";
 				final String name = node.getParent() == null ? rootName : node.getNodeName();
 
+				String memSizeString = memStr.isEmpty() ? "" : " (" + memStr + ")";
+				String paramString = getParameterString(node);
+
 				final String multiscaleString;
-				if (meta instanceof MultiscaleMetadata)
+				if (meta instanceof MultiscaleMetadata) {
 					multiscaleString = "multiscale";
+					memSizeString = "";
+					paramString = "";
+				}
 				else
 					multiscaleString = "";
 
@@ -68,7 +73,7 @@ public class N5ViewerTreeCellRenderer extends N5DatasetTreeCellRenderer {
 												"<html>",
 												String.format(nameFormat, name),
 												" (",
-												getParameterString(node),
+												paramString,
 												multiChannelString,
 												multiscaleString,
 												sceneString,
